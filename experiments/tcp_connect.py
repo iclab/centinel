@@ -6,9 +6,7 @@ def tcp_connect(host, port):
         s.connect((host, port))
         s.close()
     except socket.error as msg:
-        return  False, msg
-
-    return True
+        return msg
 
 class TCPConnectExperiment():
     def process_input(self, input):
@@ -20,4 +18,6 @@ class TCPConnectExperiment():
             raise Exception
 
         for (host, port) in self.process_input(input):
-            return tcp_connect(host, int(port))
+            err = tcp_connect(host, int(port))
+
+            if err: return err
