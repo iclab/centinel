@@ -1,6 +1,6 @@
 import socket
 
-class TCPConnectExperiment():
+class TCPConnectExperiment:
     def __init__(self, input=None):
         if not input:
             raise Exception
