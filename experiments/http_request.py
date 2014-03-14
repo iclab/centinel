@@ -7,14 +7,14 @@ class HTTPRequestExperiment:
 
         self.input = input
         self.host = None
-        self.path = None
+        self.path = "/"
 
     def process_input(self):
         for line in self.input:
-            yield line.split('/', 1)
+            yield line.strip()
 
     def run(self):
-        for (self.host, self.path) in self.process_input():
+        for self.host in self.process_input():
             err = self.http_request()
 
             if err: return err
@@ -27,6 +27,6 @@ class HTTPRequestExperiment:
             conn.close()
 
             print response.status, response.reason
-        except:
-            # return exception
-            return 
+        except Exception, err:
+            return err
+            
