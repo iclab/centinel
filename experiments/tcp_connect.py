@@ -1,8 +1,10 @@
 import socket
 
-class TCPConnectExperiment():
+class TCPConnectExperiment:
+    name = "tcp_connect"
+
     def __init__(self, input_file=None, result_file=None):
-        if not input:
+        if not input_file:
             raise Exception
 
         self.input_file = input_file
@@ -26,7 +28,7 @@ class TCPConnectExperiment():
             s.connect((self.host, int(self.port)))
             s.close()
             msg = True
-        except Exception as e:
-            msg = e.strerror
+        except Exception as err:
+            msg = err.strerror
 
         self.result = "%s:%s %s" % (self.host, self.port, msg)

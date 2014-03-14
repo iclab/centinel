@@ -1,30 +1,36 @@
 import os
 
 from datetime import datetime
-
-import experiments.tcp_connect
-import experiments.http_request
+from experiments import *
 
 RESULTS_DIR = "results"
+DATA_DIR    = "data"
+EXPERIMENTS = [
+    tcp_connect.TCPConnectExperiment,
+    http_request.HTTPRequestExperiment
+]
+
+def create_result_file(experiment_name):
+    result_file = "%s%s.txt" % (datetime.now().isoformat(), experiment_name)
+    return os.path.join(RESULTS_DIR, result_file)
+
+def create_input_file(experiment_name):
+    input_file = "%s.txt" % (experiment_name)
+    return os.path.join(DATA_DIR, input_file)
 
 def run():
-    experiments = [
-        experiments.tcp_connect,
-        experiments.http_request
-    ]
-
-    for exp in experiments:
-        result_file = "%s%s.txt" % (datetime.now().isoformat(), exp.name)
-        result_file = os.path.join(RESULTS_DIR, result_file)
+    for exp in EXPERIMENTS:
+        result_file = create_result_file(exp.name)
         result_file = open(result_file, "w")
 
-        with open("data/tcp_connect.txt") as in_fh:
-            exp = experiments.tcp_connect.TCPConnectExperiment(in_fh, result_file)
-            print exp.run()
+        input_file = create_input_file(exp.name)
+        input_file = open(input_file)
 
-    with open("data/http_request.txt") as fh:
-        exp = experiments.http_request.HTTPRequestExperiment(fh)
-        print exp.run()
+        exp = exp(input_file, result_file)
+        exp.run()
+
+        result_file.close()
+        input_file.close()
 
 if __name__ == "__main__":
     run()
