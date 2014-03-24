@@ -11,12 +11,9 @@ class HTTPRequestExperiment:
         self.host = None
         self.path = "/"
 
-    def process_input(self):
-        for line in self.input_file:
-            yield line.strip()
-
     def run(self):
-        for self.host in self.process_input():
+        for line in self.input_file:
+            self.host = line.strip()
             self.http_request()
 
         json.dump(self.results, self.result_file)

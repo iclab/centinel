@@ -11,12 +11,9 @@ class TCPConnectExperiment:
         self.host = None
         self.port = None
 
-    def process_input(self):
-        for line in self.input_file:
-            yield line.strip().split(' ')
-
     def run(self):
-        for (self.host, self.port) in self.process_input():
+        for line in self.input_file:
+            self.host, self.port = line.strip().split(' ')
             self.tcp_connect()
 
         json.dump(self.results, self.result_file)
