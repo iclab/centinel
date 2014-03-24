@@ -1,12 +1,10 @@
+import json
 import httplib
 
 class HTTPRequestExperiment:
     name = "http_request"
 
     def __init__(self, input_file=None, result_file=None):
-        if not input_file:
-            raise Exception
-
         self.input_file = input_file
         self.result_file = result_file
         self.host = None
@@ -19,17 +17,33 @@ class HTTPRequestExperiment:
     def run(self):
         for self.host in self.process_input():
             self.http_request()
-            self.result_file.write(self.result)
+            json.dump(self.result, self.result_file)
 
     def http_request(self):
+        self.result = {}
+        
         try:
             conn = httplib.HTTPConnection(self.host)
             conn.request("GET", self.path)
+
             response = conn.getresponse()
+            body     = response.read()
+            headers  = response.getheaders()
+
             conn.close()
 
-            msg = "%s %s" % (response.status, response.reason)
-        except Exception as err:
-            msg = err.strerror
+            self.result = {
+                "http_version" : response.version,
+                "body"         : body,
+                "headers"      : dict(headers),
+                "status"       : response.status,
+                "reason"       : response.reason,
+            }
 
-        self.result = "%s %s %s" % (self.host, self.path, msg)
+        except Exception as err:
+            self.result = {
+                "failure" : str(err)
+            }
+
+        self.result["host"] = self.host
+        self.result["path"] = self.path
