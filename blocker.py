@@ -11,7 +11,7 @@ EXPERIMENTS = [
 ]
 
 def create_result_file(experiment_name):
-    result_file = "%s%s.txt" % (datetime.now().isoformat(), experiment_name)
+    result_file = "%s-%s.txt" % (datetime.now().isoformat(), experiment_name)
     return os.path.join(RESULTS_DIR, result_file)
 
 def create_input_file(experiment_name):
