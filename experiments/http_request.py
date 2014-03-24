@@ -20,8 +20,9 @@ class HTTPRequestExperiment:
 
     def http_request(self):
         request  = {
-            "host" : self.host,
-            "path" : self.path
+            "host"  : self.host,
+            "path"  : self.path,
+            "method": "GET"
         }
 
         response = {}
@@ -34,7 +35,7 @@ class HTTPRequestExperiment:
             response["status"] = resp.status
             response["reason"] = resp.reason
 
-            headers = resp.getheaders()
+            headers = dict(resp.getheaders())
             response["headers"] = headers
 
             body = resp.read()
