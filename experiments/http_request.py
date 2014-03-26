@@ -1,12 +1,10 @@
-import json
 import httplib
 
 class HTTPRequestExperiment:
     name = "http_request"
 
-    def __init__(self, input_file, result_file):
+    def __init__(self, input_file):
         self.input_file  = input_file
-        self.result_file = result_file
         self.results = []
         self.host = None
         self.path = "/"
@@ -15,8 +13,6 @@ class HTTPRequestExperiment:
         for line in self.input_file:
             self.host = line.strip()
             self.http_request()
-
-        json.dump(self.results, self.result_file)
 
     def http_request(self):
         request  = {

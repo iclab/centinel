@@ -1,12 +1,10 @@
 import socket
-import json
 
 class TCPConnectExperiment:
     name = "tcp_connect"
 
-    def __init__(self, input_file, result_file):
+    def __init__(self, input_file):
         self.input_file = input_file
-        self.result_file = result_file
         self.results = []
         self.host = None
         self.port = None
@@ -15,8 +13,6 @@ class TCPConnectExperiment:
         for line in self.input_file:
             self.host, self.port = line.strip().split(' ')
             self.tcp_connect()
-
-        json.dump(self.results, self.result_file)
 
     def tcp_connect(self):
         result = {
