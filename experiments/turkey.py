@@ -16,13 +16,19 @@ class TurkeyExperiment:
         ips = dns.get_ips(self.host)
         blocked_ips = filter(self.is_blocked, ips)
 
-        print ips, blocked_ips
+        if not blocked_ips:
+            print "No censorship"
+            return
 
         # let's try using Google's nameserver
         ips = dns.get_ips(self.host, nameserver="8.8.8.8")
         blocked_ips = filter(self.is_blocked, ips)
 
-        print ips, blocked_ips
+        if not blocked_ips:
+            print "DNS blocking, use Google DNS"
+            return
+        
+        print blocked_ips
 
     def is_blocked(self, ip):
         headers = {
