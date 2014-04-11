@@ -2,6 +2,8 @@ import os
 import sys
 import json
 
+import utils
+
 from datetime import datetime
 from experiments import *
 

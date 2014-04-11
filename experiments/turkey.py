@@ -1,4 +1,4 @@
-import httplib
+import utils.http
 
 import dns.resolver
 
@@ -39,24 +39,10 @@ class TurkeyExperiment:
         return ips
 
     def is_blocked(self, ip):
-        response = {}
         headers = {
             "Host" : self.host
         }
 
-        conn = httplib.HTTPSConnection(ip)
-        conn.request("GET", self.path, headers=headers)
+        result = utils.http.http_request(ip, self.path, headers, ssl=True)
 
-        resp = conn.getresponse()
-        response["status"] = resp.status
-        response["reason"] = resp.reason
-
-        headers = dict(resp.getheaders())
-        response["headers"] = headers
-
-        body = resp.read()
-        response["body"] = body
-
-        conn.close()
-
-        return body.find(SEARCH_STRING) == -1
+        return result["response"]["body"].find(SEARCH_STRING) == -1
