@@ -10,15 +10,28 @@ class TurkeyExperiment:
     def __init__(self, input_file):
         self.input_file = input_file
         self.results = []
+        self.host = "twitter.com"
+        self.path = "/feamster/status/452889624541921280"
 
-    def get_dns(self, nameserver=None):
+    def run(self):
+        ips = self.get_ips()
+        blocked_ips = filter(self.is_blocked, ips)
+
+        print blocked_ips
+
+        ips = self.get_ips(nameserver="8.8.8.8")
+        blocked_ips = filter(self.is_blocked, ips)
+
+        print blocked_ips
+
+    def get_ips(self, nameserver=None):
         resolver = dns.resolver.Resolver()
 
         if nameserver:
             resolver.nameservers = [nameserver]
 
         #XXX: ipv6?
-        answers = resolver.query("twitter.com", "A")
+        answers = resolver.query(self.host, "A")
 
         ips = [rdata.address for rdata in answers]
 
@@ -27,11 +40,11 @@ class TurkeyExperiment:
     def is_blocked(self, ip):
         response = {}
         headers = {
-            "Host" : "twitter.com"
+            "Host" : self.host
         }
 
         conn = httplib.HTTPSConnection(ip)
-        conn.request("GET", "/feamster/status/452889624541921280", headers=headers)
+        conn.request("GET", self.path, headers=headers)
 
         resp = conn.getresponse()
         response["status"] = resp.status
@@ -41,20 +54,8 @@ class TurkeyExperiment:
         response["headers"] = headers
 
         body = resp.read()
-
         response["body"] = body
 
         conn.close()
 
         return body.find(SEARCH_STRING) == -1
-
-    def run(self):
-        ips = self.get_dns()
-        blocked_ips = filter(self.is_blocked, ips)
-
-        print blocked_ips
-        
-        ips = self.get_dns(nameserver="8.8.8.8")
-        blocked_ips = filter(self.is_blocked, ips)
-
-        print blocked_ips
