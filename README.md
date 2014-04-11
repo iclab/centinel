@@ -2,4 +2,6 @@ Internet measurement
 
 To run -
 
-    * $python blocker.py
+    * $ sudo apt-get install python-dnspython
+    * $ python blocker.py
+    
