@@ -1,4 +1,4 @@
-import httplib
+import utils.http as http
 
 class HTTPRequestExperiment:
     name = "http_request"
@@ -15,35 +15,5 @@ class HTTPRequestExperiment:
             self.http_request()
 
     def http_request(self):
-        request  = {
-            "host"  : self.host,
-            "path"  : self.path,
-            "method": "GET"
-        }
-
-        response = {}
-        
-        try:
-            conn = httplib.HTTPConnection(self.host)
-            conn.request("GET", self.path)
-
-            resp = conn.getresponse()
-            response["status"] = resp.status
-            response["reason"] = resp.reason
-
-            headers = dict(resp.getheaders())
-            response["headers"] = headers
-
-            body = resp.read()
-            response["body"] = body
-
-            conn.close()
-        except Exception as err:
-            response["failure"] = str(err)
-
-        result = {
-            "response" : response,
-            "request"  : request
-        }
-        
+        result = http.get_request(self.host, self.path)
         self.results.append(result)

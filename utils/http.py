@@ -1,6 +1,6 @@
 import httplib
 
-def http_request(host, path="/", headers=None, ssl=False):
+def get_request(host, path="/", headers=None, ssl=False):
     request  = {
         "host"  : host,
         "path"  : path,
@@ -15,7 +15,10 @@ def http_request(host, path="/", headers=None, ssl=False):
         else:
             conn = httplib.HTTPConnection(host)
 
-        conn.request("GET", path, headers=headers)
+        if headers:
+            conn.request("GET", path, headers=headers)
+        else:
+            conn.request("GET", path)
 
         resp = conn.getresponse()
         response["status"] = resp.status

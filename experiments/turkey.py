@@ -1,4 +1,4 @@
-import utils.http
+import utils.http as http
 
 import dns.resolver
 
@@ -43,6 +43,6 @@ class TurkeyExperiment:
             "Host" : self.host
         }
 
-        result = utils.http.http_request(ip, self.path, headers, ssl=True)
+        result = http.get_request(ip, self.path, headers, ssl=True)
 
         return result["response"]["body"].find(SEARCH_STRING) == -1
