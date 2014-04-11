@@ -1,6 +1,6 @@
-import dns.resolver
-import urllib
 import httplib
+
+import dns.resolver
 
 SEARCH_STRING = "home network testbed will appear at"
 
