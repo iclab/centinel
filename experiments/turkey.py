@@ -17,12 +17,13 @@ class TurkeyExperiment:
         ips = self.get_ips()
         blocked_ips = filter(self.is_blocked, ips)
 
-        print blocked_ips
+        print ips, blocked_ips
 
+        # let's try using Google's nameserver
         ips = self.get_ips(nameserver="8.8.8.8")
         blocked_ips = filter(self.is_blocked, ips)
 
-        print blocked_ips
+        print ips, blocked_ips
 
     def get_ips(self, nameserver=None):
         resolver = dns.resolver.Resolver()
