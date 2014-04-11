@@ -1,6 +1,5 @@
 import utils.http as http
-
-import dns.resolver
+import utils.dnslib as dns
 
 SEARCH_STRING = "home network testbed will appear at"
 
@@ -14,29 +13,16 @@ class TurkeyExperiment:
         self.path = "/feamster/status/452889624541921280"
 
     def run(self):
-        ips = self.get_ips()
+        ips = dns.get_ips(self.host)
         blocked_ips = filter(self.is_blocked, ips)
 
         print ips, blocked_ips
 
         # let's try using Google's nameserver
-        ips = self.get_ips(nameserver="8.8.8.8")
+        ips = dns.get_ips(self.host, nameserver="8.8.8.8")
         blocked_ips = filter(self.is_blocked, ips)
 
         print ips, blocked_ips
-
-    def get_ips(self, nameserver=None):
-        resolver = dns.resolver.Resolver()
-
-        if nameserver:
-            resolver.nameservers = [nameserver]
-
-        #XXX: ipv6?
-        answers = resolver.query(self.host, "A")
-
-        ips = [rdata.address for rdata in answers]
-
-        return ips
 
     def is_blocked(self, ip):
         headers = {
