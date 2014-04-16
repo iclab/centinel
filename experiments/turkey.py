@@ -27,8 +27,7 @@ class TurkeyExperiment:
         if not blocked_ips:
             print "DNS blocking, use Google DNS"
             return
-        
-        print blocked_ips
+
 
     def is_blocked(self, ip):
         headers = {
@@ -37,4 +36,12 @@ class TurkeyExperiment:
 
         result = http.get_request(ip, self.path, headers, ssl=True)
 
-        return result["response"]["body"].find(SEARCH_STRING) == -1
+        if result["response"]["body"].find(SEARCH_STRING) == -1:
+            blocked = True
+        else:
+            blocked = False
+
+        result["blocked"] = blocked
+        self.results.append(result)
+
+        return blocked
