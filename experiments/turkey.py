@@ -1,7 +1,8 @@
 import utils.http as http
 import utils.dnslib as dns
 
-SEARCH_STRING = "home network testbed will appear at"
+GOOGLE_DNS     = "8.8.8.8"
+SEARCH_STRING  = "home network testbed will appear at"
 
 class TurkeyExperiment:
     name = "turkey"
@@ -21,13 +22,12 @@ class TurkeyExperiment:
             return
 
         # let's try using Google's nameserver
-        ips = dns.get_ips(self.host, nameserver="8.8.8.8")
+        ips = dns.get_ips(self.host, nameserver=GOOGLE_DNS)
         blocked_ips = filter(self.is_blocked, ips)
 
         if not blocked_ips:
             print "DNS blocking, use Google DNS"
             return
-
 
     def is_blocked(self, ip):
         headers = {
