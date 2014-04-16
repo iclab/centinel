@@ -36,12 +36,9 @@ class TurkeyExperiment:
 
         result = http.get_request(ip, self.path, headers, ssl=True)
 
-        if result["response"]["body"].find(SEARCH_STRING) == -1:
-            blocked = True
-        else:
-            blocked = False
-
+        blocked = SEARCH_STRING not in result["response"]["body"]
         result["blocked"] = blocked
+
         self.results.append(result)
 
         return blocked
