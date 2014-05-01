@@ -11,6 +11,8 @@ RESULTS_DIR = "results"
 DATA_DIR    = "data"
 
 EXPERIMENTS = {
+    "http_request" : http_request.HTTPRequestExperiment,
+    "tcp_connect" : tcp_connect.TCPConnectExperiment,
     "turkey"       : turkey.TurkeyExperiment
 }
 

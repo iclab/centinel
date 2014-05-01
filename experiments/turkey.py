@@ -18,7 +18,6 @@ class TurkeyExperiment:
         blocked_ips = filter(self.is_blocked, ips)
 
         if not blocked_ips:
-            print "No censorship"
             return
 
         # let's try using Google's nameserver
@@ -26,7 +25,6 @@ class TurkeyExperiment:
         blocked_ips = filter(self.is_blocked, ips)
 
         if not blocked_ips:
-            print "DNS blocking, use Google DNS"
             return
 
     def is_blocked(self, ip):
