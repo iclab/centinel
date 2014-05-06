@@ -17,7 +17,7 @@ EXPERIMENTS = {
 }
 
 def get_result_file():
-    result_file = "result-%s.txt" % (datetime.now().isoformat())
+    result_file = "result-%s.json" % (datetime.now().isoformat())
     return os.path.join(RESULTS_DIR, result_file)
 
 def get_input_file(experiment_name):
