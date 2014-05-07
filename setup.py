@@ -1,5 +1,5 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 DESCRIPTION = """\
 Centinel is a tool used to detect network interference and internet censorship."""
@@ -13,7 +13,8 @@ setup(
     license = "MIT",
     keywords = "censorship network interference",
     url = "https://www.github.com/projectbismakr/centinel",
-    packages = ['experiments'],
+    py_modules = ["centinel"],    
+    packages = find_packages(),
     install_requires = ["dnspython >= 1.11.0"],
     entry_points = {
         'console_scripts': ['centinel = centinel:run']
