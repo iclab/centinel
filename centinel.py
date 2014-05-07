@@ -24,7 +24,7 @@ def get_input_file(experiment_name):
     input_file = "%s.txt" % (experiment_name)
     return os.path.join(DATA_DIR, input_file)
 
-def run():        
+def run():
     result_file = get_result_file()
     result_file = open(result_file, "w")
     results = {}
@@ -39,6 +39,7 @@ def run():
         input_file = open(input_file)
 
         exp = exp(input_file)
+        print "Running %s test." % (name)
         exp.run()
 
         input_file.close()
@@ -47,6 +48,8 @@ def run():
 
     json.dump(results, result_file)
     result_file.close()
+
+    print "All experiments over. Check results."
 
 if __name__ == "__main__":
     run()
