@@ -25,6 +25,9 @@ def get_input_file(experiment_name):
     return os.path.join(DATA_DIR, input_file)
 
 def run():
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR)
+
     result_file = get_result_file()
     result_file = open(result_file, "w")
     results = {}
