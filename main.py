@@ -8,9 +8,9 @@ from kivy.uix.button import Button
 from kivy.uix.listview import ListView
 from kivy.uix.boxlayout import BoxLayout
 
-import blocker
+import centinel
 
-class BlockerApp(App):
+class CentinelApp(App):
     def build(self):
         btn1 = Button(text="Start Tests")
         btn1.bind(on_press=self.start_tests)
@@ -28,11 +28,11 @@ class BlockerApp(App):
         return layout
 
     def start_tests(self, instance):
-        blocker.run()
+        centinel.run()
 
     def btn_pressed(self, instance):
         print instance.text
 
 
 if __name__ == '__main__':
-    BlockerApp().run()
+    CentinelApp().run()

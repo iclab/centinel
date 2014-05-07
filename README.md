@@ -3,7 +3,7 @@ Internet measurement
 To run -
 
     * $ sudo apt-get install python-dnspython
-    * $ python blocker.py
+    * $ python centinel.py
     * $ ls results
 
 Supported platforms -
