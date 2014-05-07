@@ -1,8 +1,13 @@
-Internet measurement
+Centinel
 
-To run -
+Dependencies - 
 
-    * $ sudo apt-get install python-dnspython
+    * dnspython
+        * Debian - $ sudo apt-get python-dnspython
+        * OSX    - $ pip install dnspython
+            
+To run - 
+
     * $ python centinel.py
     * $ ls results
 
