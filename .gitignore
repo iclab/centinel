@@ -2,3 +2,5 @@
 *.pyo
 .#*
 results/
+centinel.egg-info/
+dist/
