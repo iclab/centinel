@@ -1,4 +1,4 @@
-import utils.http as http
+import centinel.utils.http as http
 
 class HTTPRequestExperiment:
     name = "http_request"

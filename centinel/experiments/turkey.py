@@ -1,5 +1,5 @@
-import utils.http as http
-import utils.dnslib as dns
+import centinel.utils.http as http
+import centinel.utils.dnslib as dns
 
 GOOGLE_DNS     = "8.8.8.8"
 SEARCH_STRING  = "home network testbed will appear at"

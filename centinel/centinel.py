@@ -7,8 +7,8 @@ import utils
 from datetime import datetime
 from experiments import *
 
-RESULTS_DIR = "results"
-DATA_DIR    = "data"
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
+DATA_DIR    = os.path.join(os.path.dirname(__file__), "data")
 
 EXPERIMENTS = {
     "http_request" : http_request.HTTPRequestExperiment,
@@ -26,6 +26,7 @@ def get_input_file(experiment_name):
 
 def run():
     if not os.path.exists(RESULTS_DIR):
+        print "Creating results directory in %s" % (RESULTS_DIR)
         os.makedirs(RESULTS_DIR)
 
     result_file = get_result_file()
@@ -39,6 +40,7 @@ def run():
             print "Input file for %s does not exist!" % name
             return
 
+        print "Reading input from %s" % (input_file)
         input_file = open(input_file)
 
         exp = exp(input_file)
