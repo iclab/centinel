@@ -1,17 +1,26 @@
-Centinel
+### Centinel
 
-Dependencies - 
+Centinel is a tool used to detect network interference and internet
+censorship.
 
-    * dnspython
+#### Install
+
+    # via pip
+    $ sudo pip install centinel 
+
+    # latest development version
+    * git clone https://github.com/projectbismark/centinel.git
+    * # install dnspython
         * Debian - $ sudo apt-get python-dnspython
         * OSX    - $ pip install dnspython
-            
-To run - 
+    * cd centinel/
+    * sudo python setup.py install
 
-    * $ python centinel.py
-    * $ ls results
+#### Usage
 
-Supported platforms -
+    * $ centinel
+
+#### Supported platforms
 
     * Linux/OS X
     * BISmark Routers
