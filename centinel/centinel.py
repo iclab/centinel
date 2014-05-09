@@ -12,7 +12,8 @@ DATA_DIR    = os.path.join(os.path.dirname(__file__), "data")
 EXPERIMENTS = {
     "http_request" : http_request.HTTPRequestExperiment,
     "tcp_connect" : tcp_connect.TCPConnectExperiment,
-    "turkey"       : turkey.TurkeyExperiment
+    "turkey"       : turkey.TurkeyExperiment,
+    "ping" : ping.PingExperiment
 }
 
 def get_result_file():

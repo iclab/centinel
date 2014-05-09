@@ -1,1 +1,1 @@
-__all__ = ['tcp_connect', 'http_request', 'turkey']
+__all__ = ['tcp_connect', 'http_request', 'turkey', 'ping']
