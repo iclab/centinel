@@ -2,9 +2,8 @@ import os
 import sys
 import json
 
-import utils
-
 from datetime import datetime
+
 from experiments import *
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
@@ -38,7 +37,7 @@ def run():
 
         if not os.path.isfile(input_file):
             print "Input file for %s does not exist!" % name
-            return
+            continue
 
         print "Reading input from %s" % (input_file)
         input_file = open(input_file)
