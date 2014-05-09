@@ -8,7 +8,7 @@ from kivy.uix.button import Button
 from kivy.uix.listview import ListView
 from kivy.uix.boxlayout import BoxLayout
 
-import centinel
+from centinel import centinel
 
 class CentinelApp(App):
     def build(self):
