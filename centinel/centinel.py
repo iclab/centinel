@@ -55,6 +55,3 @@ def run():
     result_file.close()
 
     print "All experiments over. Check results."
-
-if __name__ == "__main__":
-    run()
