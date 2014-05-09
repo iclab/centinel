@@ -20,6 +20,14 @@ censorship.
 
     * $ centinel
 
+#### Development
+    
+    * git clone https://github.com/projectbismark/centinel.git
+    * # install dnspython
+        * Debian - $ sudo apt-get python-dnspython
+        * OSX    - $ pip install dnspython
+    * ./start
+
 #### Supported platforms
 
     * Linux/OS X
