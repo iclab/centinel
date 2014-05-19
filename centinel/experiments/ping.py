@@ -1,6 +1,7 @@
 import os
+from centinel.experiment import Experiment
 
-class PingExperiment:
+class PingExperiment(Experiment):
     name = "ping"
 
     def __init__(self, input_file):

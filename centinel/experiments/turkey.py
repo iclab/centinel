@@ -1,10 +1,11 @@
 import centinel.utils.http as http
 import centinel.utils.dnslib as dns
+from centinel.experiment import Experiment
 
 GOOGLE_DNS     = "8.8.8.8"
 SEARCH_STRING  = "home network testbed will appear at"
 
-class TurkeyExperiment:
+class TurkeyExperiment(Experiment):
     name = "turkey"
 
     def __init__(self, input_file):

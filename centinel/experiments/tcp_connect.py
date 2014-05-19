@@ -1,6 +1,7 @@
 import socket
+from centinel.experiment import Experiment
 
-class TCPConnectExperiment:
+class TCPConnectExperiment(Experiment):
     name = "tcp_connect"
 
     def __init__(self, input_file):

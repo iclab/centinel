@@ -1,31 +1,36 @@
-import os
 import sys
 import json
+import glob
+import imp
 
+from os.path import join, basename, splitext, dirname, exists, isfile
 from datetime import datetime
 
-from experiments import *
+from experiment import Experiment, ExperimentList
 
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
-DATA_DIR    = os.path.join(os.path.dirname(__file__), "data")
-
-EXPERIMENTS = {
-    "http_request" : http_request.HTTPRequestExperiment,
-    "tcp_connect" : tcp_connect.TCPConnectExperiment,
-    "turkey"       : turkey.TurkeyExperiment,
-    "ping" : ping.PingExperiment
-}
+EXPERIMENTS_DIR = join(dirname(__file__), "experiments")
+RESULTS_DIR     = join(dirname(__file__), "results")
+DATA_DIR        = join(dirname(__file__), "data")
 
 def get_result_file():
     result_file = "result-%s.json" % (datetime.now().isoformat())
-    return os.path.join(RESULTS_DIR, result_file)
+    return join(RESULTS_DIR, result_file)
 
 def get_input_file(experiment_name):
     input_file = "%s.txt" % (experiment_name)
-    return os.path.join(DATA_DIR, input_file)
+    return join(DATA_DIR, input_file)
+
+def load_experiments(dir):
+    for path in glob.glob(join(dir,'[!_]*.py')):
+        name, ext = splitext(basename(path))
+        _ = imp.load_source(name, path)
+
+    return ExperimentList.experiments
 
 def run():
-    if not os.path.exists(RESULTS_DIR):
+    experiments = load_experiments(EXPERIMENTS_DIR)
+
+    if not exists(RESULTS_DIR):
         print "Creating results directory in %s" % (RESULTS_DIR)
         os.makedirs(RESULTS_DIR)
 
@@ -33,10 +38,10 @@ def run():
     result_file = open(result_file, "w")
     results = {}
 
-    for name, exp in EXPERIMENTS.items():
+    for name, exp in experiments.items():
         input_file = get_input_file(name)
 
-        if not os.path.isfile(input_file):
+        if not isfile(input_file):
             print "Input file for %s does not exist!" % name
             continue
 
