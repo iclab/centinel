@@ -1,4 +1,5 @@
 import os
+
 from centinel.experiment import Experiment
 
 class PingExperiment(Experiment):

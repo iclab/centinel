@@ -6,9 +6,6 @@ class ExperimentList(type):
 
 class Experiment:
     __metaclass__ = ExperimentList
-    def __init__(self, input_file):
-        self.results = []
-        self.input_file = input_file
 
     def run(self):
         raise NotImplementedError

@@ -1,4 +1,5 @@
 import centinel.utils.http as http
+
 from centinel.experiment import Experiment
 
 class HTTPRequestExperiment(Experiment):

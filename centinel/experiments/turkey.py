@@ -1,5 +1,6 @@
 import centinel.utils.http as http
 import centinel.utils.dnslib as dns
+
 from centinel.experiment import Experiment
 
 GOOGLE_DNS     = "8.8.8.8"
