@@ -34,10 +34,13 @@ class TurkeyExperiment(Experiment):
             "Host" : self.host
         }
 
-        result = http.get_request(ip, self.path, headers, ssl=True)
+        try:
+            result = http.get_request(ip, self.path, headers, ssl=True)
 
-        blocked = SEARCH_STRING not in result["response"]["body"]
-        result["blocked"] = blocked
+            blocked = SEARCH_STRING not in result["response"]["body"]
+            result["blocked"] = blocked
+        except Exception as err:
+            result["blocked"] = str(err)
 
         self.results.append(result)
 
