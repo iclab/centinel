@@ -17,6 +17,6 @@ setup(
     install_requires = ["dnspython >= 1.11.0"],
     include_package_data = True,
     entry_points = {
-        'console_scripts': ['centinel=centinel.centinel:run']
+        'console_scripts': ['centinel=centinel.client:run']
     },
 )
