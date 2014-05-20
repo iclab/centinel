@@ -4,7 +4,8 @@ Centinel is a tool used to detect network interference and internet
 censorship.
 
 #### Install
-
+    $ sudo apt-get install python-setuptools
+    
     # via pip
     $ sudo pip install centinel 
 
