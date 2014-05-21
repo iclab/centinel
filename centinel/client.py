@@ -3,18 +3,23 @@ import sys
 import json
 import glob
 import imp
+import getpass
 
 from datetime import datetime
 
 from experiment import Experiment, ExperimentList
 
 EXPERIMENTS_DIR = os.path.join(os.path.dirname(__file__), "experiments")
-RESULTS_DIR     = os.path.join(os.path.dirname(__file__), "results")
 DATA_DIR        = os.path.join(os.path.dirname(__file__), "data")
 
-def get_result_file():
+def get_results_dir():
+    current_user = getpass.getuser()
+    centinel_home = os.path.join(os.path.expanduser('~'+current_user), '.centinel')
+    return os.path.join(centinel_home, 'results')
+
+def get_result_file(results_dir):
     result_file = "result-%s.json" % (datetime.now().isoformat())
-    return os.path.join(RESULTS_DIR, result_file)
+    return os.path.join(results_dir, result_file)
 
 def get_input_file(experiment_name):
     input_file = "%s.txt" % (experiment_name)
@@ -32,15 +37,17 @@ def load_experiments():
     return ExperimentList.experiments
 
 def run():
-    experiments = load_experiments()
+    results_dir = get_results_dir()    
 
-    if not os.path.exists(RESULTS_DIR):
-        print "Creating results directory in %s" % (RESULTS_DIR)
-        os.makedirs(RESULTS_DIR)
+    if not os.path.exists(results_dir):
+        print "Creating results directory in %s" % (results_dir)
+        os.makedirs(results_dir)
 
-    result_file = get_result_file()
+    result_file = get_result_file(results_dir)
     result_file = open(result_file, "w")
     results = {}
+
+    experiments = load_experiments()
 
     for name, Exp in experiments.items():
         input_file = get_input_file(name)
@@ -51,7 +58,7 @@ def run():
 
         print "Reading input from %s" % (input_file)
         input_file = open(input_file)
-        
+
         print "Running %s test." % (name)
         exp = Exp(input_file)
         exp.run()
