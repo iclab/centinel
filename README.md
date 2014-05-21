@@ -5,17 +5,16 @@ censorship.
 
 #### Install
     $ sudo apt-get install python-setuptools
-    
+
     # via pip
-    $ sudo pip install centinel 
+    $ sudo pip install centinel
 
     # latest development version
     * git clone https://github.com/projectbismark/centinel.git
     * # install dnspython
         * Debian - $ sudo apt-get python-dnspython
         * OSX    - $ pip install dnspython
-    * cd centinel/
-    * sudo python setup.py install
+    * python centinely.py
 
 #### Usage
 
