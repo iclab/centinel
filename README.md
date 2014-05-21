@@ -3,11 +3,12 @@
 Centinel is a tool used to detect network interference and internet
 censorship.
 
-#### Install
+#### Install and usage
     $ sudo apt-get install python-setuptools
 
     # via pip
     $ sudo pip install centinel
+    $ centinel
 
     # latest development version
     * git clone https://github.com/projectbismark/centinel.git
@@ -15,10 +16,6 @@ censorship.
         * Debian - $ sudo apt-get python-dnspython
         * OSX    - $ pip install dnspython
     * python centinel.py
-
-#### Usage
-
-    * $ centinel
 
 #### Supported platforms
 
