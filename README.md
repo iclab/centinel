@@ -14,7 +14,7 @@ censorship.
     * # install dnspython
         * Debian - $ sudo apt-get python-dnspython
         * OSX    - $ pip install dnspython
-    * python centinely.py
+    * python centinel.py
 
 #### Usage
 
