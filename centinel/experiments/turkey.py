@@ -34,6 +34,8 @@ class TurkeyExperiment(Experiment):
             "Host" : self.host
         }
 
+        blocked = True
+
         try:
             result = http.get_request(ip, self.path, headers, ssl=True)
 
