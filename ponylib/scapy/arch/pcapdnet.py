@@ -29,11 +29,11 @@ if conf.use_pcap:
         try:
             import pcapy as pcap
         except ImportError,e2:
-            if conf.interactive:
-                log_loading.error("Unable to import pcap module: %s/%s" % (e,e2))
-                conf.use_pcap = False
-            else:
-                raise
+#            if conf.interactive:
+            log_loading.error("Unable to import pcap module: %s/%s" % (e,e2))
+            conf.use_pcap = False
+#            else:
+#                raise
     if conf.use_pcap:
         
         # From BSD net/bpf.h
