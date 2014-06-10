@@ -1,4 +1,4 @@
-B# first allow imports from parent directory.
+# first allow imports from parent directory.
 # not particularly elegant but it seems to work well.
 import sys
 #sys.path.append("..")
