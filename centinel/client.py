@@ -59,9 +59,12 @@ def run():
         print "Reading input from %s" % (input_file)
         input_file = open(input_file)
 
-        print "Running %s test." % (name)
-        exp = Exp(input_file)
-        exp.run()
+        try:
+            print "Running %s test." % (name)
+            exp = Exp(input_file)
+            exp.run()
+        except Exception, e:
+            print "Error: %s", str(e)
 
         input_file.close()
 
