@@ -3,6 +3,8 @@ Contains all the functions
 the client provides for network measurements.
 """
 
+import sys
+sys.path.append("ponylib")
 
 import requests
 import logging
@@ -12,9 +14,7 @@ import dns.entropy
 import dns.rdatatype
 import urlparse
 from requests.utils import requote_uri, get_unicode_from_response
-import sys
 
-sys.path.append("ponylib")
 import scapy.all as sc
 import pcapwriter  # this is our own version of scapy's pcapw
 from snifferthread import SnifferThread
