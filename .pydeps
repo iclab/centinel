@@ -1,2 +1,4 @@
 dnspython
 requests
+scapy
+pcapy
