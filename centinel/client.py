@@ -36,9 +36,15 @@ def load_experiments():
     # return dict of experiment names and classes
     return ExperimentList.experiments
 
-def run():
+def run(selection = []):
     results_dir = get_results_dir()    
 
+    if not selection:
+	print "No experiments specified, running all..."
+	run_all = True
+    else:
+	run_all = False
+    print results_dir
     if not os.path.exists(results_dir):
         print "Creating results directory in %s" % (results_dir)
         os.makedirs(results_dir)
@@ -49,28 +55,41 @@ def run():
 
     experiments = load_experiments()
 
-    for name, Exp in experiments.items():
-        input_file = get_input_file(name)
-
-        if not os.path.isfile(input_file):
-            print "No input file found for %s. Skipping test." % (name)
-            continue
-
-        print "Reading input from %s" % (input_file)
-        input_file = open(input_file)
-
-        try:
-            print "Running %s test." % (name)
-            exp = Exp(input_file)
-            exp.run()
-        except Exception, e:
-            print "Error: %s", str(e)
-
-        input_file.close()
-
-        results[name] = exp.results
+    if run_all:
+        for name, Exp in experiments.items():
+	    results[name] = execute_experiment(name, Exp)
+    else:
+        for name in selection:
+	    if not name in experiments.keys():
+		print "Experiment %s not found." % (name)
+		continue
+	    Exp = experiments[name]
+	    results[name] = execute_experiment(name, Exp)
+	    
 
     json.dump(results, result_file)
     result_file.close()
 
     print "All experiments over. Check results."
+
+def execute_experiment(name, Exp):
+    results = {}
+    input_file = get_input_file(name)
+
+    if not os.path.isfile(input_file):
+	print "No input file found for %s. Skipping test." % (name)
+	return
+    
+    print "Reading input from %s" % (input_file)
+    input_file = open(input_file)
+
+    try:
+    	print "Running %s test." % (name)
+    	exp = Exp(input_file)
+    	exp.run()
+    except Exception, e:
+    	print "Error: %s", str(e)
+
+    input_file.close()
+    return exp.results
+

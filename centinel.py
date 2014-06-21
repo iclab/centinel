@@ -1,4 +1,8 @@
 #!/usr/bin/env python
 
+import sys
+
 from centinel import client
-client.run()
+selection = sys.argv
+selection.pop(0)
+client.run(selection)
