@@ -17,7 +17,7 @@ from requests.utils import requote_uri, get_unicode_from_response
 
 import scapy.all as sc
 import pcapwriter  # this is our own version of scapy's pcapw
-from snifferthread import SnifferThread
+#from snifferthread import SnifferThread
 
 log = logging.getLogger("pony")
 
@@ -138,11 +138,11 @@ class PonyFunctions:
                                           p.dport in [port, sport]) or
                                           p.proto == 1))
 
-            sniffer = SnifferThread(l2socket=sc.conf.L2socket,
-                                    lfilter=lfilter,
-                                    timeout=snifftimeout, count=mincount)
-            sniffer.setDaemon(True)
-            sniffer.start()
+#            sniffer = SnifferThread(l2socket=sc.conf.L2socket,
+#                                    lfilter=lfilter,
+#                                    timeout=snifftimeout, count=mincount)
+#            sniffer.setDaemon(True)
+#            sniffer.start()
 
         # send packet, get result
         if mincount == 1:
@@ -153,14 +153,14 @@ class PonyFunctions:
                                    count=mincount, timeout=timeout, verbose=0)
 
         # get sniff result
-        if not output or "pcap" in output:
-            sniffer.stop()
-            sniffer.join()
-            pcap = sniffer.getPacketList()
-            pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
-            if pcap:
-                pcapw.write(pcap)
-                result["pcap"] = pcapw.getBase64String()
+#        if not output or "pcap" in output:
+#            sniffer.stop()
+#            sniffer.join()
+#            pcap = sniffer.getPacketList()
+#            pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
+#            if pcap:
+#                pcapw.write(pcap)
+#                result["pcap"] = pcapw.getBase64String()
 
         # make sure the response didnt consist of BS redirect packets.
         # the response must come from the right IP.
@@ -271,14 +271,14 @@ class PonyFunctions:
         redirectencountered = False
 
         # start the sniffer if we need it!
-        if not output or "pcap" in output:
+#        if not output or "pcap" in output:
             # build lfilter
-            lfilter = lambda p: p.haslayer(sc.IP) and p.proto == 1
-            sniffer = SnifferThread(l2socket=sc.conf.L2socket,
-                                    lfilter=lfilter,
-                                    timeout=snifftimeout, count=maxttl)
-            sniffer.setDaemon(True)
-            sniffer.start()
+#            lfilter = lambda p: p.haslayer(sc.IP) and p.proto == 1
+#            sniffer = SnifferThread(l2socket=sc.conf.L2socket,
+#                                    lfilter=lfilter,
+#                                    timeout=snifftimeout, count=maxttl)
+#            sniffer.setDaemon(True)
+#            sniffer.start()
 
         sc.conf.verb = 0
         # now send those packets out!
@@ -353,14 +353,14 @@ class PonyFunctions:
                 port += 1
 
         # get sniff result
-        if not output or "pcap" in output:
-            sniffer.stop()
-            sniffer.join()
-            pcap = sniffer.getPacketList()
-            pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
-            if pcap:
-                pcapw.write(pcap)
-                result["pcap"] = pcapw.getBase64String()
+#        if not output or "pcap" in output:
+#            sniffer.stop()
+#            sniffer.join()
+#            pcap = sniffer.getPacketList()
+#            pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
+#            if pcap:
+#                pcapw.write(pcap)
+#                result["pcap"] = pcapw.getBase64String()
 
         addresult(output, result, "redirected", redirectencountered)
         addresult(output, result, "success", destinationreached)
@@ -545,16 +545,16 @@ class PonyFunctions:
 
         sport = int(sc.RandNum(1024, 65535))
         # start sniffer thread
-        if "pcap" in output:
+#        if "pcap" in output:
             # build lfilter
-            lfilter = lambda (p): (p.dport and p.dport == port or
-                                   p.sport and p.sport == port)
-            sniffer = SnifferThread(l2socket=sc.conf.L2socket,
-                                    lfilter=lfilter,
-                                    count=mincount,
-                                    timeout=timeout)
-            sniffer.setDaemon(True)
-            sniffer.start()
+#            lfilter = lambda (p): (p.dport and p.dport == port or
+#                                   p.sport and p.sport == port)
+#            sniffer = SnifferThread(l2socket=sc.conf.L2socket,
+#                                    lfilter=lfilter,
+#                                    count=mincount,
+#                                    timeout=timeout)
+#            sniffer.setDaemon(True)
+#            sniffer.start()
 
         # run the m'fing query
         # TODO: ADD DNSSEC
@@ -618,16 +618,16 @@ class PonyFunctions:
                 result[outputdnstype + str(i + 1) + "list"] = ""
                 result[outputdnstype + str(i + 1)] = a
         # get sniff result
-        if "pcap" in output:
-            sniffer.stop()
-            sniffer.join()
-            pcap = sniffer.getPacketList()
-            if pcap:
-                pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
-                pcapw.write(pcap)
-                result["pcap"] = pcapw.getBase64String()
-            else:
-                result["pcap"] = ""
+#        if "pcap" in output:
+#            sniffer.stop()
+#            sniffer.join()
+#            pcap = sniffer.getPacketList()
+#            if pcap:
+#                pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
+#                pcapw.write(pcap)
+#                result["pcap"] = pcapw.getBase64String()
+#            else:
+#                result["pcap"] = ""
 
         # get answer
         # based on what the querytype is
@@ -684,14 +684,14 @@ class PonyFunctions:
         else:
             headers = dict()
 
-        if "pcap" in output:
+#        if "pcap" in output:
                 # build lfilter
-                sniffer = SnifferThread(l2socket=sc.conf.L2socket,
-                                        lfilter=(lambda x: True),
-                                        count=0,
-                                        timeout=0)
-                sniffer.setDaemon(True)
-                sniffer.start()
+#                sniffer = SnifferThread(l2socket=sc.conf.L2socket,
+#                                        lfilter=(lambda x: True),
+#                                        count=0,
+#                                        timeout=0)
+#                sniffer.setDaemon(True)
+#                sniffer.start()
 
         if host != "":
             headers['host'] = host
@@ -762,16 +762,16 @@ class PonyFunctions:
                 break
 
         # get sniff result
-        if "pcap" in output:
-            sniffer.stop()
-            sniffer.join()
-            pcap = sniffer.getPacketList()
-            if pcap:
-                pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
-                pcapw.write(pcap)
-                result["pcap"] = pcapw.getBase64String()
-            else:
-                result["pcap"] = ""
+#        if "pcap" in output:
+#            sniffer.stop()
+#            sniffer.join()
+#            pcap = sniffer.getPacketList()
+#            if pcap:
+#                pcapw = pcapwriter.PcapWriter(sc.conf.l2types)
+#                pcapw.write(pcap)
+#                result["pcap"] = pcapw.getBase64String()
+#            else:
+#                result["pcap"] = ""
 
         encoded_content = get_unicode_from_response(r)
 
