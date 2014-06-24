@@ -14,10 +14,10 @@ experiment_runner.run(selection)
 print bcolors.OKGREEN + 'Experiments done.' + bcolors.ENDC
 
 
-print bcolors.OKBLUE + 'Starting the exepriments.' + bcolors.ENDC
+print bcolors.OKBLUE + 'Starting sync.' + bcolors.ENDC
 serverconn = ServerConnection()
 if not serverconn.connect():
-    print bcolors.FAIL + 'Results not submitted.' + bcolors.ENDC
+    print bcolors.FAIL + 'Results not synced.' + bcolors.ENDC
     exit(1)
 
 serverconn.sync_results()
