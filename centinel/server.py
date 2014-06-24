@@ -1,17 +1,17 @@
+import os
+import shutil
+from os import listdir
+from os.path import exists,isfile, join
 import socket
 import sys
 import threading
 from datetime import datetime
-from rsacrypt import RSACrypt
+from utils.rsacrypt import RSACrypt
 from Crypto.Hash import MD5
+from config import conf
+from utils.colors import bcolors
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
+conf = conf()
 
 class Server:
     def __init__(self, sock=None):
@@ -20,16 +20,18 @@ class Server:
     	    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	else:
 	    self.sock = sock
-	self.sock.bind(('', 8082))
+	self.client_list = [ "sample_client" ]
+	self.sock.bind(('', int(conf.c['server_port'])))
 	self.sock.listen(5)
 
     def send_fixed(self, clientsocket, address, data):
 	try:
 	    sent = clientsocket.send(data)
 	except socket.error, (value,message): 
-	    if clientsocket: 
-    		clientsocket.close() 
-    	    print bcolors.FAIL + "Could not send data to client (%s:%s): " %(address[0], address[1]) + message  + bcolors.ENDC
+    	    if clientsocket:
+		print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
+		clientsocket.close()
+	    raise Exception("Could not send data to client (%s:%s): " %(address[0], address[1]) + message)
 	    return False
 	    
 	#print "Sent %d bytes to the client." %(sent)
@@ -45,8 +47,11 @@ class Server:
         while bytes_recd < message_len:
             chunk = clientsocket.recv(min(message_len - bytes_recd, 2048))
             if chunk == '':
-                print bcolors.FAIL + "Socket connection broken (%s:%s)" %(address[0], address[1]) + bcolors.ENDC
-        	return False
+                if clientsocket:
+		    print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
+		    clientsocket.close()
+        	raise Exception(message = "Socket connection broken (%s:%s)" %(address[0], address[1]))
+		return False
 	    chunks.append(chunk)
             bytes_recd = bytes_recd + len(chunk)
         return ''.join(chunks)
@@ -87,7 +92,7 @@ class Server:
 	while 1:
 	    #accept connections from outside
 	    (clientsocket, address) = self.sock.accept()
-	    print bcolors.OKBLUE + "Got a connection from " + address[0] + bcolors.ENDC
+	    print bcolors.OKBLUE + "[6~Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
 	    client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))
 	    client_thread.daemon = True
 	    client_thread.start()
@@ -95,40 +100,85 @@ class Server:
     def client_connection_handler(self, clientsocket, address):
 	# r: results
 	# l: test_list
-	message_type = self.receive_fixed(clientsocket, address, 1)
+
+	# We don't want to wait too long for a response.
+	clientsocket.settimeout(15)
+	try:
+	    client_tag = self.receive_dyn(clientsocket, address)
+
+	    # TODO:
+	    # Should do the authentication here (expand):
+	    # ****
+	    if client_tag not in self.client_list:
+		try:
+		    self.send_fixed(clientsocket, address, 'e')
+		    self.send_dyn(clientsocket, address, "Authentication error.")
+		except:
+		    pass
+		print bcolors.FAIL + "Authentication error (" + client_tag + ")." + bcolors.ENDC
+		return False
+	    # ****
+
+	    self.send_fixed(clientsocket, address, "a")
+	    message_type = self.receive_fixed(clientsocket, address, 1)
+	except Exception:
+	    print bcolors.FAIL + "Error handling client request." + bcolors.ENDC
+	    if clientsocket:
+		print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
+	        clientsocket.close()
+	    return False
 	
+
 	# The client wants to submit results:
 	if message_type == "r":
-	    print bcolors.OKGREEN + address[0] + ":" + str(address[1]) + " wants to submit results." + bcolors.ENDC
+	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to submit results." + bcolors.ENDC
 	    try:
     		self.send_fixed(clientsocket, address, "a")
 		results_name = self.receive_dyn(clientsocket, address)
 
 		results_decrypted = self.receive_crypt(clientsocket, address)
 
-		out_file = open(datetime.now().time().isoformat() + "-" + results_name, 'w')
+		if not os.path.exists(conf.c['server_results_dir']):
+    		    print "Creating results directory in %s" % (conf.c['server_results_dir'])
+    		    os.makedirs(conf.c['server_results_dir'])
+
+		out_file = open(os.path.join(conf.c['server_results_dir'],client_tag + "-" + datetime.now().time().isoformat() + "-" + results_name), 'w')
 		out_file.write(results_decrypted)
 		out_file.close()
 	    except socket.error, (value,message): 
 		if clientsocket: 
     		    clientsocket.close() 
-    		print bcolors.FAIL + address[0] + ":" + str(address[1]) + " error receiving data: " + message  + bcolors.ENDC
-		self.send_fixed(clientsocket, address, "e")
-		self.send_dyn(clientsocket, address, message)
+    		print bcolors.FAIL + client_tag + "(" + address[0] + ":" + str(address[1]) + ") error receiving data: " + message  + bcolors.ENDC
+		try:
+		    self.send_fixed(clientsocket, address, "e")
+		    self.send_dyn(clientsocket, address, message)
+		except Exception:
+		    pass
 		return False
-	
-	    print bcolors.OKGREEN + address[0] + ":" + str(address[1]) + " results recorded." + bcolors.ENDC
-	    self.send_fixed(clientsocket, address, "c")
-	    if clientsocket: 
-    	        clientsocket.close() 
+
+	    try:
+		print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") results recorded." + bcolors.ENDC
+		self.send_fixed(clientsocket, address, "c")
+	    except Exception:
+		print bcolors.FAIL + "Error sending the [complete] flag." + bcolors.ENDC
+		if clientsocket:
+		    print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
+		    clientsocket.close()
+	    
+	    self.client_connection_handler(clientsocket, address)
 	    return True
-
-	self.send_fixed(clientsocket, address, "e")
-	self.send_dyn(clientsocket, address, "Message type not recognized.")
-
-    	if clientsocket: 
-    	    clientsocket.close() 
-
-	return False
-s = Server()
-s.run()
+	elif message_type == "x":
+	    print bcolors.OKBLUE + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to close the connection." + bcolors.ENDC
+	    if clientsocket:
+		print bcolors.WARNING + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
+		clientsocket.close()
+	    return True
+	else:
+	    try:
+		self.send_fixed(clientsocket, address, "e")
+		self.send_dyn(clientsocket, address, "Message type not recognized.")
+	    except Exception:
+		pass
+    	    if clientsocket: 
+    		clientsocket.close() 
+	    return False

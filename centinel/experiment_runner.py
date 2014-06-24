@@ -8,14 +8,16 @@ import getpass
 from datetime import datetime
 
 from experiment import Experiment, ExperimentList
+from config import conf
 
-EXPERIMENTS_DIR = os.path.join(os.path.dirname(__file__), "experiments")
-DATA_DIR        = os.path.join(os.path.dirname(__file__), "data")
+conf = conf()
+
+EXPERIMENTS_DIR = conf.c['experiments_dir']
+DATA_DIR        = conf.c['data_dir']
+RESULTS_DIR	= conf.c['results_dir']
 
 def get_results_dir():
-    current_user = getpass.getuser()
-    centinel_home = os.path.join(os.path.expanduser('~'+current_user), '.centinel')
-    return os.path.join(centinel_home, 'results')
+    return RESULTS_DIR
 
 def get_result_file(results_dir):
     result_file = "result-%s.json" % (datetime.now().isoformat())

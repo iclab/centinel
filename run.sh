@@ -1,3 +1,3 @@
 #! /bin/sh
 
-sudo python centinel.py $@
+python centinel_client.py $@
