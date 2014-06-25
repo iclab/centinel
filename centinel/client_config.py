@@ -9,6 +9,7 @@ class client_conf:
 	    'data_dir' : os.path.join(os.path.dirname(__file__), "data"),
 	    'experiments_dir' : os.path.join(os.path.dirname(__file__), "experiments"),
 	    'results_dir' : os.path.join(os.path.dirname(__file__), "results"),
+	    'client_keys_dir' : os.path.join(os.path.dirname(__file__), "client_keys"),
 	    'results_archive_dir' : os.path.join(os.path.dirname(__file__), "results_archive"),
 	    'config_file' : os.path.join(os.path.dirname(__file__), "confs/client_config.cfg"),
 	    'server_public_rsa' : os.path.join(os.path.dirname(__file__), "client_keys/server_public_rsa.pem"),

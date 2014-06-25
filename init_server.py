@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 import sys
+import os
+from os import path
+from os.path import exists
 
 from centinel.utils.colors import bcolors
 from centinel.utils.rsacrypt import RSACrypt
@@ -12,10 +15,18 @@ selection.pop(0)
 sco = server_conf()
 cco = client_conf()
 
-print bcolors.OKBLUE + 'Creating new server keys.' + bcolors.ENDC
+def check_create_dir(path):
+    if not os.path.exists(path):
+        print "Creating directory in %s" % (path)
+        os.makedirs(path)
+
+print bcolors.OKBLUE + 'Creating new server keys...' + bcolors.ENDC
 cr = RSACrypt()
 
 try:
+    check_create_dir(sco.c['server_keys_dir'])
+    check_create_dir(sco.c['client_keys_dir'])
+    check_create_dir(cco.c['client_keys_dir'])
     open(sco.c['public_rsa_file'], "w").write(cr.public_key_string())
     open(cco.c['server_public_rsa'], "w").write(cr.public_key_string())
     open(sco.c['private_rsa_file'], "w").write(cr.private_key_string())
