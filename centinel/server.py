@@ -26,7 +26,7 @@ class Server:
     	    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	else:
 	    self.sock = sock
-	self.sock.bind(('', int(conf.c['server_port'])))
+	self.sock.bind(('0.0.0.0', int(conf.c['server_port'])))
 	self.sock.listen(5)
 
 	self.client_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['client_keys_dir'], '*'))]
