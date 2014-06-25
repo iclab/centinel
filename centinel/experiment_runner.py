@@ -8,9 +8,9 @@ import getpass
 from datetime import datetime
 
 from experiment import Experiment, ExperimentList
-from client_config import conf
+from client_config import client_conf
 
-conf = conf()
+conf = client_conf()
 
 EXPERIMENTS_DIR = conf.c['experiments_dir']
 DATA_DIR        = conf.c['data_dir']
