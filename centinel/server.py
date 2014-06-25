@@ -165,7 +165,8 @@ class Server:
 	    received_token = self.receive_crypt(clientsocket, address, self.private_key)
 
 	if init_only or (client_tag in self.client_list and random_token == received_token):
-	    print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
+	    if client_tag <> "unauthorized":
+		print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
 	else:
     	    try:
 	        self.send_fixed(clientsocket, address, 'e')
