@@ -28,28 +28,50 @@ class Server:
 	    self.sock = sock
 	self.sock.bind(('0.0.0.0', int(conf.c['server_port'])))
 	self.sock.listen(5)
-
+	"""
+	Fill in the list of clients and their respective RSA public keys (currently read from files).
+	TODO:
+	Read from database.
+	"""
 	self.client_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['client_keys_dir'], '*'))]
 	self.client_keys = dict()
 	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
 
+    """
+    Send a string of characters on the socket.
+	Size is fixed, meaning that the receiving party is 
+	expected to know how many bytes to read.
+    """
     def send_fixed(self, clientsocket, address, data):
 	try:
 	    sent = clientsocket.send(data)
-	except socket.error, (value,message): 
+	except Exception as det: 
     	    if clientsocket:
 		print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
 		clientsocket.close()
-	    raise Exception("Could not send data to client (%s:%s): " %(address[0], address[1]) + message)
+	    raise Exception("Could not send data to client (%s:%s): " %(address[0], address[1])), det
 	    return False
 	    
-	#print "Sent %d bytes to the client." %(sent)
 	return True
-    
+
+    """
+    Send a string of characters on the socket.
+	Size is dynamic and is sent fist as a 0-padded 10-byte 
+	string so that the receiving end will know how many 
+	bytes to read.
+    """
     def send_dyn(self, clientsocket, address, data):
 	self.send_fixed(clientsocket, address, str(len(data)).zfill(10))
 	self.send_fixed(clientsocket, address, data)
-    
+
+
+    """
+    Send a string of characters encrpyted using a given RSA key.
+	The message will be chopped up into chunks of fixed size.
+	The number of encrypted chunks is sent, followed by the
+	hash of the unencrypted data (used for integrity checking).
+	Encrypted chunks are sent one by one after that.
+    """
     def send_crypt(self, clientsocket, address, data, encryption_key):
 	crypt = RSACrypt()
 	crypt.import_public_key(encryption_key)
@@ -57,8 +79,6 @@ class Server:
 	chunk_size = 256
 	chunk_count = int(math.ceil(len(data) / float(chunk_size)))
 	digest = MD5.new(data).digest()
-
-	#print bcolors.OKBLUE + "Sending %d chunks of encrypted data..." %(chunk_count) + bcolors.ENDC
 
 	self.send_dyn(clientsocket, address, str(chunk_count))
 	self.send_dyn(clientsocket, address, digest)
@@ -70,8 +90,12 @@ class Server:
 	    bytes_encrypted = bytes_encrypted + chunk_size
 	    self.send_dyn(clientsocket, address, encrypted_chunk[0])
 
-	#print bcolors.OKGREEN + "Encrypted data sent." + bcolors.ENDC
-
+    
+    """
+    Receive a string of characters on the socket.
+	Size is fixed, meaning that we know how 
+	many bytes to read.
+    """
     def receive_fixed(self, clientsocket, address, message_len):
 	chunks = []
         bytes_recd = 0
@@ -81,27 +105,37 @@ class Server:
                 if clientsocket:
 		    print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
 		    clientsocket.close()
-        	raise Exception(message = "Socket connection broken (%s:%s)" %(address[0], address[1]))
+        	raise Exception("Socket connection broken (%s:%s)" %(address[0], address[1]))
 		return False
 	    chunks.append(chunk)
             bytes_recd = bytes_recd + len(chunk)
-	#print ''.join(chunks)
         return ''.join(chunks)
     
+    """
+    Receive a string of characters on the socket.
+	Size is dynamic and is sent fist as a 0-padded 10-byte 
+	string so that the we know how many bytes to read.
+    """
     def receive_dyn(self, clientsocket, address):
 	msg_size = self.receive_fixed(clientsocket, address, 10)
 	msg = self.receive_fixed(clientsocket, address, int(msg_size))
 	return msg
 
+    """
+    Receive a string of characters encrpyted using a given RSA key.
+	The message will be received in chunks of fixed size.
+	The number of encrypted chunks is received, followed by the
+	hash of the unencrypted data (used for integrity checking).
+	Encrypted chunks are received one by one after that and 
+	decrypted using the given key. The resulting string is then
+	hashed and verified using the received hash.
+    """
     def receive_crypt(self, clientsocket, address, decryption_key):
 	crypt = RSACrypt()
-
 	crypt.import_public_key(decryption_key)
 
 	chunk_count = int(self.receive_dyn(clientsocket, address))
 	received_digest = self.receive_dyn(clientsocket, address)
-
-	#print bcolors.OKBLUE + "Receiving %d chunks of encrypted data..." %(chunk_count) + bcolors.ENDC
 
 	chunk_size = 256
 	decrypted_results = ""
@@ -110,19 +144,24 @@ class Server:
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
 
-
-	#print bcolors.OKGREEN + "Encrypted data received." + bcolors.ENDC
-
-	#print bcolors.OKBLUE + "Verifying data integrity..." + bcolors.ENDC
 	calculated_digest = MD5.new(decrypted_results).digest()
 	if calculated_digest == received_digest:
-	    #print bcolors.OKGREEN + "Data integrity check pass." + bcolors.ENDC
 	    return decrypted_results
 	else:
 	    print bcolors.FAIL + "Data integrity check failed." + bcolors.ENDC
 	    return False
 
+    """
+    This runs ths server daemon.
+	Each connection is handled in a separate thread.
+	Keyboard and system interrupts are catched and dealt with 
+	to ensure smooth and clean shutdown of the server.
+    """
     def run(self):
+    """
+    The server will not run if the private and the public keys are 
+    not read.
+    """
 	try:
 	    kf = open(conf.c['public_rsa_file'])
 	    self.public_key = kf.read()
@@ -131,24 +170,35 @@ class Server:
 	    self.private_key = kf.read()
 	    kf.close()
 	except:
-	    print bcolors.FAIL + "Error loading key files."  + bcolors.ENDC
+	    print bcolors.FAIL + "Error loading key files:" +   + bcolors.ENDC
 	    print bcolors.FAIL + "Exiting..." + bcolors.ENDC
 	    self.connected = False
 	    return False
 
 	print bcolors.HEADER + "Server running. Awaiting connections..." + bcolors.ENDC
-	while 1:
-	    #accept connections from outside
-	    (clientsocket, address) = self.sock.accept()
-	    print bcolors.OKBLUE + "Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
-	    client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))
-	    client_thread.daemon = True
-	    client_thread.start()
+	try:
+	    while 1:
+		#accept connections from outside
+		(clientsocket, address) = self.sock.accept()
+		print bcolors.OKBLUE + "Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
+		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))
+		client_thread.daemon = True
+		client_thread.start()
+	except (KeyboardInterrupt, SystemExit):
+	    print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
+	    # do some shutdown stuff, then close
+	    exit(0)
 
+    """
+    This will handle all client requests as a separate thread.
+	Clients will be authenticated and have their commands handled.
+    """
     def client_connection_handler(self, clientsocket, address):
 	# r: send results
-	# x: close connection
-	# i: initialize client
+	# s: sync experiments
+	# c: get commands
+	# x: close connection (can be done using "unauthorized" tag)
+	# i: initialize client (can be done using "unauthorized" tag)
 
 	# We don't want to wait too long for a response.
 	clientsocket.settimeout(15)
@@ -198,7 +248,7 @@ class Server:
 	    except: 
 		if clientsocket: 
     		    clientsocket.close() 
-    		print bcolors.FAIL + client_tag + "(" + address[0] + ":" + str(address[1]) + ") error receiving data." + bcolors.ENDC
+    		print bcolors.FAIL + client_tag + "(" + address[0] + ":" + str(address[1]) + ") error receiving data: " + sys.exc_info()[0] + bcolors.ENDC
 		try:
 		    self.send_fixed(clientsocket, address, "e")
 		    self.send_dyn(clientsocket, address, message)
@@ -223,6 +273,7 @@ class Server:
 		print bcolors.WARNING + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
 		clientsocket.close()
 	    return True
+	# The client wants to initialize.
 	elif message_type == "i":
 	    print bcolors.OKBLUE + "(" + address[0] + ":" + str(address[1]) + ") wants to initialize." + bcolors.ENDC
 	    identity = self.random_string_generator()
