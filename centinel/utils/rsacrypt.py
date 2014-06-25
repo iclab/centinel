@@ -22,6 +22,9 @@ class RSACrypt:
 
     def public_key_string(self):
 	return self.public_key.exportKey('PEM')
+
+    def private_key_string(self):
+	return self.key.exportKey('PEM')
     
     def import_public_key(self,new_public_key):
 	self.public_key = RSA.importKey(new_public_key)
