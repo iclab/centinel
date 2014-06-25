@@ -8,7 +8,7 @@ import getpass
 from datetime import datetime
 
 from experiment import Experiment, ExperimentList
-from config import conf
+from client_config import conf
 
 conf = conf()
 

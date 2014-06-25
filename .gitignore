@@ -2,5 +2,10 @@
 *.pyo
 .#*
 results/
+results_archive/
+server_results/
+server_keys/*
+server_keys/clients/*
+client_keys/*
 centinel.egg-info/
 dist/
