@@ -4,11 +4,11 @@ import sys
 
 from centinel.serverconnection import ServerConnection
 from centinel.utils.colors import bcolors
-from centinel.client_config import conf
+from centinel.client_config import client_conf
 
 selection = sys.argv
 selection.pop(0)
-c = conf()
+c = client_conf()
 
 print bcolors.OKBLUE + 'Initializing the client.' + bcolors.ENDC
 if c.config_read:
