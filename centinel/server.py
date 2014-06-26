@@ -266,7 +266,7 @@ class Server:
 
 	message_type = self.receive_fixed(clientsocket, address, 1)
     	if client_tag <> "unauthorized":
-	    self.client_last_seen[client_tag] = time.strftime("%H:%M:%S") + " from " + address[0] + ":" + str(address[1])
+	    self.client_last_seen[client_tag] = time.strftime("%d/%m/%Y - %H:%M:%S") + " from " + address[0] + ":" + str(address[1])
 
 	# The client wants to submit results:
 	if message_type == "r" and not init_only:
