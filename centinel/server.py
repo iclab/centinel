@@ -133,7 +133,7 @@ class Server:
 	decrypted using the given key. The resulting string is then
 	hashed and verified using the received hash.
     """
-    def receive_crypt(self, clientsocket, address, decryption_key):
+    def receive_crypt(self, clientsocket, address, decryption_key, show_progress=True):
 	crypt = RSACrypt()
 	crypt.import_public_key(decryption_key)
 
@@ -143,14 +143,16 @@ class Server:
 	org = chunk_count
 	chunk_size = 256
 	decrypted_results = ""
-
-	print bcolors.OKBLUE + "Progress: "
+	if show_progress:
+	    print bcolors.OKBLUE + "Progress: "
 	while chunk_count > 0:
 	    encrypted_chunk = self.receive_dyn(clientsocket, address)
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
-	    update_progress( int(100 * float(org - chunk_count) / float(org)) )
-	print bcolors.ENDC
+	    if show_progress:
+		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+	if show_progress:
+	    print bcolors.ENDC
 
 
 	calculated_digest = MD5.new(decrypted_results).digest()
@@ -247,7 +249,7 @@ class Server:
 		init_only = False
 		random_token = self.random_string_generator(10)
     		self.send_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
-		received_token = self.receive_crypt(clientsocket, address, self.private_key)
+		received_token = self.receive_crypt(clientsocket, address, self.private_key, show_progress=False)
 
 	    if init_only or (client_tag in self.client_list and random_token == received_token):
 		if client_tag <> "unauthorized":
@@ -336,6 +338,8 @@ class Server:
 
 	    self.client_list.append(identity)
 	    self.client_keys [identity] = client_pub_key
+	    self.client_last_seen [identity] = "never nowhere"
+	    self.client_commands [identity] = "chill"
 	    client_tag = identity
 	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
 
