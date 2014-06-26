@@ -9,4 +9,4 @@ class bcolors:
     ENDC = '\033[0m'
 
 def update_progress(progress):
-    sys.stdout.write( '\r[{0}] {1}%'.format('#'*(progress/5), progress) )
+    sys.stdout.write( '\r[{0}] {1}%'.format('#'*(progress/2), progress) )
