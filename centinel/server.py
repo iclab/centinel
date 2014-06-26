@@ -367,6 +367,9 @@ class Server:
     	    if clientsocket: 
     		clientsocket.close() 
 	    return False
+	# The client wants to sync experiments:
+	#elif message_type == "s" and not init_only:
+	    
 
     def random_string_generator(self, size=5, chars=string.ascii_uppercase + string.digits):
 	identifier = ''.join(random.choice(chars) for _ in range(size))
