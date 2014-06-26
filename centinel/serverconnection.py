@@ -11,6 +11,7 @@ import socket
 import sys
 from utils.rsacrypt import RSACrypt
 from utils.colors import bcolors
+from utils.colors import update_progress
 from client_config import client_conf
 from Crypto.Hash import MD5
 
@@ -120,24 +121,23 @@ class ServerConnection:
 	chunk_count = int(self.receive_dyn())
 	received_digest = self.receive_dyn()
 
-	#print bcolors.OKBLUE + "Receiving %d chunks of encrypted data..." %(chunk_count) + bcolors.ENDC
-
+	org = chunk_count
 	chunk_size = 256
 	decrypted_results = ""
+
+	print bcolors.OKGREEN + "Progress: "
 	while chunk_count > 0:
 	    encrypted_chunk = self.receive_dyn()
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
-
-	#print bcolors.OKGREEN + "Encrypted data received." + bcolors.ENDC
-
-	#print bcolors.OKBLUE + "Verifying data integrity..." + bcolors.ENDC
+	    update_progress( int(100 * float(org - chunk_count) / float(org)) )
+	print bcolors.ENDC
+    
 	calculated_digest = MD5.new(decrypted_results).digest()
 	if calculated_digest == received_digest:
-	    #print bcolors.OKGREEN + "Data integrity check pass." + bcolors.ENDC
 	    return decrypted_results
 	else:
-	    #print bcolors.FAIL + "Data integrity check failed." + bcolors.ENDC
+	    print bcolors.FAIL + "Data integrity check failed." + bcolors.ENDC
 	    return False
 
 
@@ -148,8 +148,6 @@ class ServerConnection:
 	chunk_size = 256
 	chunk_count = int(math.ceil(len(data) / float(chunk_size)))
 	digest = MD5.new(data).digest()
-
-	#print bcolors.OKBLUE + "Sending %d chunks of encrypted data..." %(chunk_count) + bcolors.ENDC
 
 	self.send_dyn(str(chunk_count))
 	self.send_dyn(digest)
@@ -162,7 +160,6 @@ class ServerConnection:
 	    encrypted_chunk = crypt.public_key_encrypt(data[bytes_encrypted:min(bytes_encrypted+chunk_size, len(data))])
 	    bytes_encrypted = bytes_encrypted + chunk_size
 	    self.send_dyn(encrypted_chunk[0])
-	#print bcolors.OKGREEN + "Encrypted data sent." + bcolors.ENDC
 
     def sync_results(self):
 	successful = 0
@@ -202,7 +199,7 @@ class ServerConnection:
 	    self.send_crypt(received_token, self.server_public_key)
 	    server_response = self.receive_fixed(1)
 	except Exception:
-	    print bcolors.FAIL + "Can't submit results." + bcolors.ENDC
+	    print bcolors.FAIL + "Can't submit results: " + bcolors.ENDC, sys.exc_info()[0] 
 	    return False
 	
 	if server_response == "a":

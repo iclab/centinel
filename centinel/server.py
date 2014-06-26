@@ -16,6 +16,7 @@ from utils.rsacrypt import RSACrypt
 from Crypto.Hash import MD5
 from server_config import server_conf
 from utils.colors import bcolors
+from utils.colors import update_progress
 
 conf = server_conf()
 
@@ -139,10 +140,15 @@ class Server:
 
 	chunk_size = 256
 	decrypted_results = ""
+
+	print bcolors.OKGREEN + "Progress: "
 	while chunk_count > 0:
 	    encrypted_chunk = self.receive_dyn(clientsocket, address)
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
+	    update_progress( int(100 * float(org - chunk_count) / float(org)) )
+	print bcolors.ENDC
+
 
 	calculated_digest = MD5.new(decrypted_results).digest()
 	if calculated_digest == received_digest:
