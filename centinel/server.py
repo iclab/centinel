@@ -200,7 +200,7 @@ class Server:
     This will handle all client requests as a separate thread.
 	Clients will be authenticated and have their commands handled.
     """
-    def client_connection_handler(self, clientsocket, address, authenticated=False):
+    def client_connection_handler(self, clientsocket, address, client_tag=''):
 	# r: send results
 	# s: sync experiments
 	# c: get commands
@@ -209,8 +209,10 @@ class Server:
 
 	# We don't want to wait too long for a response.
 	clientsocket.settimeout(15)
+	
+	init_only = False
 
-	if not authenticated:
+	if not client_tag:
 	    print bcolors.OKBLUE + "Authenticating..." + bcolors.ENDC
 	    client_tag = self.receive_dyn(clientsocket, address)
     
@@ -276,7 +278,7 @@ class Server:
 		    print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
 		    clientsocket.close()
 	    
-	    self.client_connection_handler(clientsocket, address, True)
+	    self.client_connection_handler(clientsocket, address, client_tag)
 	    return True
 	elif message_type == "x":
 	    print bcolors.OKBLUE + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to close the connection." + bcolors.ENDC
@@ -308,7 +310,7 @@ class Server:
 	    client_tag = identity
 	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
 
-	    self.client_connection_handler(clientsocket, address, True)
+	    self.client_connection_handler(clientsocket, address, client_tag)
 	    return True
 	else:
 	    try:
