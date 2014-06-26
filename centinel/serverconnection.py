@@ -48,9 +48,6 @@ class ServerConnection:
 	    print bcolors.WARNING + "Error loading key files."  + bcolors.ENDC
 
 	self.connected = True
-	return True
-
-	    
 	# Don't wait more than 15 seconds for the server.
 	self.serversocket.settimeout(15)
 	print bcolors.OKBLUE + "Server connection successful." + bcolors.ENDC
@@ -185,14 +182,14 @@ class ServerConnection:
 
 	print bcolors.OKBLUE + "Sync complete (%d/%d were successful)." %(successful, total) + bcolors.ENDC
 
-    def login(self)
+    def login(self):
 	try:
 	    self.send_dyn(conf.c['client_tag'])
 	    received_token = self.receive_crypt(self.my_private_key)
 	    self.send_crypt(received_token, self.server_public_key)
 	    server_response = self.receive_fixed(1)
 	except Exception:
-	    print bcolors.FAIL + "Can't submit results: " + bcolors.ENDC, sys.exc_info()[0] 
+	    print bcolors.FAIL + "Can't log in: " + bcolors.ENDC, sys.exc_info()[0] 
 	    return False
 	
 	if server_response == "a":
@@ -207,6 +204,7 @@ class ServerConnection:
 	else:
 	    print bcolors.FAIL + "Unknown server response \"" + server_response + "\"" + bcolors.ENDC
 	    return False
+	return True
 
 
     def submit_results(self, name, results_file_path):
@@ -216,28 +214,6 @@ class ServerConnection:
 
 	if conf.c['client_tag'] == 'unauthorized' or not self.logged_in:
 	    print bcolors.FAIL + "Client not authorized to send results." + bcolors.ENDC
-	    return False
-
-	try:
-	    self.send_dyn(conf.c['client_tag'])
-	    received_token = self.receive_crypt(self.my_private_key)
-	    self.send_crypt(received_token, self.server_public_key)
-	    server_response = self.receive_fixed(1)
-	except Exception:
-	    print bcolors.FAIL + "Can't submit results: " + bcolors.ENDC, sys.exc_info()[0] 
-	    return False
-	
-	if server_response == "a":
-	    print bcolors.OKGREEN + "Authentication successful." + bcolors.ENDC
-	elif server_response == "e":
-	    try:
-		error_message = self.receive_dyn()
-		print bcolors.FAIL + "Authentication error: " + error_message + bcolors.ENDC
-	    except Exception:
-		print bcolors.FAIL + "Authentication error (could not receive error details from the server)." + bcolors.ENDC
-	    return False
-	else:
-	    print bcolors.FAIL + "Unknown server response \"" + server_response + "\"" + bcolors.ENDC
 	    return False
 
 	try:

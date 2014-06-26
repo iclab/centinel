@@ -236,8 +236,9 @@ class Server:
 		print bcolors.FAIL + "Authentication error (" + client_tag + ")." + bcolors.ENDC
 		return False
 	    self.send_fixed(clientsocket, address, "a")
-	    message_type = self.receive_fixed(clientsocket, address, 1)
 	
+
+	message_type = self.receive_fixed(clientsocket, address, 1)
 
 	# The client wants to submit results:
 	if message_type == "r" and not init_only:
