@@ -158,10 +158,10 @@ class Server:
 	to ensure smooth and clean shutdown of the server.
     """
     def run(self):
-    """
-    The server will not run if the private and the public keys are 
-    not read.
-    """
+	"""
+	The server will not run if the private and the public keys are 
+	not read.
+	"""
 	try:
 	    kf = open(conf.c['public_rsa_file'])
 	    self.public_key = kf.read()
