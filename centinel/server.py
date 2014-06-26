@@ -142,7 +142,7 @@ class Server:
 	chunk_size = 256
 	decrypted_results = ""
 
-	print bcolors.OKGREEN + "Progress: "
+	print bcolors.OKBLUE + "Progress: "
 	while chunk_count > 0:
 	    encrypted_chunk = self.receive_dyn(clientsocket, address)
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
