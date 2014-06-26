@@ -279,6 +279,7 @@ class ServerConnection:
     def initialize_client(self):
 	try:
 	    self.send_dyn("unauthorized")
+	    self.receive_fixed(1)
 	    self.send_fixed("i")
 	    server_response = self.receive_fixed(1)
 	except Exception:
