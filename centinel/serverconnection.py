@@ -185,8 +185,9 @@ class ServerConnection:
     def login(self):
 	try:
 	    self.send_dyn(conf.c['client_tag'])
-	    received_token = self.receive_crypt(self.my_private_key)
-	    self.send_crypt(received_token, self.server_public_key)
+	    if conf.c['client_tag'] <> "unauthorized":
+		received_token = self.receive_crypt(self.my_private_key)
+		self.send_crypt(received_token, self.server_public_key)
 	    server_response = self.receive_fixed(1)
 	except Exception:
 	    print bcolors.FAIL + "Can't log in: " + bcolors.ENDC, sys.exc_info()[0] 
@@ -271,14 +272,11 @@ class ServerConnection:
 
     def initialize_client(self):
 	try:
-	    self.send_dyn("unauthorized")
 	    self.send_fixed("i")
 	    server_response = self.receive_fixed(1)
 	except Exception:
 	    print bcolors.FAIL + "Can\'t initialize." + bcolors.ENDC
 	    return False
-
-	server_response = self.receive_fixed(1)
 
 	if server_response == "a":
 	    print bcolors.OKGREEN + "Server ack received." + bcolors.ENDC
