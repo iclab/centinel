@@ -347,3 +347,12 @@ class ServerConnection:
 	    return self.receive_crypt(self.my_private_key)
 	else:
 	    return False
+    
+    def sync_exp(self):
+	if not self.logged_in:
+	    print bcolors.FAIL + "Unauthorized hearts don't beat! " + bcolors.ENDC
+	    return False
+
+	#self.send_fixed("s")
+	
+	#py_exp_pairs = [  MD5.new(data).digest()
