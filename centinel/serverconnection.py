@@ -111,7 +111,7 @@ class ServerConnection:
 	msg = self.receive_fixed(int(msg_size))
 	return msg
 
-    def receive_crypt(self, decryption_key):
+    def receive_crypt(self, decryption_key, show_progress=True):
 	crypt = RSACrypt()
 
 	crypt.import_public_key(decryption_key)
@@ -122,14 +122,17 @@ class ServerConnection:
 	org = chunk_count
 	chunk_size = 256
 	decrypted_results = ""
-
-	print bcolors.OKBLUE + "Progress: "
+	
+	if show_progress:
+	    print bcolors.OKBLUE + "Progress: "
 	while chunk_count > 0:
 	    encrypted_chunk = self.receive_dyn()
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
-	    update_progress( int(100 * float(org - chunk_count) / float(org)) )
-	print bcolors.ENDC
+	    if show_progress:
+		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+	if show_progress:
+	    print bcolors.ENDC
     
 	calculated_digest = MD5.new(decrypted_results).digest()
 	if calculated_digest == received_digest:
@@ -186,7 +189,7 @@ class ServerConnection:
 	try:
 	    self.send_dyn(conf.c['client_tag'])
 	    if conf.c['client_tag'] <> "unauthorized":
-		received_token = self.receive_crypt(self.my_private_key)
+		received_token = self.receive_crypt(self.my_private_key, show_progress=False)
 		self.send_crypt(received_token, self.server_public_key)
 	    server_response = self.receive_fixed(1)
 	except Exception:
@@ -334,7 +337,7 @@ class ServerConnection:
         if not self.logged_in:
 	    print bcolors.FAIL + "Unauthorized hearts don't beat! " + bcolors.ENDC
 	    return False
-	    
+
 	self.send_fixed('b')
 	server_response = self.receive_fixed(1)
 	    

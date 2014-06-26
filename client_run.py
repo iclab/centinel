@@ -10,11 +10,6 @@ selection = sys.argv
 selection.pop(0)
 
 
-serverconn = ServerConnection()
-if not serverconn.connect():
-    print bcolors.FAIL + 'Server not connected.' + bcolors.ENDC
-    exit(1)
-
 def run_exp(selection):
     print bcolors.OKBLUE + 'Starting the exepriments.' + bcolors.ENDC
     experiment_runner.run(selection)
@@ -30,29 +25,67 @@ def fetch():
     # TODO:
     # Write results fetch.
 
-while 1:
-    server_response = serverconn.beat()
-    if not server_response:
-	print bcolors.FAIL + "Server didn't beat!" + bcolors.ENDC
-	serverconn.disconnect()
-	exit;
-    elif server_response <> 'beat':
-	print bcolors.HEADER + "Executing commands... (" + server_response + ")" + bcolors.ENDC
-	for command in server_response.split(";"):
-	    command = command.strip()
-	    if command == '':
-		continue
-	    elif command == "sync_results" or command == "sync":
-		sync()
-		continue
-	    elif command == "fetch_exp" or command == "fetch":
-		fetch()
-	    elif command.split()[0] == "run_exp" or command.split()[0] == "run":
-		run_exp(command.split()[1:])
-	    else:
-		print bcolors.FAIL + "Command %s not recognized." %(command) + bcolors.ENDC
+print bcolors.HEADER + "Client daemon is running..." + bcolors.ENDC
 
-    time.sleep(5) # Sleep for heartbeat duration.
+serverconn = ServerConnection()
+if not serverconn.connect():
+    print bcolors.FAIL + 'Server not connected.' + bcolors.ENDC
+
+while 1:
+    try:
+	
+	if not serverconn.connected:
+    	    raise Exception
+	server_response = serverconn.beat()
+
+	if not server_response:
+	    print bcolors.FAIL + "Server didn't beat!" + bcolors.ENDC
+	    serverconn.disconnect()
+	    exit;
+	elif server_response <> 'beat':
+	    print bcolors.HEADER + "Executing commands... (" + server_response + ")" + bcolors.ENDC
+	    for command in server_response.split(";"):
+		command = command.strip()
+		if command == '':
+		    continue
+		elif command == "sync_results" or command == "sync":
+		    sync()
+		    continue
+		elif command == "fetch_exp" or command == "fetch":
+		    fetch()
+		elif command.split()[0] == "run_exp" or command.split()[0] == "run":
+		    run_exp(command.split()[1:])
+		else:
+		    print bcolors.FAIL + "Command %s not recognized." %(command) + bcolors.ENDC
+	time.sleep(5) # Sleep for heartbeat duration.
+    except (KeyboardInterrupt, SystemExit):
+	print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
+	# do some shutdown stuff, then close
+	exit(0)
+    except:
+	print bcolors.FAIL + "An exception occured at heartbeat." + bcolors.ENDC
+	print bcolors.OKBLUE + "Trying to recover..." + bcolors.ENDC
+	fixed = False
+	try:
+	    while not fixed:
+    		try:
+		    serverconn.disconnect()
+		    serverconn = ServerConnection()
+		    serverconn.connect()
+		    if not serverconn.connected:
+			raise Exception
+		    fixed = True
+		except:
+		    print bcolors.FAIL + "Error persists. Rerying..." + bcolors.ENDC
+		    time.sleep(5) # Sleep before retrying
+		    fixed = False
+	    print bcolors.OKGREEN + "We're back business!" + bcolors.ENDC
+	except (KeyboardInterrupt, SystemExit):
+	    print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
+	    # do some shutdown stuff, then close
+	    exit(0)
+
+
     
 
 serverconn.disconnect()
