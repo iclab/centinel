@@ -53,7 +53,7 @@ class ServerConnection:
 	print bcolors.OKBLUE + "Server connection successful." + bcolors.ENDC
 	if do_login:
 	    self.logged_in = self.login()
-	else
+	else:
 	    self.logged_in = False
 	self.connected = True
 	return True
