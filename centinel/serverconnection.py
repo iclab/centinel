@@ -330,3 +330,17 @@ class ServerConnection:
 	    print bcolors.FAIL + "Unknown server response \"" + server_response + "\"" + bcolors.ENDC
 	    return False
 	
+    def beat(self):
+        if not self.logged_in:
+	    print bcolors.FAIL + "Unauthorized hearts don't beat! " + bcolors.ENDC
+	    return False
+	    
+	self.send_fixed('b')
+	server_response = self.receive_fixed(1)
+	    
+	if server_response == 'b':
+	    return "beat"
+	elif server_response == 'c':
+	    return self.receive_crypt(self.my_private_key)
+	else:
+	    return False
