@@ -188,7 +188,7 @@ class Server:
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
 		print bcolors.OKBLUE + "Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
-		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))
+		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address, False))
 		client_thread.daemon = True
 		client_thread.start()
 	except (KeyboardInterrupt, SystemExit):
@@ -200,7 +200,7 @@ class Server:
     This will handle all client requests as a separate thread.
 	Clients will be authenticated and have their commands handled.
     """
-    def client_connection_handler(self, clientsocket, address):
+    def client_connection_handler(self, clientsocket, address, authenticated=False):
 	# r: send results
 	# s: sync experiments
 	# c: get commands
@@ -209,31 +209,34 @@ class Server:
 
 	# We don't want to wait too long for a response.
 	clientsocket.settimeout(15)
-	print bcolors.OKBLUE + "Authenticating..." + bcolors.ENDC
-	client_tag = self.receive_dyn(clientsocket, address)
-    
-	if client_tag == "unauthorized":
-	    # Only allow them to either close or initialize:
-	    init_only = True
-	else:
-	    init_only = False
-	    random_token = self.random_string_generator(10)
-    	    self.send_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
-	    received_token = self.receive_crypt(clientsocket, address, self.private_key)
 
-	if init_only or (client_tag in self.client_list and random_token == received_token):
-	    if client_tag <> "unauthorized":
-		print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
-	else:
-    	    try:
-	        self.send_fixed(clientsocket, address, 'e')
-	        self.send_dyn(clientsocket, address, "Authentication error.")
-	    except:
-	        pass
-	    print bcolors.FAIL + "Authentication error (" + client_tag + ")." + bcolors.ENDC
-	    return False
-	self.send_fixed(clientsocket, address, "a")
-	message_type = self.receive_fixed(clientsocket, address, 1)
+	if not authenticated:
+	    print bcolors.OKBLUE + "Authenticating..." + bcolors.ENDC
+	    client_tag = self.receive_dyn(clientsocket, address)
+    
+	    if client_tag == "unauthorized":
+		# Only allow them to either close or initialize:
+		init_only = True
+	    else:
+		init_only = False
+		random_token = self.random_string_generator(10)
+    		self.send_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
+		received_token = self.receive_crypt(clientsocket, address, self.private_key)
+
+	    if init_only or (client_tag in self.client_list and random_token == received_token):
+		if client_tag <> "unauthorized":
+		    print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
+		    authenticated = True
+	    else:
+    		try:
+	    	    self.send_fixed(clientsocket, address, 'e')
+	    	    self.send_dyn(clientsocket, address, "Authentication error.")
+		except:
+	    	    pass
+		print bcolors.FAIL + "Authentication error (" + client_tag + ")." + bcolors.ENDC
+		return False
+	    self.send_fixed(clientsocket, address, "a")
+	    message_type = self.receive_fixed(clientsocket, address, 1)
 	
 
 	# The client wants to submit results:
@@ -272,7 +275,7 @@ class Server:
 		    print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
 		    clientsocket.close()
 	    
-	    self.client_connection_handler(clientsocket, address)
+	    self.client_connection_handler(clientsocket, address, True)
 	    return True
 	elif message_type == "x":
 	    print bcolors.OKBLUE + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to close the connection." + bcolors.ENDC
@@ -304,7 +307,7 @@ class Server:
 	    client_tag = identity
 	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
 
-	    self.client_connection_handler(clientsocket, address)
+	    self.client_connection_handler(clientsocket, address, True)
 	    return True
 	else:
 	    try:
