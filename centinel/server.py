@@ -138,6 +138,7 @@ class Server:
 	chunk_count = int(self.receive_dyn(clientsocket, address))
 	received_digest = self.receive_dyn(clientsocket, address)
 
+	org = chunk_count
 	chunk_size = 256
 	decrypted_results = ""
 
