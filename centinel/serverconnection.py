@@ -298,6 +298,7 @@ class ServerConnection:
 	new_identity = self.receive_dyn() #identities are usually of length 5
 	crypt = RSACrypt()
 	my_public_key = crypt.public_key_string()
+	self.server_public_key = self.receive_dyn()
 	self.send_crypt(my_public_key, self.server_public_key)
 
 	server_response = self.receive_fixed(1)
@@ -308,6 +309,10 @@ class ServerConnection:
 
 	pkf = open(conf.c['client_private_rsa'], "w")
 	pkf.write(crypt.private_key_string())
+	pkf.close()
+
+	pkf = open(conf.c['server_public_rsa'], "w")
+	pkf.write(self.server_public_key)
 	pkf.close()
 
 	pkf = open(conf.c['config_file'], "w")

@@ -280,6 +280,7 @@ class Server:
 	    try:
 		self.send_fixed(clientsocket, address, "a")
 		self.send_dyn(clientsocket, address, identity) #size is usually 5 characters (it is easy to write down and/or remember)
+		self.send_dyn(clientsocket, address, self.public_key)
 		client_pub_key = self.receive_crypt(clientsocket, address, self.private_key)
 		of = open(os.path.join(conf.c['client_keys_dir'], identity), "w")
 		of.write(client_pub_key)
