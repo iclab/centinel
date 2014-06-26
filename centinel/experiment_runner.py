@@ -7,13 +7,13 @@ import getpass
 
 from datetime import datetime
 
-from experiment import Experiment, ExperimentList
+from experiment_py import Experiment, ExperimentList
 from client_config import client_conf
 
 conf = client_conf()
 
-EXPERIMENTS_DIR = conf.c['experiments_dir']
-DATA_DIR        = conf.c['data_dir']
+EXPERIMENTS_DIR = conf.c['experiments_py_dir']
+DATA_DIR        = conf.c['experiment_data_dir']
 RESULTS_DIR	= conf.c['results_dir']
 
 def get_results_dir():
