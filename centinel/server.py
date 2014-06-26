@@ -37,7 +37,7 @@ class Server:
 	self.client_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['client_keys_dir'], '*'))]
 	self.client_keys = dict()
 	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
-
+	self.client_commands = dict((c, "chill") for c in self.client_list)
     """
     Send a string of characters on the socket.
 	Size is fixed, meaning that the receiving party is 
@@ -183,6 +183,11 @@ class Server:
 	    return False
 
 	print bcolors.HEADER + "Server running. Awaiting connections..." + bcolors.ENDC
+
+	command_thread = threading.Thread(target=self.client_command_sender, args = ())
+	command_thread.daemon = True
+	command_thread.start()
+
 	try:
 	    while 1:
 		#accept connections from outside
@@ -196,6 +201,23 @@ class Server:
 	    # do some shutdown stuff, then close
 	    exit(0)
 
+    def client_command_sender(self):
+	while 1:
+	    com = raw_input("> ")
+	    if len(com.split()) < 2:
+		print bcolors.FAIL + "No command given!" + bcolors.ENDC
+		print bcolors.FAIL + "\tUsage: [client_tag] [command1];[command2];..." + bcolors.ENDC
+		continue
+	    tag, command_list = com.split(" ", 1);
+	    if tag in self.client_list and command_list <> "chill" and command_list:
+		if self.client_commands[tag] == "chill":
+		    self.client_commands[tag] = command_list
+		else:
+		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
+		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on %s." %(self.client_commands[tag],tag)+ bcolors.ENDC
+	    else:
+		print bcolors.FAIL + "Command/client tag not recognized!" + bcolors.ENDC
+
     """
     This will handle all client requests as a separate thread.
 	Clients will be authenticated and have their commands handled.
@@ -203,7 +225,7 @@ class Server:
     def client_connection_handler(self, clientsocket, address, client_tag=''):
 	# r: send results
 	# s: sync experiments
-	# c: get commands
+	# b: heartbeat and get commands
 	# x: close connection (can be done using "unauthorized" tag)
 	# i: initialize client (can be done using "unauthorized" tag)
 
@@ -280,12 +302,15 @@ class Server:
 	    
 	    self.client_connection_handler(clientsocket, address, client_tag)
 	    return True
+
+	# The client wants to end the connection.
 	elif message_type == "x":
 	    print bcolors.OKBLUE + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to close the connection." + bcolors.ENDC
 	    if clientsocket:
 		print bcolors.WARNING + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
 		clientsocket.close()
 	    return True
+
 	# The client wants to initialize.
 	elif message_type == "i":
 	    print bcolors.OKBLUE + "(" + address[0] + ":" + str(address[1]) + ") wants to initialize." + bcolors.ENDC
@@ -312,6 +337,19 @@ class Server:
 
 	    self.client_connection_handler(clientsocket, address, client_tag)
 	    return True
+
+	# The client is showing heartbeat:
+	elif message_type == "b" and not init_only:
+	    if self.client_commands[client_tag] == 'chill':
+		#print bcolors.WARNING + client_tag + " [beat]... " + bcolors.ENDC
+		self.send_fixed(clientsocket, address, 'b')
+	    else:
+		self.send_fixed(clientsocket, address, 'c')
+		self.send_crypt(clientsocket, address, self.client_commands[client_tag], self.client_keys[client_tag])
+		print bcolors.WARNING + client_tag + " Just received the latest commands... " + bcolors.ENDC
+		self.client_commands[client_tag] = "chill"
+
+	    self.client_connection_handler(clientsocket, address, client_tag)
 	else:
 	    try:
 		self.send_fixed(clientsocket, address, "e")
