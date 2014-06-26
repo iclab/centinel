@@ -65,7 +65,6 @@ while 1:
 	serverconn.disconnect()
 	# do some shutdown stuff, then close
 	exit(0)
-
     except:
 	print bcolors.FAIL + "An exception occured at heartbeat." + bcolors.ENDC
 	print bcolors.OKBLUE + "Trying to recover..." + bcolors.ENDC

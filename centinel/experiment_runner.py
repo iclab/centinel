@@ -67,7 +67,7 @@ def run(selection = []):
 	run_all = True
     else:
 	run_all = False
-    print results_dir
+
     if not os.path.exists(results_dir):
         print "Creating results directory in %s" % (results_dir)
         os.makedirs(results_dir)
@@ -82,6 +82,7 @@ def run(selection = []):
     if run_all:
         for name, Exp in experiments.items():
 	    results[name] = execute_experiment(name, Exp)
+
 	for name in conf_experiments:
 	    results[name] = execute_conf_experiment(name)
     else:

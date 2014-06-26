@@ -1,7 +1,7 @@
 import ConfigParser
 import socket
 
-from centinel.experiment import Experiment
+from centinel.experiment_py import Experiment
 
 class ConfigurableTCPConnectExperiment(Experiment):
     name = "conig_tcp_connect"

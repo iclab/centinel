@@ -1,7 +1,7 @@
 import ConfigParser
 import os
 
-from centinel.experiment import Experiment
+from centinel.experiment_py import Experiment
 
 class ConfigurablePingExperiment(Experiment):
     name = "config_ping"

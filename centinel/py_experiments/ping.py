@@ -1,6 +1,6 @@
 import os
 
-from centinel.experiment import Experiment
+from centinel.experiment_py import Experiment
 
 class PingExperiment(Experiment):
     name = "ping"
