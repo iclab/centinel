@@ -45,23 +45,27 @@ while 1:
 	elif server_response <> 'beat':
 	    print bcolors.HEADER + "Executing commands... (" + server_response + ")" + bcolors.ENDC
 	    for command in server_response.split(";"):
-		command = command.strip()
-		if command == '':
-		    continue
-		elif command == "sync_results" or command == "sync":
-		    sync()
-		    continue
-		elif command == "fetch_exp" or command == "fetch":
-		    fetch()
-		elif command.split()[0] == "run_exp" or command.split()[0] == "run":
-		    run_exp(command.split()[1:])
-		else:
-		    print bcolors.FAIL + "Command %s not recognized." %(command) + bcolors.ENDC
+	        try:
+	    	    command = command.strip()
+		    if command == '':
+		        continue
+		    elif command == "sync_results" or command == "sync":
+			sync()
+		    elif command == "fetch_exp" or command == "fetch":
+			fetch()
+		    elif command.split()[0] == "run_exp" or command.split()[0] == "run":
+			run_exp(command.split()[1:])
+		    else:
+			print bcolors.FAIL + "Command %s not recognized." %(command) + bcolors.ENDC
+		except:
+		    print bcolors.FAIL + "Command %s failed to execute." %(command) + bcolors.ENDC
 	time.sleep(5) # Sleep for heartbeat duration.
     except (KeyboardInterrupt, SystemExit):
 	print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
+	serverconn.disconnect()
 	# do some shutdown stuff, then close
 	exit(0)
+
     except:
 	print bcolors.FAIL + "An exception occured at heartbeat." + bcolors.ENDC
 	print bcolors.OKBLUE + "Trying to recover..." + bcolors.ENDC
