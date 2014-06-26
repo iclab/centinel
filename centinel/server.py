@@ -1,4 +1,5 @@
 import math
+import time
 import os
 import shutil
 from os import listdir
@@ -38,6 +39,7 @@ class Server:
 	self.client_keys = dict()
 	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
 	self.client_commands = dict((c, "chill") for c in self.client_list)
+	self.client_last_seen = dict((c, "never nowhere") for c in self.client_list)
     """
     Send a string of characters on the socket.
 	Size is fixed, meaning that the receiving party is 
@@ -214,7 +216,7 @@ class Server:
 		    self.client_commands[tag] = command_list
 		else:
 		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
-		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on %s." %(self.client_commands[tag],tag)+ bcolors.ENDC
+		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on %s. (last seen %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag])+ bcolors.ENDC
 	    else:
 		print bcolors.FAIL + "Command/client tag not recognized!" + bcolors.ENDC
 
@@ -263,6 +265,8 @@ class Server:
 	
 
 	message_type = self.receive_fixed(clientsocket, address, 1)
+    	if client_tag <> "unauthorized":
+	    self.client_last_seen[client_tag] = time.strftime("%H:%M:%S") + " from " + address[0] + ":" + str(address[1])
 
 	# The client wants to submit results:
 	if message_type == "r" and not init_only:
