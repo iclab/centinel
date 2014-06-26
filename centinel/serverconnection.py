@@ -25,7 +25,7 @@ class ServerConnection:
 	self.server_address = server_address
 	self.server_port = server_port
 	
-    def connect(self):
+    def connect(self, do_login = True):
 	try:
 	    self.serversocket.connect((self.server_address, self.server_port))
         except socket.error, (value,message): 
@@ -51,7 +51,10 @@ class ServerConnection:
 	# Don't wait more than 15 seconds for the server.
 	self.serversocket.settimeout(15)
 	print bcolors.OKBLUE + "Server connection successful." + bcolors.ENDC
-	self.logged_in = self.login()
+	if do_login:
+	    self.logged_in = self.login()
+	else
+	    self.logged_in = False
 	self.connected = True
 	return True
 

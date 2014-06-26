@@ -32,7 +32,7 @@ if c.config_read:
 
 print bcolors.OKBLUE + 'Connecting to server...' + bcolors.ENDC
 serverconn = ServerConnection()
-if not serverconn.connect():
+if not serverconn.connect(do_login = False):
     exit(1)
 
 serverconn.initialize_client()
