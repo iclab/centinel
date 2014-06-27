@@ -9,6 +9,7 @@ import string
 import random
 import gzip
 import socket
+from socket import timeout
 import sys
 import threading
 import glob
@@ -273,6 +274,11 @@ class Server:
 	    except timeout:
 		retries = retries - 1
 		print bcolors.WARNING + "Client is taking a bit too long to send command (retrying %d more times)... " %(retries) + bcolors.ENDC
+	if retries == 0:
+	    print bcolors.FAIL + "The client is not responding, closing the connection..." + bcolors.ENDC
+	    if clientsocket:
+		clientsocket.close()
+	    return False
 
     	if client_tag <> "unauthorized":
 	    self.client_last_seen[client_tag] = time.strftime("%d/%m/%Y - %H:%M:%S") + " from " + address[0] + ":" + str(address[1])
