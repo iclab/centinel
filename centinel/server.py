@@ -265,8 +265,15 @@ class Server:
 		return False
 	    self.send_fixed(clientsocket, address, "a")
 	
+	message_type = ""
+	retries = 5
+	while not message_type and retries > 0:
+	    try:
+		message_type = self.receive_fixed(clientsocket, address, 1)
+	    except timeout:
+		retries = retries - 1
+		print bcolors.WARNING + "Client is taking a bit too long to send command (retrying %d more times)... " %(retries) + bcolors.ENDC
 
-	message_type = self.receive_fixed(clientsocket, address, 1)
     	if client_tag <> "unauthorized":
 	    self.client_last_seen[client_tag] = time.strftime("%d/%m/%Y - %H:%M:%S") + " from " + address[0] + ":" + str(address[1])
 
