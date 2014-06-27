@@ -13,7 +13,7 @@ setup(
     license = "MIT",
     keywords = "censorship network interference",
     url = "https://www.github.com/projectbismark/centinel",
-    packages = ["centinel", "centinel.experiments", "centinel.utils"],
+    packages = ["centinel", "centinel.py_experiments", "centinel.utils"],
     install_requires = ["dnspython >= 1.11.0"],
     include_package_data = True,
     entry_points = {

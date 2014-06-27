@@ -74,21 +74,18 @@ while 1:
     		try:
 		    serverconn.disconnect()
 		    serverconn = ServerConnection()
-		    serverconn.connect()
-		    if not serverconn.connected:
+		    if not serverconn.connect():
 			raise Exception
 		    fixed = True
 		except:
 		    print bcolors.FAIL + "Error persists. Rerying..." + bcolors.ENDC
 		    time.sleep(5) # Sleep before retrying
 		    fixed = False
-	    print bcolors.OKGREEN + "We're back business!" + bcolors.ENDC
 	except (KeyboardInterrupt, SystemExit):
 	    print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
 	    # do some shutdown stuff, then close
 	    exit(0)
-
-
-    
+	print bcolors.OKGREEN + "We're back in business!" + bcolors.ENDC
+	
 
 serverconn.disconnect()
