@@ -219,8 +219,12 @@ class ServerConnection:
 	    print bcolors.FAIL + "Server not connected!" + bcolors.ENDC
 	    return False
 
-	if conf.c['client_tag'] == 'unauthorized' or not self.logged_in:
+	if conf.c['client_tag'] == 'unauthorized':
 	    print bcolors.FAIL + "Client not authorized to send results." + bcolors.ENDC
+	    return False
+
+	if not self.logged_in:
+	    print bcolors.FAIL + "Client not logged in." + bcolors.ENDC
 	    return False
 
 	try:
