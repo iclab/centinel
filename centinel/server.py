@@ -197,7 +197,7 @@ class Server:
 	    while 1:
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
-		print bcolors.OKBLUE + "Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
+		print bcolors.OKBLUE + strftime("%Y-%m-%d %H:%M:%S") + ": Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
 		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address, False))
 		client_thread.daemon = True
 		client_thread.start()
@@ -275,7 +275,7 @@ class Server:
 		retries = retries - 1
 		print bcolors.WARNING + "Client is taking a bit too long to send command (retrying %d more times)... " %(retries) + bcolors.ENDC
 	if retries == 0:
-	    print bcolors.FAIL + "The client is not responding, closing the connection..." + bcolors.ENDC
+	    print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + ": The client is not responding, closing the connection..." + bcolors.ENDC
 	    if clientsocket:
 		clientsocket.close()
 	    return False
@@ -285,7 +285,7 @@ class Server:
 
 	# The client wants to submit results:
 	if message_type == "r" and not init_only:
-	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to submit results." + bcolors.ENDC
+	    print bcolors.OKGREEN + time.strftime("%d/%m/%Y - %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to submit results." + bcolors.ENDC
 	    try:
     		self.send_fixed(clientsocket, address, "a")
 
@@ -302,7 +302,7 @@ class Server:
 	    except: 
 		if clientsocket: 
     		    clientsocket.close() 
-    		print bcolors.FAIL + client_tag + "(" + address[0] + ":" + str(address[1]) + ") error receiving data: " + sys.exc_info()[0] + bcolors.ENDC
+    		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") error receiving data: " + sys.exc_info()[0] + bcolors.ENDC
 		try:
 		    self.send_fixed(clientsocket, address, "e")
 		    self.send_dyn(clientsocket, address, message)
@@ -326,13 +326,13 @@ class Server:
 	elif message_type == "x":
 	    print bcolors.OKBLUE + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to close the connection." + bcolors.ENDC
 	    if clientsocket:
-		print bcolors.WARNING + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
+		print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
 		clientsocket.close()
 	    return True
 
 	# The client wants to initialize.
 	elif message_type == "i":
-	    print bcolors.OKBLUE + "(" + address[0] + ":" + str(address[1]) + ") wants to initialize." + bcolors.ENDC
+	    print bcolors.OKBLUE + strftime("%Y-%m-%d %H:%M:%S") + " (" + address[0] + ":" + str(address[1]) + ") wants to initialize." + bcolors.ENDC
 	    identity = self.random_string_generator()
 	    try:
 		self.send_fixed(clientsocket, address, "a")
@@ -367,7 +367,7 @@ class Server:
 	    else:
 		self.send_fixed(clientsocket, address, 'c')
 		self.send_crypt(clientsocket, address, self.client_commands[client_tag], self.client_keys[client_tag])
-		print bcolors.WARNING + client_tag + " Just received the latest commands... " + bcolors.ENDC
+		print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + " Just received the latest commands... " + bcolors.ENDC
 		self.client_commands[client_tag] = "chill"
 
 	    self.client_connection_handler(clientsocket, address, client_tag)

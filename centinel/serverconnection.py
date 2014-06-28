@@ -1,4 +1,5 @@
 import math
+from time import gmtime, strftime
 import os
 import shutil
 import random
@@ -50,7 +51,7 @@ class ServerConnection:
 	self.connected = True
 	# Don't wait more than 15 seconds for the server.
 	self.serversocket.settimeout(15)
-	print bcolors.OKBLUE + "Server connection successful." + bcolors.ENDC
+	print bcolors.OKBLUE + strftime("%Y-%m-%d %H:%M:%S") + ": Server connection successful." + bcolors.ENDC
 	if do_login:
 	    self.logged_in = self.login()
 	else:
@@ -59,8 +60,10 @@ class ServerConnection:
 	return True
 
     def disconnect(self):
+	if not self.connected:
+	    return True
 	if self.serversocket:
-	    print bcolors.WARNING + "Closing connection to the server." + bcolors.ENDC
+	    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + ": Closing connection to the server." + bcolors.ENDC
 	    try:
 		#no need to authenticate when closing...
 		self.send_dyn("unauthorized")
