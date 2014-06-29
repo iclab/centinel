@@ -39,9 +39,9 @@ while 1:
 	server_response = serverconn.beat()
 
 	if not server_response:
-	    print bcolors.FAIL + "Server didn't beat!" + bcolors.ENDC
 	    serverconn.disconnect()
-	    exit;
+	    raise(Exception)
+	    
 	elif server_response <> 'beat':
 	    print bcolors.HEADER + "Executing commands... (" + server_response + ")" + bcolors.ENDC
 	    for command in server_response.split(";"):

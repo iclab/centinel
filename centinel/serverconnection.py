@@ -346,6 +346,10 @@ class ServerConnection:
 	    return False
 	
     def beat(self):
+	if not self.connected:
+	    print bcolors.FAIL + "Not connected to the server." + bcolors.ENDC
+	    return False
+
         if not self.logged_in:
 	    print bcolors.FAIL + "Unauthorized hearts don't beat! " + bcolors.ENDC
 	    return False

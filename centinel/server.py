@@ -199,7 +199,7 @@ class Server:
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
 		print bcolors.OKBLUE + strftime("%Y-%m-%d %H:%M:%S") + ": Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
-		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address, False))
+		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))
 		client_thread.daemon = True
 		client_thread.start()
 	except (KeyboardInterrupt, SystemExit):
@@ -237,7 +237,7 @@ class Server:
     This will handle all client requests as a separate thread.
 	Clients will be authenticated and have their commands handled.
     """
-    def client_connection_handler(self, clientsocket, address, client_tag=''):
+    def client_connection_handler(self, clientsocket, address):
 	# r: send results
 	# s: sync experiments
 	# b: heartbeat and get commands
@@ -247,7 +247,8 @@ class Server:
 	# We don't want to wait too long for a response.
 	clientsocket.settimeout(15)
 	
-	init_only = False
+	unauthorized = False
+	client_tag = ""
 
 	if not client_tag:
 	    print bcolors.OKBLUE + "Authenticating..." + bcolors.ENDC
@@ -255,14 +256,14 @@ class Server:
     
 	    if client_tag == "unauthorized":
 		# Only allow them to either close or initialize:
-		init_only = True
+		unauthorized = True
 	    else:
-		init_only = False
+		unauthorized = False
 		random_token = self.random_string_generator(10)
     		self.send_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
 		received_token = self.receive_crypt(clientsocket, address, self.private_key, show_progress=False)
 
-	    if init_only or (client_tag in self.client_list and random_token == received_token):
+	    if unauthorized or (client_tag in self.client_list and random_token == received_token):
 		if client_tag <> "unauthorized":
 		    print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
 		    authenticated = True
@@ -273,9 +274,24 @@ class Server:
 		except:
 	    	    pass
 		print bcolors.FAIL + "Authentication error (" + client_tag + ")." + bcolors.ENDC
+		if clientsocket:
+		    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
+		    clientsocket.close()
+
 		return False
 	    self.send_fixed(clientsocket, address, "a")
+
+	outcome = True
+	while outcome == True:
+	    outcome = self.handle_client_requests(clientsocket, address, client_tag, unauthorized)
 	
+	# close the connection after communication ends
+	if clientsocket:
+	    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
+	    clientsocket.close()
+
+
+    def handle_client_requests(self, clientsocket, address, client_tag, unauthorized = True):
 	message_type = ""
 	retries = 5
 	while not message_type and retries > 0:
@@ -290,11 +306,11 @@ class Server:
 		clientsocket.close()
 	    return False
 
-    	if client_tag <> "unauthorized":
+    	if not unauthorized:
 	    self.client_last_seen[client_tag] = datetime.now() , address[0] + ":" + str(address[1])
 
 	# The client wants to submit results:
-	if message_type == "r" and not init_only:
+	if message_type == "r" and not unauthorized:
 	    print bcolors.OKGREEN + time.strftime("%d/%m/%Y - %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to submit results." + bcolors.ENDC
 	    try:
     		self.send_fixed(clientsocket, address, "a")
@@ -325,20 +341,14 @@ class Server:
 		self.send_fixed(clientsocket, address, "c")
 	    except Exception:
 		print bcolors.FAIL + "Error sending the [complete] flag." + bcolors.ENDC
-		if clientsocket:
-		    print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
-		    clientsocket.close()
+		return False
 	    
-	    self.client_connection_handler(clientsocket, address, client_tag)
 	    return True
 
 	# The client wants to end the connection.
 	elif message_type == "x":
 	    print bcolors.OKBLUE + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to close the connection." + bcolors.ENDC
-	    if clientsocket:
-		print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
-		clientsocket.close()
-	    return True
+	    return False
 
 	# The client wants to initialize.
 	elif message_type == "i":
@@ -366,11 +376,11 @@ class Server:
 	    client_tag = identity
 	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
 
-	    self.client_connection_handler(clientsocket, address, client_tag)
-	    return True
+	    # After init, the client has to disconnect and login again.
+	    return False
 
 	# The client is showing heartbeat:
-	elif message_type == "b" and not init_only:
+	elif message_type == "b" and not unauthorized:
 	    if self.client_commands[client_tag] == 'chill':
 		#print bcolors.WARNING + client_tag + " [beat]... " + bcolors.ENDC
 		self.send_fixed(clientsocket, address, 'b')
@@ -379,19 +389,16 @@ class Server:
 		self.send_crypt(clientsocket, address, self.client_commands[client_tag], self.client_keys[client_tag])
 		print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + " Just received the latest commands... " + bcolors.ENDC
 		self.client_commands[client_tag] = "chill"
-
-	    self.client_connection_handler(clientsocket, address, client_tag)
+	    return True
 	else:
 	    try:
 		self.send_fixed(clientsocket, address, "e")
 		self.send_dyn(clientsocket, address, "Message type not recognized.")
 	    except Exception:
 		pass
-    	    if clientsocket: 
-    		clientsocket.close() 
 	    return False
 	# The client wants to sync experiments:
-	#elif message_type == "s" and not init_only:
+	#elif message_type == "s" and not unauthorized:
 	    
 
     def random_string_generator(self, size=5, chars=string.ascii_uppercase + string.digits):
