@@ -14,7 +14,7 @@ from socket import timeout
 import sys
 import threading
 import glob
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils.rsacrypt import RSACrypt
 from Crypto.Hash import MD5
 from server_config import server_conf
@@ -41,7 +41,7 @@ class Server:
 	self.client_keys = dict()
 	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
 	self.client_commands = dict((c, "chill") for c in self.client_list)
-	self.client_last_seen = dict((c, "never nowhere") for c in self.client_list)
+	self.client_last_seen = dict((c, ("", "nowhere")) for c in self.client_list)
     """
     Send a string of characters on the socket.
 	Size is fixed, meaning that the receiving party is 
@@ -210,6 +210,15 @@ class Server:
     def client_command_sender(self):
 	while 1:
 	    com = raw_input("> ")
+	    if len(com.split()) == 1:
+		if com == "listclients":
+		    print "Connected clients: "
+		    for client, (lasttime, lastaddress) in self.client_last_seen.items():
+			if lasttime <> "":
+			    if datetime.now() - lasttime < timedelta(seconds=15):
+				print "%s\t%s\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds)
+		    continue
+
 	    if len(com.split()) < 2:
 		print bcolors.FAIL + "No command given!" + bcolors.ENDC
 		print bcolors.FAIL + "\tUsage: [client_tag] [command1];[command2];..." + bcolors.ENDC
@@ -220,7 +229,7 @@ class Server:
 		    self.client_commands[tag] = command_list
 		else:
 		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
-		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on %s. (last seen %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag])+ bcolors.ENDC
+		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1])+ bcolors.ENDC
 	    else:
 		print bcolors.FAIL + "Command/client tag not recognized!" + bcolors.ENDC
 
@@ -282,7 +291,7 @@ class Server:
 	    return False
 
     	if client_tag <> "unauthorized":
-	    self.client_last_seen[client_tag] = time.strftime("%d/%m/%Y - %H:%M:%S") + " from " + address[0] + ":" + str(address[1])
+	    self.client_last_seen[client_tag] = datetime.now() , address[0] + ":" + str(address[1])
 
 	# The client wants to submit results:
 	if message_type == "r" and not init_only:
@@ -352,7 +361,7 @@ class Server:
 
 	    self.client_list.append(identity)
 	    self.client_keys [identity] = client_pub_key
-	    self.client_last_seen [identity] = "never nowhere"
+	    self.client_last_seen [identity] = ("", "")
 	    self.client_commands [identity] = "chill"
 	    client_tag = identity
 	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
