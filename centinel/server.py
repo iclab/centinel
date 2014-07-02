@@ -254,9 +254,15 @@ class Server:
 	    print bcolors.OKBLUE + "Authenticating..." + bcolors.ENDC
 	    client_tag = self.receive_dyn(clientsocket, address)
     
+	    authenticated = False
+
+	    random_token = ""
+	    received_token = ""
 	    if client_tag == "unauthorized":
 		# Only allow them to either close or initialize:
 		unauthorized = True
+	    elif client_tag not in self.client_list:
+		authenticated = False
 	    else:
 		unauthorized = False
 		random_token = self.random_string_generator(10)
