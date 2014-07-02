@@ -3,7 +3,7 @@ import os
 from utils.colors import bcolors
 
 class client_conf:
-    c  = {  'server_address' : "24.189.208.220",
+    c  = {  'server_address' : "nrgairport.nrg.cs.stonybrook.edu",
 	    'server_port' : "8082",
 	    'centinel_homedir' : os.path.dirname(__file__),
 	    'experiment_data_dir' : os.path.join(os.path.dirname(__file__), "experiment_data"),
@@ -27,5 +27,5 @@ class client_conf:
 	    self.c.update(parser.items('CentinelClient'))
 	    self.config_read = True
 	except ConfigParser.Error, message:
-	    print bcolors.FAIL + 'Error reading config file (did you run init.sh?).' + bcolors.ENDC
+	    print bcolors.FAIL + 'Error reading config file (did you run init_client.py?).' + bcolors.ENDC
 	    self.config_read = False

@@ -41,6 +41,7 @@ while 1:
 	if not server_response:
 	    serverconn.disconnect()
 	    raise(Exception)
+
 	    
 	elif server_response <> 'beat':
 	    print bcolors.HEADER + "Executing commands... (" + server_response + ")" + bcolors.ENDC
@@ -82,7 +83,7 @@ while 1:
 		    time.sleep(5) # Sleep before retrying
 		    fixed = False
 	except (KeyboardInterrupt, SystemExit):
-	    print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
+	    print bcolors.WARNING + "Shutdown requested, shutting centinel down..." + bcolors.ENDC
 	    # do some shutdown stuff, then close
 	    exit(0)
 	print bcolors.OKGREEN + "We're back in business!" + bcolors.ENDC
