@@ -62,7 +62,7 @@ while 1:
 		    print bcolors.FAIL + "Command %s failed to execute." %(command) + bcolors.ENDC
 	time.sleep(5) # Sleep for heartbeat duration.
     except (KeyboardInterrupt, SystemExit):
-	print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
+	print bcolors.WARNING + "Shutdown requested, shutting centinel down..." + bcolors.ENDC
 	serverconn.disconnect()
 	# do some shutdown stuff, then close
 	exit(0)
