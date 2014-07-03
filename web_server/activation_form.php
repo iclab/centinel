@@ -22,10 +22,12 @@ echo
 if (window.XMLHttpRequest)
 {   // code for IE7+, Firefox, Chrome, Opera, Safari
     xmlhttp=new XMLHttpRequest();
+    xmlhttpconsent=new XMLHttpRequest();
 }
 else
 {	// code for IE6, IE5
     xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+    xmlhttpconsent=new ActiveXObject("Microsoft.XMLHTTP");
 }
 function validemail(email) {
  
@@ -36,6 +38,31 @@ function validemail(email) {
    }
    return true;
 }
+
+function show_consent_form()
+{
+    country = document.getElementById("country").value;
+    xmlhttpconsent.onreadystatechange=function()
+    {
+        if (xmlhttpconsent.readyState==4 && xmlhttpconsent.status==200)
+    	{
+    	    if(xmlhttpconsent.responseText == "Error")
+    	    {
+		alert("Country error!");
+		return;
+    	    }
+    	    document.getElementById("consent_form_text").innerHTML = xmlhttpconsent.responseText;
+	}
+    }
+
+    getstr = "consent_form.php";
+    args = "country=" + encodeURIComponent(country);
+    
+    xmlhttpconsent.open("POST",getstr,true);
+    xmlhttpconsent.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+    xmlhttpconsent.send(args);
+}
+
 function sendMsg()
 {
     name = document.getElementById("name").value;
@@ -97,12 +124,17 @@ Please enter the information required to activate the test device:<br/>
 <tr><td>Full Name:</td><td><input id="name" type="text" value="" /></td></tr>
 <tr><td>Client Tag:</td><td><input id="client_tag" type="text" value="" /></td></tr>
 <tr><td>Email:</td><td><input id="email" type="text" value="" /></td></tr>
-<tr><td>Country:</td><td><input id="country" type="text" value="" /></td></tr>
+<tr><td>Country:</td><td><input id="country" type="text" value="" onchange="javascript:show_consent_form()" /></td></tr>
 <tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr>
 </table>
 </td>
 <td>
 <img src="http://iclab.org/wp-content/themes/svbtle-child/ICLab-f200.png" />
+</td>
+</tr>
+<tr>
+<td>
+<div id="consent_form_text">Please select country from the drop-down list...</div>
 </td>
 </tr>
 </table>';
