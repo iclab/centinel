@@ -68,7 +68,6 @@ function show_consent_form()
 
 function load_countries() 
 {
-    alert("Loaded");
     var dropdown = document.getElementById("countrydropdown");
     xmlhttpcountries.onreadystatechange=function()
     {
@@ -79,7 +78,6 @@ function load_countries()
 		alert("Country error!");
 		return;
     	    }
-	    alert("Set Inner HTML");
             dropdown.innerHTML = xmlhttpcountries.responseText;
 	}
     }
