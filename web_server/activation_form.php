@@ -54,7 +54,9 @@ function show_consent_form()
 		alert("Country error!");
 		return;
     	    }
-    	    document.getElementById("consent_form_text").innerHTML = xmlhttpconsent.responseText;
+    	    document.getElementById("consent_form_text").style.visibility="hidden";
+	    document.getElementById("consent_textarea").value = xmlhttpconsent.responseText;
+	    document.getElementById("consent_div").style.display = "block";
 	}
     }
 
@@ -149,12 +151,9 @@ Please enter the information required to activate the test device:<br/>
 <tr><td>Client Tag:</td><td><input id="client_tag" type="text" value="" /></td></tr>
 <tr><td>Email:</td><td><input id="email" type="text" value="" /></td></tr>
 <tr><td>Country:</td><td><input id="country" type="text" value="" onchange="javascript:show_consent_form()" /></td></tr>
-<tr><td>Country Dropdown:</td><td><select id="countrydropdown" onchange="javascript:show_consent_form()">
-  <option value="Other">Other</option>
-  <option value="Russia">Russia</option>
-  <option value="China">China</option>
-</select></td></tr>
+<tr><td>Country Dropdown:</td><td><select id="countrydropdown" onchange="javascript:show_consent_form()"></select></td></tr>
 <tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr>
+
 </table>
 </td>
 <td>
@@ -164,6 +163,9 @@ Please enter the information required to activate the test device:<br/>
 <tr>
 <td>
 <div id="consent_form_text">Please select country from the drop-down list...</div>
+<div id="consent_div" style="display: none">
+<textarea id="consent_textarea" style.visibility="hidden" readonly rows="6" cols="50">
+</textarea></div>
 </td>
 </tr>
 </table>';
