@@ -54,10 +54,22 @@ function show_consent_form()
 		alert("Country error!");
 		return;
     	    }
+
+	    
+
             document.getElementById("consent_agreement_checkbox").checked = false;
     	    document.getElementById("consent_form_text").style.visibility="hidden";
 	    document.getElementById("consent_textarea").value = xmlhttpconsent.responseText;
 	    document.getElementById("consent_div").style.display = "block";
+	    
+	    if (country == "Other") 
+            {
+		document.getElementById("country_other_paragraph").style.display = "block";
+	    } 
+            else
+	    {
+		document.getElementById("country_other_paragraph").style.display = "none";
+	    }
 	}
     }
 
@@ -95,7 +107,12 @@ function sendMsg()
     name = document.getElementById("name").value;
     client_tag = document.getElementById("client_tag").value;
     email = document.getElementById("email").value;
-    country = document.getElementById("country").value;
+    dropdown = document.getElementById("countrydropdown");
+    country = dropdown.options[dropdown.selectedIndex].text;
+    if (country == "Other")
+    {
+	country = document.getElementById("country_other").value;
+    }
 
     err = "";
 
@@ -119,8 +136,14 @@ function sendMsg()
 
     if(!consent_agreement_checkbox.checked)
     {
-        err += "You have not agreed to the consent form. \n";
+        err += "Consent form has not been agreed to.\n";
     }
+
+    if (country == "")
+    {
+        err += "Country has not been entered.\n";
+    }
+
     if(err != "")
     {
 	alert("The following errors occured:\n\n" + err);
@@ -158,17 +181,18 @@ Please enter the information required to activate the test device:<br/>
 <tr><td>Full Name:</td><td><input id="name" type="text" value="" /></td></tr>
 <tr><td>Client Tag:</td><td><input id="client_tag" type="text" value="" /></td></tr>
 <tr><td>Email:</td><td><input id="email" type="text" value="" /></td></tr>
-<tr><td>Country:</td><td><input id="country" type="text" value="" onchange="javascript:show_consent_form()" /></td></tr>
 <tr><td>Country Dropdown:</td><td><select id="countrydropdown" onchange="javascript:show_consent_form()"></select></td></tr>
-<tr> <td> <td>
+<tr><td><td>
 <div id="consent_div" style="display: none" align="center">
+<p id="country_other_paragraph" align="left" style="display: none">
+Country: <input type="text" id="country_other" value="" />
+</p>
 <textarea id="consent_textarea" style.visibility="hidden" readonly rows="12" cols="50">
 </textarea>
-<input type="checkbox" id="consent_agreement_checkbox" value="agreed"> I agree to these terms
-</div>
-</td> </td> </tr>
-<tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr>
+<input type="checkbox" id="consent_agreement_checkbox" value="agreed" /> I agree to these terms
 
+</div></td></td></tr>
+<tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr>
 </table>
 </td>
 <td>
