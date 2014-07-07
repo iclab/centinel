@@ -152,6 +152,13 @@ Please enter the information required to activate the test device:<br/>
 <tr><td>Email:</td><td><input id="email" type="text" value="" /></td></tr>
 <tr><td>Country:</td><td><input id="country" type="text" value="" onchange="javascript:show_consent_form()" /></td></tr>
 <tr><td>Country Dropdown:</td><td><select id="countrydropdown" onchange="javascript:show_consent_form()"></select></td></tr>
+<tr> <td> <td>
+<div id="consent_div" style="display: none" align="center">
+<textarea id="consent_textarea" style.visibility="hidden" readonly rows="6" cols="50">
+</textarea>
+<input type="checkbox" id="consent_agreement_textbox"> I agree to these terms
+</div>
+</td> </td> </tr>
 <tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr>
 
 </table>
@@ -163,9 +170,7 @@ Please enter the information required to activate the test device:<br/>
 <tr>
 <td>
 <div id="consent_form_text">Please select country from the drop-down list...</div>
-<div id="consent_div" style="display: none">
-<textarea id="consent_textarea" style.visibility="hidden" readonly rows="6" cols="50">
-</textarea></div>
+
 </td>
 </tr>
 </table>';
