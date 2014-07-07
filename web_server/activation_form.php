@@ -61,6 +61,8 @@ function show_consent_form()
     	    document.getElementById("consent_form_text").style.visibility="hidden";
 	    document.getElementById("consent_textarea").value = xmlhttpconsent.responseText;
 	    document.getElementById("consent_div").style.display = "block";
+	    var url = "http://freedomhouse.org/report/freedom-world/2014/"+country+"-0";
+	    document.getElementById("stats_iframe").src = url;
 	    
 	    if (country == "Other") 
             {
@@ -134,14 +136,15 @@ function sendMsg()
 	err += "Invalid email address.\n";
     }
 
-    if(!consent_agreement_checkbox.checked)
-    {
-        err += "Consent form has not been agreed to.\n";
-    }
-
+    
     if (country == "")
     {
         err += "Country has not been entered.\n";
+    }
+
+    if (!consent_agreement_checkbox.checked)
+    {
+        err += "Consent form has not been agreed to.\n";
     }
 
     if(err != "")
@@ -187,12 +190,14 @@ Please enter the information required to activate the test device:<br/>
 <p id="country_other_paragraph" align="left" style="display: none">
 Country: <input type="text" id="country_other" value="" />
 </p>
-<textarea id="consent_textarea" style.visibility="hidden" readonly rows="12" cols="50">
+<textarea id="consent_textarea" style.visibility="hidden" readonly rows="20" cols="80">
 </textarea>
+<br>
+<iframe id="stats_iframe" width="625" height="300"></iframe>
+<br>
 <input type="checkbox" id="consent_agreement_checkbox" value="agreed" /> I agree to these terms
-
 </div></td></td></tr>
-<tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr>
+<tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr> 
 </table>
 </td>
 <td>
@@ -202,7 +207,6 @@ Country: <input type="text" id="country_other" value="" />
 <tr>
 <td>
 <div id="consent_form_text">Please select country from the drop-down list...</div>
-
 </td>
 </tr>
 </table>';
