@@ -54,6 +54,7 @@ function show_consent_form()
 		alert("Country error!");
 		return;
     	    }
+            document.getElementById("consent_agreement_checkbox").checked = false;
     	    document.getElementById("consent_form_text").style.visibility="hidden";
 	    document.getElementById("consent_textarea").value = xmlhttpconsent.responseText;
 	    document.getElementById("consent_div").style.display = "block";
@@ -71,7 +72,7 @@ function show_consent_form()
 function load_countries() 
 {
     var dropdown = document.getElementById("countrydropdown");
-    xmlhttpcountries.onreadystatechange=function()
+    xmlhttpcountries.onreadystatechange=function()    
     {
         if (xmlhttpcountries.readyState==4 && xmlhttpcountries.status==200)
     	{
@@ -97,6 +98,8 @@ function sendMsg()
     country = document.getElementById("country").value;
 
     err = "";
+
+
     if(name == "")
     {
 	err += "Name is not entered.\n";
@@ -112,6 +115,11 @@ function sendMsg()
     if(email != "" && !validemail("email"))
     {
 	err += "Invalid email address.\n";
+    }
+
+    if(!consent_agreement_checkbox.checked)
+    {
+        err += "You have not agreed to the consent form. \n";
     }
     if(err != "")
     {
@@ -154,9 +162,9 @@ Please enter the information required to activate the test device:<br/>
 <tr><td>Country Dropdown:</td><td><select id="countrydropdown" onchange="javascript:show_consent_form()"></select></td></tr>
 <tr> <td> <td>
 <div id="consent_div" style="display: none" align="center">
-<textarea id="consent_textarea" style.visibility="hidden" readonly rows="6" cols="50">
+<textarea id="consent_textarea" style.visibility="hidden" readonly rows="12" cols="50">
 </textarea>
-<input type="checkbox" id="consent_agreement_textbox"> I agree to these terms
+<input type="checkbox" id="consent_agreement_checkbox" value="agreed"> I agree to these terms
 </div>
 </td> </td> </tr>
 <tr><td> </td><td><input type="button" onclick="javascript:sendMsg()" value="Send" /></td></tr>
