@@ -7,6 +7,7 @@ import string
 from os import listdir
 import StringIO
 import gzip
+import glob
 from os.path import exists,isfile, join
 import socket
 import sys
@@ -363,6 +364,7 @@ class ServerConnection:
 	    return self.receive_crypt(self.my_private_key)
 	else:
 	    return False
+
     def sync_experiments(self):
 	if not self.connected:
 	    print bcolors.FAIL + "Not connected to the server." + bcolors.ENDC
@@ -380,17 +382,25 @@ class ServerConnection:
 	
 	for exp in cur_exp_list:
 	    msg = msg + exp + "|"
-
-	self.send_dyn(msg)
+	
+	self.send_dyn(msg[:-1])
 	new_exp_count = self.receive_dyn()
 	
 	i = int(new_exp_count)
+
+	if i == 0:
+	    return True
+
+	print bcolors.OKBLUE + "%d new experiments." %(i) + bcolors.ENDC
+	print bcolors.OKBLUE + "Updating experiments..." + bcolors.ENDC
 	while i > 0:
 	    exp_name = self.receive_dyn()
 	    exp_content = self.receive_crypt(self.my_private_key)
-	    f = open(glob.glob(os.path.join(conf.c['configurable_experiments_dir'], exp_name)), "w")
+	    f = open(os.path.join(conf.c['configurable_experiments_dir'], exp_name + ".cfg"), "w")
 	    f.write(exp_content)
 	    f.close()
 	    i = i - 1
+	    print bcolors.OKBLUE + "\"%s\" received (%d/%d)." %(exp_name, int(new_exp_count) - i, int(new_exp_count)) + bcolors.ENDC
 
-	#py_exp_pairs = [  MD5.new(data).digest()
+	print bcolors.OKGREEN + "Experiments updated." + bcolors.ENDC
+	return True
