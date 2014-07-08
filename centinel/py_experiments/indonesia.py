@@ -5,7 +5,9 @@ import struct
 import dns.resolver
 import time
 import urllib2
+import subprocess
 
+from scapy.all import *
 from centinel.experiment_py import Experiment
 
 class IndExperiment(Experiment):
@@ -24,6 +26,7 @@ class IndExperiment(Experiment):
         result = {"host " : self.host}
         self.dns_query(result, self.host)
         self.http_get(result, self.host)
+        self.traceroute(result, self.host)
         self.results.append(result)
 
     def http_get(self, results, dest_name):
@@ -47,61 +50,58 @@ class IndExperiment(Experiment):
             results["A-record" + str(n)] = rdata.to_text()
             n += 1
 
-        ''' print('got answers for ' + dest_name + ' in ' + str(end_time - start_time))'''
+        # print('got answers for ' + dest_name + ' in ' + str(end_time - start_time))
 
-
-        
-    def traceroute(self, dest_name):
-        dest_addr = socket.gethostbyname(dest_name)
-        port = 33434
-        max_hops = 30
-        icmp = socket.getprotobyname('icmp')
-        udp = socket.getprotobyname('udp')
-        ttl = 1
-        
-        while True:
-            recv_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp)
-            send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, udp)
-            send_socket.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
-
-            # Build the GNU timeval struct (seconds, microseconds)
-            timeout = struct.pack("ll", 5, 0)
-        
-            # Set the receive timeout so we behave more like regular traceroute
-            recv_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, timeout)
-        
-            recv_socket.bind(("", port))
-            sys.stdout.write(" %d  " % ttl)
-            send_socket.sendto("", (dest_name, port))
-            curr_addr = None
-            curr_name = None
-            finished = False
-            tries = 3
-            while not finished and tries > 0:
-                try:
-                    _, curr_addr = recv_socket.recvfrom(512)
-                    finished = True
-                    curr_addr = curr_addr[0]
-                    try:
-                        curr_name = socket.gethostbyaddr(curr_addr)[0]
-                    except socket.error:
-                        curr_name = curr_addr
-                except socket.error as (errno, errmsg):
-                    tries = tries - 1
-                    sys.stdout.write("* ")
-        
-            send_socket.close()
-            recv_socket.close()
-        
-            if not finished:
+    def isIp(self, string):
+        a = string.split('.')
+        if len(a) != 4:
+           return False
+        for x in a:
+            if not x.isdigit():
+                return False
+            i = int(x)
+            if i < 0 or i > 255:
+                return False
+        return True
+    
+    def traceroute(self, results, dest_name):
+        t = 1
+        finalIp = "Placeholder"
+        complete_traceroute = ""
+        for t in range(1,30):
+            
+            print("Ttl: " + str(t))
+            process = ['ping', dest_name, '-c 1', '-t ' + str(t)]
+            response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
+            if t == 1:
+                pingSendInfo = response.splitlines()[0]
+                pingSendSplit = pingSendInfo.split()
+                finalIp = pingSendSplit[2].translate(None, '()')
+                print("Final Ip: " + finalIp)
+                
+            ping_info = response.splitlines()[1]
+            split_by_word = str.split(ping_info)
+            reverseDns = "Not Found"
+            ip = "Not Found";
+            for string in split_by_word:
+                stripped = string.translate(None, '():')
+                if self.isIp(stripped):
+                    ip = stripped
+                if not '=' in stripped and '.' in stripped and not self.isIp(stripped):
+                    reverseDns = stripped
+            print("Reverse Dns: " + reverseDns)
+            print("Ip Address: " + ip)
+	    results["Hop" + str(t) + "Ip"] = ip
+	    results["Hop" + str(t) + "ReverseDns"] = reverseDns
+            complete_traceroute += ip + "|||" + reverseDns
+            if ip == "Not Found" and reverseDns != "Not Found":
                 pass
-        
-            if curr_addr is not None:
-                curr_host = "%s (%s)" % (curr_name, curr_addr)
-            else:
-                curr_host = ""
-            sys.stdout.write("%s\n" % (curr_host))
-
-            ttl += 1
-            if curr_addr == dest_addr or ttl > max_hops:
+            if ip == finalIp:
+                print("Finished Traceroute")
                 break
+            else:
+                complete_traceroute += "->"
+        results["Hops"] = t
+        results["traceroute"] = complete_traceroute
+	print("\nComplete Traceroute: " + complete_traceroute)
+
