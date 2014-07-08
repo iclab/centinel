@@ -50,7 +50,7 @@ class IndExperiment(Experiment):
             results["A-record" + str(n)] = rdata.to_text()
             n += 1
 
-        ''' print('got answers for ' + dest_name + ' in ' + str(end_time - start_time))'''
+        # print('got answers for ' + dest_name + ' in ' + str(end_time - start_time))
 
     def isIp(self, string):
         a = string.split('.')
@@ -71,7 +71,6 @@ class IndExperiment(Experiment):
         for t in range(1,30):
             
             print("Ttl: " + str(t))
-            '''process = "ping " + dest_name + " -c 1 -t " + str(t)'''
             process = ['ping', dest_name, '-c 1', '-t ' + str(t)]
             response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
             if t == 1:
@@ -105,27 +104,4 @@ class IndExperiment(Experiment):
         results["Hops"] = t
         results["traceroute"] = complete_traceroute
 	print("\nComplete Traceroute: " + complete_traceroute)
-            
 
-'''
-    def traceroute(self, results, dest_name):
-        host = dest_name
-        ttl=1
-        port=1001
-        for ttl in range(1, 10):
-            s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, struct.pack('I', ttl))
-            s.settimeout(2)
-            try:
-                s.connect((host, port))
-            except (socket.error, socket.timeout), err:
-                print 'ttl=%02d: %s' % (ttl, err)
-                print dest_name
-                s.close()
-                continue
-            except KeyboardInterrupt:
-                print 'ttl=%02d (KeyboardInterrupt)' % ttl
-                break
-            print 'ttl=%02d: OK' % (ttl)
-            break
-'''
