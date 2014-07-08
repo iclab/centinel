@@ -384,12 +384,13 @@ class ServerConnection:
 	self.send_dyn(msg)
 	new_exp_count = self.receive_dyn()
 	
-	i = new_exp_count
+	i = int(new_exp_count)
 	while i > 0:
 	    exp_name = self.receive_dyn()
 	    exp_content = self.receive_crypt(self.my_private_key)
 	    f = open(glob.glob(os.path.join(conf.c['configurable_experiments_dir'], exp_name)), "w")
 	    f.write(exp_content)
 	    f.close()
+	    i = i - 1
 
 	#py_exp_pairs = [  MD5.new(data).digest()
