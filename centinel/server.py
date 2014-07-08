@@ -388,16 +388,17 @@ class Server:
 
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
-	    client_exp_list = self.receive_dynamic(clientsocket, address)
+	    client_exp_list = self.receive_dyn(clientsocket, address)
 	    client_exp_list = client_exp_list.split("|")
-	    
-	    updates = (x for x in client_exp_list if x not in self.current_exp_list(client_tag) )
 
-	    self.send_dynamic(clientsocket, address, updates.len())
+	    updates = [x for x in self.current_exp_list(client_tag) if x not in client_exp_list]
+
+	    self.send_dyn(clientsocket, address, str(len(updates)))
 
 	    for exp in updates:
-		self.sendexp(clientsocket, address, client_tag, exp)
-
+		if exp:
+		    self.sendexp(clientsocket, address, client_tag, exp)
+	    return True
 	# The client is showing heartbeat:
 	elif message_type == "b" and not unauthorized:
 	    if self.client_commands[client_tag] == 'chill':
@@ -418,17 +419,16 @@ class Server:
 	    return False
 
     def current_exp_list(self, client_tag):
-	exp_list = []
-	
-	exp_list.append(client_exps[client_tag])
-	    
-	exp_list.append([os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))])
+	exp_list = list()
+	exp_list += self.client_exps[client_tag]
+
+	exp_list += [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
 	return exp_list
 	    
     def sendexp(self, clientsocket, address, client_tag, exp):
-	f = open(glob.glob(os.path.join(conf.c['experiments_dir'], exp)), 'r')
+	f = open(os.path.join(conf.c['experiments_dir'], exp + ".cfg"), 'r')
 	contents = f.read()
-	self.send_dyn(exp)
+	self.send_dyn(clientsocket, address, exp)
 	self.send_crypt(clientsocket, address, contents, self.client_keys[client_tag])
 
     def random_string_generator(self, size=5, chars=string.ascii_uppercase + string.digits):
