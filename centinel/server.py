@@ -41,6 +41,7 @@ class Server:
 	self.client_keys = dict()
 	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
 	self.client_commands = dict((c, "chill") for c in self.client_list)
+	self.client_exps = dict((c, []) for c in self.client_list)
 	self.client_last_seen = dict((c, ("", "nowhere")) for c in self.client_list)
     """
     Send a string of characters on the socket.
@@ -385,6 +386,18 @@ class Server:
 	    # After init, the client has to disconnect and login again.
 	    return False
 
+	# The client wants to sync experiments:
+	elif message_type == "s" and not unauthorized:
+	    client_exp_list = self.receive_dynamic(clientsocket, address)
+	    client_exp_list = client_exp_list.split("|")
+	    
+	    updates = (x for x in client_exp_list if x not in self.current_exp_list(client_tag) )
+
+	    self.send_dynamic(clientsocket, address, updates.len())
+
+	    for exp in updates:
+		self.sendexp(clientsocket, address, client_tag, exp)
+
 	# The client is showing heartbeat:
 	elif message_type == "b" and not unauthorized:
 	    if self.client_commands[client_tag] == 'chill':
@@ -403,9 +416,20 @@ class Server:
 	    except Exception:
 		pass
 	    return False
-	# The client wants to sync experiments:
-	#elif message_type == "s" and not unauthorized:
+
+    def current_exp_list(self, client_tag):
+	exp_list = []
+	
+	exp_list.append(client_exps[client_tag])
 	    
+	exp_list.append([os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))])
+	return exp_list
+	    
+    def sendexp(self, clientsocket, address, client_tag, exp):
+	f = open(glob.glob(os.path.join(conf.c['experiments_dir'], exp)), 'r')
+	contents = f.read()
+	self.send_dyn(exp)
+	self.send_crypt(clientsocket, address, contents, self.client_keys[client_tag])
 
     def random_string_generator(self, size=5, chars=string.ascii_uppercase + string.digits):
 	identifier = ''.join(random.choice(chars) for _ in range(size))
