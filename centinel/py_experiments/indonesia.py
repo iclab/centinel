@@ -92,9 +92,11 @@ class IndExperiment(Experiment):
                     reverseDns = stripped
             print("Reverse Dns: " + reverseDns)
             print("Ip Address: " + ip)
+	    results["Hop" + str(t) + "Ip"] = ip
+	    results["Hop" + str(t) + "ReverseDns"] = reverseDns
             complete_traceroute += ip + "|||" + reverseDns
             if ip == "Not Found" and reverseDns != "Not Found":
-                print(response)
+                pass
             if ip == finalIp:
                 print("Finished Traceroute")
                 break
@@ -102,6 +104,7 @@ class IndExperiment(Experiment):
                 complete_traceroute += "->"
         results["Hops"] = t
         results["traceroute"] = complete_traceroute
+	print("\nComplete Traceroute: " + complete_traceroute)
             
 
 '''
