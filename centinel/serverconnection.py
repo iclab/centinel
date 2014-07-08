@@ -363,12 +363,34 @@ class ServerConnection:
 	    return self.receive_crypt(self.my_private_key)
 	else:
 	    return False
-    
-    def sync_exp(self):
+    def sync_experiments(self):
+	if not self.connected:
+	    print bcolors.FAIL + "Not connected to the server." + bcolors.ENDC
+	    return False
+	
 	if not self.logged_in:
-	    print bcolors.FAIL + "Unauthorized hearts don't beat! " + bcolors.ENDC
+	    print bcolors.FAIL + "Client unauthorized." + bcolors.ENDC
 	    return False
 
-	#self.send_fixed("s")
+	self.send_fixed("s")
 	
+	cur_exp_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['configurable_experiments_dir'], '*.cfg'))]
+
+	msg = ""
+	
+	for exp in cur_exp_list:
+	    msg = msg + exp + "|"
+
+	self.send_dyn(msg)
+	new_exp_count = self.receive_dyn()
+	
+	i = int(new_exp_count)
+	while i > 0:
+	    exp_name = self.receive_dyn()
+	    exp_content = self.receive_crypt(self.my_private_key)
+	    f = open(glob.glob(os.path.join(conf.c['configurable_experiments_dir'], exp_name)), "w")
+	    f.write(exp_content)
+	    f.close()
+	    i = i - 1
+
 	#py_exp_pairs = [  MD5.new(data).digest()
