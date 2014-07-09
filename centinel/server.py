@@ -380,7 +380,7 @@ class Server:
 	    self.client_keys [identity] = client_pub_key
 	    self.client_last_seen [identity] = ("", "")
 	    self.client_commands [identity] = "chill"
-	    self.client_experiments [identity] = ""
+	    self.client_exps [identity] = ""
 	    client_tag = identity
 	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
 
@@ -390,6 +390,7 @@ class Server:
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
 	    client_exp_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+	    changed = False
 
 	    if client_exp_list == "n":
 		client_exp_list = [""]
@@ -402,6 +403,7 @@ class Server:
 
 	    for exp in updates:
 		if exp:
+		    changed = True
 		    self.sendexp(clientsocket, address, client_tag, exp.split("%")[0])
 
 	    old_list = [x.split("%")[0] for x in client_exp_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_list(client_tag)] ]
@@ -411,9 +413,13 @@ class Server:
 		msg += item + "|"
 
 	    if msg:
+		changed = True
 		self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
 	    else:
 		self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+	    
+	    if changed:
+		print bcolors.OKGREEN + "%s just updated its test specs." %(client_tag) + bcolors.ENDC
 
 	    return True
 	# The client is showing heartbeat:
