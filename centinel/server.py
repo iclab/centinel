@@ -380,6 +380,7 @@ class Server:
 	    self.client_keys [identity] = client_pub_key
 	    self.client_last_seen [identity] = ("", "")
 	    self.client_commands [identity] = "chill"
+	    self.client_experiments [identity] = ""
 	    client_tag = identity
 	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
 
@@ -388,8 +389,12 @@ class Server:
 
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
-	    client_exp_list = self.receive_dyn(clientsocket, address)
-	    client_exp_list = client_exp_list.split("|")
+	    client_exp_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+
+	    if client_exp_list == "n":
+		client_exp_list = [""]
+	    else:
+		client_exp_list = client_exp_list.split("|")
 
 	    updates = [x for x in self.current_exp_list(client_tag) if x not in client_exp_list]
 
@@ -397,7 +402,19 @@ class Server:
 
 	    for exp in updates:
 		if exp:
-		    self.sendexp(clientsocket, address, client_tag, exp)
+		    self.sendexp(clientsocket, address, client_tag, exp.split("%")[0])
+
+	    old_list = [x.split("%")[0] for x in client_exp_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_list(client_tag)] ]
+
+	    msg = ""
+	    for item in old_list:
+		msg += item + "|"
+
+	    if msg:
+		self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
+	    else:
+		self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+
 	    return True
 	# The client is showing heartbeat:
 	elif message_type == "b" and not unauthorized:
@@ -422,7 +439,7 @@ class Server:
 	exp_list = list()
 	exp_list += self.client_exps[client_tag]
 
-	exp_list += [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
+	exp_list += [os.path.splitext(os.path.basename(path))[0] + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
 	return exp_list
 	    
     def sendexp(self, clientsocket, address, client_tag, exp):

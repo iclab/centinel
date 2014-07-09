@@ -379,28 +379,41 @@ class ServerConnection:
 	cur_exp_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['configurable_experiments_dir'], '*.cfg'))]
 
 	msg = ""
-	
+	changed = False
 	for exp in cur_exp_list:
-	    msg = msg + exp + "|"
+	    exp_data = open(os.path.join(conf.c['configurable_experiments_dir'], exp + ".cfg"), 'r').read()
+	    msg = msg + exp + "%" + MD5.new(exp_data).digest() + "|"
 	
-	self.send_dyn(msg[:-1])
+	if msg:
+	    self.send_crypt(msg[:-1], self.server_public_key)
+	else:
+	    self.send_crypt("n", self.server_public_key)
 	new_exp_count = self.receive_dyn()
 	
 	i = int(new_exp_count)
 
-	if i == 0:
-	    return True
+	if i <> 0:
+	    changed = True
+	    print bcolors.OKBLUE + "%d new experiments." %(i) + bcolors.ENDC
+	    print bcolors.OKBLUE + "Updating experiments..." + bcolors.ENDC
+	    while i > 0:
+		exp_name = self.receive_dyn()
+		exp_content = self.receive_crypt(self.my_private_key)
+		f = open(os.path.join(conf.c['configurable_experiments_dir'], exp_name + ".cfg"), "w")
+		f.write(exp_content)
+		f.close()
+		i = i - 1
+		print bcolors.OKBLUE + "\"%s\" received (%d/%d)." %(exp_name, int(new_exp_count) - i, int(new_exp_count)) + bcolors.ENDC
+	
+	old_list = self.receive_crypt(self.my_private_key, False)
 
-	print bcolors.OKBLUE + "%d new experiments." %(i) + bcolors.ENDC
-	print bcolors.OKBLUE + "Updating experiments..." + bcolors.ENDC
-	while i > 0:
-	    exp_name = self.receive_dyn()
-	    exp_content = self.receive_crypt(self.my_private_key)
-	    f = open(os.path.join(conf.c['configurable_experiments_dir'], exp_name + ".cfg"), "w")
-	    f.write(exp_content)
-	    f.close()
-	    i = i - 1
-	    print bcolors.OKBLUE + "\"%s\" received (%d/%d)." %(exp_name, int(new_exp_count) - i, int(new_exp_count)) + bcolors.ENDC
+	if old_list <> "n":
+	    changed = True
+	    print bcolors.OKBLUE + "Removing old experiments..." + bcolors.ENDC
+	    for exp in old_list.split("|"):
+		os.remove(os.path.join(conf.c['configurable_experiments_dir'], exp + ".cfg"))
+		print bcolors.OKBLUE + "Removed %s." %(exp) + bcolors.ENDC
 
-	print bcolors.OKGREEN + "Experiments updated." + bcolors.ENDC
+	if changed:
+	    print bcolors.OKGREEN + "Experiments updated." + bcolors.ENDC
 	return True
