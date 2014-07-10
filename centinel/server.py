@@ -306,6 +306,7 @@ class Server:
 		outcome = self.handle_client_requests(clientsocket, address, client_tag, unauthorized)
 	    except Exception as e:
 		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ")" + " error handling client request: " + str(e) + bcolors.ENDC
+		break
 	
 	# close the connection after communication ends
 	if clientsocket:
