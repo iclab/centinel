@@ -1,5 +1,6 @@
 import ConfigParser
 import os
+import subprocess
 
 from centinel.experiment_py import Experiment
 
@@ -20,7 +21,12 @@ class ConfigurablePingExperiment(Experiment):
 	# currently unused, because ping
 	# does not take many arguments.
 	self.args.update(parser.items('Ping'))
-
+	
+        if 'packets' in self.args.keys():
+	    self.packets = int(self.args['packets'])
+	else:
+            self.packets = 1
+            
 	url_list = parser.items('URLS')
 	for url in url_list[0][1].split():
 	    self.host = url
@@ -30,13 +36,36 @@ class ConfigurablePingExperiment(Experiment):
         result = {
             "host" : self.host,
         }
-
         print "Running ping to ", self.host      
         response = os.system("ping -c 1 " + self.host + " >/dev/null 2>&1")
         
         if response == 0:
             result["success"] = 'true'
+            # Further experiment
+            process = ['ping', self.host, '-c ' + str(self.packets)]
+            console_response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
+            ping_data = ""
+            for line in console_response.splitlines():
+                if "packets transmitted" in line and "received" in line:
+                    ping_data = line
+                    break
+            split_data = ping_data.split()
+            packetsTransmitted = -1
+            packetsReceived = -1
+            packetsLostPercentage = -1 #From 0 - 100
+            for x in range(0, len(split_data) - 1):
+                if split_data[x] == "packets" and split_data[x + 1].replace(",", "") == "transmitted":
+                    packetsTransmitted = int(split_data[x - 1])
+                    print("Packets Transmitted: " + str(packetsTransmitted))
+                if split_data[x].replace(",", "") == "received":
+                    packetsReceived = int(split_data[x - 1])
+                    print("Packets Received: " + str(packetsReceived))
+                if split_data[x].replace(",", "") == "loss" and  split_data[x - 1] == "packet":
+                    packetsLostPercentage = int(split_data[x - 2].replace("%", ""))
+                    print("Packets Lost %: " + str(packetsLostPercentage))
+            result["sent"] = str(packetsTransmitted)
+            result["received"] = str(packetsReceived)
+            result["percent_lost"] = str(packetsLostPercentage)
         else:
             result["success"] = 'false'
-
         self.results.append(result)
