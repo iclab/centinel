@@ -26,6 +26,11 @@ class ConfigurableDNSExperiment(Experiment):
 	else:
             self.resolver = "8.8.8.8"
 
+        if 'record' in self.args.keys():
+            self.record = self.args['record']
+        else:
+            self.record = 'A'
+
 	url_list = parser.items('URLS')
 	for url in url_list[0][1].split():
 	    self.host = url
@@ -36,15 +41,30 @@ class ConfigurableDNSExperiment(Experiment):
             "host" : self.host,
 	    "resolver" : self.resolver
         }
-	
-	res = dns.resolver.query(self.host, 'A')
 	ans = ""
-	for i in res.response.answer:
-	    if ans == "":
-		ans = i.to_text()
-	    else:
-		ans = ans + ", " + i.to_text()
-
-        result["A"] = ans
+	if self.record == 'A':
+            res = dns.resolver.query(self.host, self.record)
+            for i in res.response.answer:
+                if ans == "":
+                    ans = i.to_text()
+                else:
+                    ans = ans + ", " + i.to_text()
+        else:
+            try:
+                query = dns.message.make_query(self.host, self.record)
+                response = dns.query.udp(query, self.resolver, timeout=3)
+                for answer in response.answer:
+                    if ans == "":
+                        ans = answer.to_text()
+                    else:
+                        ans += ", " + answer.to_text()
+            except Exception:
+                print("Error")
+        if ans == "":
+            ans = "Unavailable"
+	print(ans)
+        result["record_type"] = self.record
+        result['record'] = ans
+        
 
         self.results.append(result)
