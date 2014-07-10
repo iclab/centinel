@@ -211,25 +211,23 @@ class Server:
     def client_command_sender(self):
 	while 1:
 	    com = raw_input("> ")
-	    if len(com.split()) == 1:
-		if com == "listclients":
-		    print bcolors.WARNING + "Connected clients: " + bcolors.ENDC
-		    for client, (lasttime, lastaddress) in self.client_last_seen.items():
-			if lasttime <> "":
-			    if datetime.now() - lasttime < timedelta(seconds=15):
-				print bcolors.OKBLUE + "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds) + bcolors.ENDC
+	    if com == "listclients":
+		print bcolors.WARNING + "Connected clients: " + bcolors.ENDC
+		for client, (lasttime, lastaddress) in self.client_last_seen.items():
+		    if lasttime <> "":
+		        if datetime.now() - lasttime < timedelta(seconds=60):
+			    print bcolors.OKBLUE + "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds) + bcolors.ENDC
 		    
-		    print bcolors.WARNING + "Disconnected clients: " + bcolors.ENDC
-		    for client, (lasttime, lastaddress) in self.client_last_seen.items():
-			if lasttime <> "":
-			    if datetime.now() - lasttime >= timedelta(seconds=15):
-				print bcolors.WARNING + "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds) + bcolors.ENDC
-		    continue
+		print bcolors.WARNING + "Disconnected clients: " + bcolors.ENDC
+		for client, (lasttime, lastaddress) in self.client_last_seen.items():
+		    if not lasttime or datetime.now() - lasttime >= timedelta(seconds=60):
+		        print bcolors.FAIL + "%s\t%s\t\t%s(%s seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite") + bcolors.ENDC
+		continue
 		
 
 	    if len(com.split()) < 2:
 		print bcolors.FAIL + "No command given!" + bcolors.ENDC
-		print bcolors.FAIL + "\tUsage: [client_tag] [command1];[command2];..." + bcolors.ENDC
+		print bcolors.FAIL + "\tUsage: [client_tag | onall] [command1];[command2];..." + bcolors.ENDC
 		continue
 	    tag, command_list = com.split(" ", 1);
 	    if tag in self.client_list and command_list <> "chill" and command_list:
@@ -238,6 +236,13 @@ class Server:
 		else:
 		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
 		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1])+ bcolors.ENDC
+	    elif tag == "onall" and command_list <> "chill" and command_list:
+		for client in self.client_list:
+		    if self.client_commands[client] == "chill":
+			self.client_commands[client] = command_list
+		    else:
+			self.client_commands[client] = self.client_commands[tag] + "; " + command_list
+		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on all clients." %(command_list)+ bcolors.ENDC
 	    else:
 		print bcolors.FAIL + "Command/client tag not recognized!" + bcolors.ENDC
 
@@ -253,7 +258,7 @@ class Server:
 	# i: initialize client (can be done using "unauthorized" tag)
 
 	# We don't want to wait too long for a response.
-	clientsocket.settimeout(15)
+	clientsocket.settimeout(20)
 	
 	unauthorized = False
 	client_tag = ""
