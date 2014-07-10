@@ -7,7 +7,6 @@ import time
 import urllib2
 import subprocess
 
-from scapy.all import *
 from centinel.experiment_py import Experiment
 
 class IndExperiment(Experiment):
@@ -70,7 +69,7 @@ class IndExperiment(Experiment):
         complete_traceroute = ""
         for t in range(1,30):
             
-            print("Ttl: " + str(t))
+            
             process = ['ping', dest_name, '-c 1', '-t ' + str(t)]
             response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
             if t == 1:
@@ -78,7 +77,7 @@ class IndExperiment(Experiment):
                 pingSendSplit = pingSendInfo.split()
                 finalIp = pingSendSplit[2].translate(None, '()')
                 print("Final Ip: " + finalIp)
-                
+            print("Ttl: " + str(t))
             ping_info = response.splitlines()[1]
             split_by_word = str.split(ping_info)
             reverseDns = "Not Found"
