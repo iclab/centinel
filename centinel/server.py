@@ -146,7 +146,7 @@ class Server:
 	org = chunk_count
 	chunk_size = 256
 	decrypted_results = ""
-	if show_progress:
+	if show_progress and chunk_count:
 	    print bcolors.OKBLUE + "Progress: "
 	while chunk_count > 0:
 	    encrypted_chunk = self.receive_dyn(clientsocket, address)
@@ -162,7 +162,7 @@ class Server:
 	if calculated_digest == received_digest:
 	    return decrypted_results
 	else:
-	    print bcolors.FAIL + "Data integrity check failed." + bcolors.ENDC
+	    raise Exception("Data integrity check failed.")
 	    return False
 
     """
@@ -183,8 +183,8 @@ class Server:
 	    kf = open(conf.c['private_rsa_file'])
 	    self.private_key = kf.read()
 	    kf.close()
-	except:
-	    print bcolors.FAIL + "Error loading key files:" +   + bcolors.ENDC
+	except Exception as e:
+	    print bcolors.FAIL + "Error loading key files: " + str(e) + bcolors.ENDC
 	    print bcolors.FAIL + "Exiting..." + bcolors.ENDC
 	    self.connected = False
 	    return False
@@ -241,7 +241,7 @@ class Server:
 		    if self.client_commands[client] == "chill":
 			self.client_commands[client] = command_list
 		    else:
-			self.client_commands[client] = self.client_commands[tag] + "; " + command_list
+			self.client_commands[client] = self.client_commands[client] + "; " + command_list
 		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on all clients." %(command_list)+ bcolors.ENDC
 	    else:
 		print bcolors.FAIL + "Command/client tag not recognized!" + bcolors.ENDC
@@ -292,17 +292,20 @@ class Server:
 	    	    self.send_dyn(clientsocket, address, "Authentication error.")
 		except:
 	    	    pass
-		print bcolors.FAIL + "Authentication error (" + client_tag + ")." + bcolors.ENDC
 		if clientsocket:
 		    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
 		    clientsocket.close()
+		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ")" + " authentication error." + bcolors.ENDC
+		return
 
-		return False
 	    self.send_fixed(clientsocket, address, "a")
 
 	outcome = True
 	while outcome == True:
-	    outcome = self.handle_client_requests(clientsocket, address, client_tag, unauthorized)
+	    try:
+		outcome = self.handle_client_requests(clientsocket, address, client_tag, unauthorized)
+	    except Exception as e:
+		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ")" + " error handling client request: " + str(e) + bcolors.ENDC
 	
 	# close the connection after communication ends
 	if clientsocket:
@@ -318,12 +321,9 @@ class Server:
 		message_type = self.receive_fixed(clientsocket, address, 1)
 	    except timeout:
 		retries = retries - 1
-		print bcolors.WARNING + "Client is taking a bit too long to send command (retrying %d more times)... " %(retries) + bcolors.ENDC
+		print bcolors.WARNING + "Client is taking a bit too long to send command (waiting %d more cycles)... " %(retries) + bcolors.ENDC
 	if retries == 0:
-	    print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + ": The client is not responding, closing the connection..." + bcolors.ENDC
-	    if clientsocket:
-		clientsocket.close()
-	    return False
+	    raise Exception("The client is not responding.")
 
     	if not unauthorized:
 	    self.client_last_seen[client_tag] = datetime.now() , address[0] + ":" + str(address[1])
@@ -344,24 +344,9 @@ class Server:
 		out_file = open(os.path.join(conf.c['results_dir'],client_tag + "-" + datetime.now().time().isoformat() + "-" + results_name), 'w')
 		out_file.write(results_decrypted)
 		out_file.close()
-	    except: 
-		if clientsocket: 
-    		    clientsocket.close() 
-    		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") error receiving data: " + sys.exc_info()[0] + bcolors.ENDC
-		try:
-		    self.send_fixed(clientsocket, address, "e")
-		    self.send_dyn(clientsocket, address, message)
-		except Exception:
-		    pass
-		return False
+	    except Exception as e:
+    		raise Exception("Error receiving results data: " + str(e))
 
-	    try:
-		print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") results recorded." + bcolors.ENDC
-		self.send_fixed(clientsocket, address, "c")
-	    except Exception:
-		print bcolors.FAIL + "Error sending the [complete] flag." + bcolors.ENDC
-		return False
-	    
 	    return True
 
 	# The client wants to end the connection.
@@ -382,11 +367,14 @@ class Server:
 		of.write(client_pub_key)
 		of.close()
 		self.send_fixed(clientsocket, address, "c")
-	    except:
+	    except Exception as e:
 		print bcolors.FAIL + "Initialization unsuccessful." + bcolors.ENDC
-		self.send_fixed(clientsocket, address, "e")
-		self.send_dyn(clientsocket, address, "Initialization error.")
-		return False
+		try:
+		    self.send_fixed(clientsocket, address, "e")
+		    self.send_dyn(clientsocket, address, "Initialization error.")
+		except:
+		    pass
+		raise Exception("Initialization error: " + str(e))
 
 	    self.client_list.append(identity)
 	    self.client_keys [identity] = client_pub_key
@@ -401,50 +389,56 @@ class Server:
 
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
-	    client_exp_list = self.receive_crypt(clientsocket, address, self.private_key, False)
-	    changed = False
-
-	    if client_exp_list == "n":
-		client_exp_list = [""]
-	    else:
-		client_exp_list = client_exp_list.split("|")
-
-	    updates = [x for x in self.current_exp_list(client_tag) if x not in client_exp_list]
-
-	    self.send_dyn(clientsocket, address, str(len(updates)))
-
-	    for exp in updates:
-		if exp:
-		    changed = True
-		    self.sendexp(clientsocket, address, client_tag, exp.split("%")[0])
-
-	    old_list = [x.split("%")[0] for x in client_exp_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_list(client_tag)] ]
-
-	    msg = ""
-	    for item in old_list:
-		msg += item + "|"
-
-	    if msg:
-		changed = True
-		self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
-	    else:
-		self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
 	    
-	    if changed:
-		print bcolors.OKGREEN + "%s just updated its test specs." %(client_tag) + bcolors.ENDC
+	    try:
+		client_exp_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+		changed = False
+
+		if client_exp_list == "n":
+		    client_exp_list = [""]
+		else:
+		    client_exp_list = client_exp_list.split("|")
+
+		updates = [x for x in self.current_exp_list(client_tag) if x not in client_exp_list]
+
+		self.send_dyn(clientsocket, address, str(len(updates)))
+
+		for exp in updates:
+		    if exp:
+			changed = True
+			self.sendexp(clientsocket, address, client_tag, exp.split("%")[0])
+
+		old_list = [x.split("%")[0] for x in client_exp_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_list(client_tag)] ]
+
+		msg = ""
+		for item in old_list:
+		    msg += item + "|"
+
+		if msg:
+		    changed = True
+		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
+		else:
+		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+	    
+		if changed:
+		    print bcolors.OKGREEN + "%s just updated its test specs." %(client_tag) + bcolors.ENDC
+	    except Exception as e:
+		raise Exception("Error synchronizing experiments: " + str(e))
 
 	    return True
 	# The client is showing heartbeat:
 	elif message_type == "b" and not unauthorized:
-	    if self.client_commands[client_tag] == 'chill':
-		#print bcolors.WARNING + client_tag + " [beat]... " + bcolors.ENDC
-		self.send_fixed(clientsocket, address, 'b')
-	    else:
-		self.send_fixed(clientsocket, address, 'c')
-		self.send_crypt(clientsocket, address, self.client_commands[client_tag], self.client_keys[client_tag])
-		print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + " Just received the latest commands... " + bcolors.ENDC
-		self.client_commands[client_tag] = "chill"
-	    return True
+	    try:
+		if self.client_commands[client_tag] == 'chill':
+		    self.send_fixed(clientsocket, address, 'b')
+		else:
+		    self.send_fixed(clientsocket, address, 'c')
+		    self.send_crypt(clientsocket, address, self.client_commands[client_tag], self.client_keys[client_tag])
+		    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + " Just received the latest commands... " + bcolors.ENDC
+		    self.client_commands[client_tag] = "chill"
+		return True
+	    except Exception as e:
+		raise Exception ("Error at heartbeat: " + str(e))
 	else:
 	    try:
 		self.send_fixed(clientsocket, address, "e")

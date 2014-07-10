@@ -4,5 +4,8 @@ import sys
 
 from centinel.server import Server
 
-server = Server()
-server.run()
+try:
+    server = Server()
+    server.run()
+except Exception as e:
+    print "Error running server: " + str(e)

@@ -263,23 +263,8 @@ class ServerConnection:
 	    self.send_crypt(data, self.server_public_key)
 
 	    server_response = self.receive_fixed(1)
-	except Exception:
-	    print bcolors.FAIL + "Error sending data to server." + bcolors.ENDC
-	    return False
-
-	if server_response == "e":
-		try:
-		    error_message = self.receive_dyn()
-		    print bcolors.FAIL + "Error sending data to server: " + error_message + bcolors.ENDC
-		    return False
-		except:
-		    print bcolors.FAIL + "Server error (could not receive error details from the server)." + bcolors.ENDC
-		return False
-	elif server_response == "c":
-	    print bcolors.OKGREEN + "Data successfully sent." + bcolors.ENDC
-	    return True
-	else:
-	    print bcolors.FAIL + "Unknown server response \"" + server_response + "\"" + bcolors.ENDC
+	except Exception as e:
+	    print bcolors.FAIL + "Error sending data to server: " + str(e) + bcolors.ENDC
 	    return False
 
 	return True
