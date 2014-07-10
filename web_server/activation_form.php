@@ -61,7 +61,8 @@ function show_consent_form()
     	    document.getElementById("consent_form_text").style.visibility="hidden";
 	    document.getElementById("consent_textarea").value = xmlhttpconsent.responseText;
 	    document.getElementById("consent_div").style.display = "block";
-	    var url = "http://freedomhouse.org/report/freedom-world/2014/"+country+"-0";
+	    var url = "http://freedomhouse.org/report/freedom-world/2014/"+ country.replace(" ", "-") +"-0";
+	    alert(url);
 	    document.getElementById("stats_iframe").src = url;
 	    
 	    if (country == "Other") 
