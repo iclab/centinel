@@ -23,6 +23,8 @@ class ConfigurableDNSExperiment(Experiment):
 
 	if 'resolver' in self.args.keys():
 	    self.resolver = self.args['resolver']
+	else:
+            self.resolver = "8.8.8.8"
 
 	url_list = parser.items('URLS')
 	for url in url_list[0][1].split():
