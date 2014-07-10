@@ -213,12 +213,19 @@ class Server:
 	    com = raw_input("> ")
 	    if len(com.split()) == 1:
 		if com == "listclients":
-		    print "Connected clients: "
+		    print bcolors.WARNING + "Connected clients: " + bcolors.ENDC
 		    for client, (lasttime, lastaddress) in self.client_last_seen.items():
 			if lasttime <> "":
 			    if datetime.now() - lasttime < timedelta(seconds=15):
-				print "%s\t%s\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds)
+				print bcolors.OKBLUE + "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds) + bcolors.ENDC
+		    
+		    print bcolors.WARNING + "Disconnected clients: " + bcolors.ENDC
+		    for client, (lasttime, lastaddress) in self.client_last_seen.items():
+			if lasttime <> "":
+			    if datetime.now() - lasttime >= timedelta(seconds=15):
+				print bcolors.WARNING + "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds) + bcolors.ENDC
 		    continue
+		
 
 	    if len(com.split()) < 2:
 		print bcolors.FAIL + "No command given!" + bcolors.ENDC
