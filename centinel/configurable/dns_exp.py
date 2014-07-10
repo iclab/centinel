@@ -59,7 +59,7 @@ class ConfigurableDNSExperiment(Experiment):
                     else:
                         ans += ", " + answer.to_text()
             except Exception:
-                print("Error")
+                print("Error Querying " + self.record + " record for " + self.host)
         if ans == "":
             ans = "Unavailable"
 	print(ans)
