@@ -67,7 +67,8 @@ class IndExperiment(Experiment):
         t = 1
         finalIp = "Placeholder"
         complete_traceroute = ""
-        for t in range(1,30):
+        max_hops = 30
+        for t in range(1,max_hops + 1):
             
             
             process = ['ping', dest_name, '-c 1', '-t ' + str(t)]
@@ -95,7 +96,7 @@ class IndExperiment(Experiment):
             complete_traceroute += ip + "|||" + reverseDns
             if ip == "Not Found" and reverseDns != "Not Found":
                 pass
-            if ip == finalIp:
+            if ip == finalIp or t == max_hops:
                 print("Finished Traceroute")
                 break
             else:
