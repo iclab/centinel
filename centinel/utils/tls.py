@@ -6,7 +6,7 @@ import ssl
 import M2Crypto
 
 def get_fingerprint(host, port):
-    cert = ssl.get_server_certificate((site, port))
-    x509 = M2Crypto.X509.load_cert_string(cert, X509.FORMAT_PEM)
+    cert = ssl.get_server_certificate((host, port))
+    x509 = M2Crypto.X509.load_cert_string(cert, M2Crypto.X509.FORMAT_PEM)
     fpr = x509.get_fingerprint('sha1')
     return fpr.lower()
