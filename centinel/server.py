@@ -338,7 +338,7 @@ class Server:
     		    log("i", "Creating results directory in %s" % (conf.c['results_dir']))
     		    os.makedirs(conf.c['results_dir'])
 
-		out_file = open(os.path.join(conf.c['results_dir'],client_tag + "-" + datetime.now().time().isoformat() + "-" + results_name), 'w')
+		out_file = open(os.path.join(conf.c['results_dir'],client_tag + "-" + datetime.now().isoformat() + "-" + results_name), 'w')
 		out_file.write(results_decrypted)
 		out_file.close()
 		self.send_fixed(clientsocket, address, "a")
