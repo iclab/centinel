@@ -3,6 +3,7 @@ import ConfigParser
 import os
 
 from centinel.experiment_py import Experiment
+from centinel.utils import logger
 
 class ConfigurableDNSExperiment(Experiment):
     name = "config_dns"
@@ -64,14 +65,17 @@ class ConfigurableDNSExperiment(Experiment):
                     else:
                         ans += ", " + answer.to_text()
             except dns.exception.Timeout:
-                print("Query Timed out for " + self.host)
+                logger.log("e", "Query Timed out for " + self.host)
                 ans = "Timeout"
             except Exception:
-                print("Error Querying " + self.record + " record for " + self.host)
+                logger.log("e", "Error Querying " + self.record + " record for " + self.host)
                 ans = "Error"
         if ans == "":
             ans = "Unavailable"
-	print(ans)
+	    logger.log("i", ans)
+	else:
+	    logger.log("s", ans)
+	    
 
         result["record_type"] = self.record
         result['record'] = ans
