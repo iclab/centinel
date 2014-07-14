@@ -61,13 +61,10 @@ class ConfigurablePingExperiment(Experiment):
             for x in range(0, len(split_data) - 1):
                 if split_data[x] == "packets" and split_data[x + 1].replace(",", "") == "transmitted":
                     packetsTransmitted = int(split_data[x - 1])
-                    logger.log("i", "Packets Transmitted: " + str(packetsTransmitted))
                 if split_data[x].replace(",", "") == "received":
                     packetsReceived = int(split_data[x - 1])
-                    logger.log("i", "Packets Received: " + str(packetsReceived))
                 if split_data[x].replace(",", "") == "loss" and split_data[x - 1] == "packet":
                     packetsLostPercentage = int(split_data[x - 2].replace("%", ""))
-                    logger.log("i", "Packets Lost %: " + str(packetsLostPercentage))
             result["sent"] = str(packetsTransmitted)
             result["received"] = str(packetsReceived)
             result["percent_lost"] = str(packetsLostPercentage)
