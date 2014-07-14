@@ -57,7 +57,7 @@ class ServerConnection:
 
 	self.connected = True
 	# Don't wait more than 15 seconds for the server.
-	self.serversocket.settimeout(15)
+	self.serversocket.settimeout(conf.c['timeout'])
 	log("i", "Server connection successful.")
 	if do_login:
 	    self.logged_in = self.login()

@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import time
 from centinel import experiment_runner
 from centinel.serverconnection import ServerConnection
 from centinel.utils.colors import bcolors
 from centinel.utils.logger import *
+from time import strftime
 import logging
+from centinel.client_config import client_conf
+
+conf = client_conf()
 
 def run_exp(selection):
     log("i", 'Starting the exepriments.')
@@ -22,7 +27,11 @@ def sync_exp():
     log("i", 'Starting experiments sync.')
     serverconn.sync_experiments()
 
-logging.basicConfig(filename="client.log", level=logging.DEBUG)
+if not os.path.exists(conf.c['logs_dir']):
+    log("i", "Creating logs directory in %s." % (conf.c['logs_dir']))
+    os.makedirs(conf.c['logs_dir'])
+
+logging.basicConfig(filename=os.path.join(conf.c['logs_dir'], strftime("%Y-%m-%d-%H:%M:%S")  + ".log"), level=logging.DEBUG)
 
 log("i", "Client daemon is running...")
 
@@ -39,8 +48,6 @@ serverconn = ServerConnection()
 
 if not serverconn.connect():
     log("e", 'Server not connected.')
-else:
-    log("s", "Server connection successful.")
 
 while 1:
     try:
