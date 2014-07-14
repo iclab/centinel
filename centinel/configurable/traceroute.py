@@ -24,7 +24,7 @@ class ConfigurableTracerouteExperiment(Experiment):
 	if 'max_hops' in self.args.keys():
 	    self.max_hops = int(self.args['max_hops'])
 	else:
-            self.max_hops = 1
+            self.max_hops = 30
 
 	if 'start_hop' in self.args.keys():
 	    self.start_hop = int(self.args['start_hop'])
