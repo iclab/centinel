@@ -344,6 +344,7 @@ class Server:
 		self.send_fixed(clientsocket, address, "a")
 	    except Exception as e:
     		raise Exception("Error receiving results data: " + str(e))
+	    log("s", "Results file \"%s\" received successfully." %(results_name))
 	    return True
 
 	# The client wants to end the connection.
