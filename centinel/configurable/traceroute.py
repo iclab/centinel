@@ -2,6 +2,7 @@ import ConfigParser
 import os
 import subprocess
 from centinel.experiment_py import Experiment
+from centinel.utils import logger
 
 class ConfigurableTracerouteExperiment(Experiment):
     name = "config_traceroute"
@@ -10,7 +11,7 @@ class ConfigurableTracerouteExperiment(Experiment):
         self.input_file = input_file
         self.results = []
         self.args = dict()
-        print("Running Traceroute Test")
+        logger.log("i", "Running Traceroute Test")
   
     
     def run(self):
@@ -61,6 +62,7 @@ class ConfigurableTracerouteExperiment(Experiment):
 	t = self.start_hop
         finalIp = "Placeholder"
         complete_traceroute = ""
+	logger.log("i", "Performing traceroute on " + self.host)
         for t in range(self.start_hop, self.max_hops + 1):
             process = ['ping', self.host, '-c 1', '-t ' + str(t), '-W ' + str(self.timeout)]
             response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
@@ -68,8 +70,6 @@ class ConfigurableTracerouteExperiment(Experiment):
                 pingSendInfo = response.splitlines()[0]
                 pingSendSplit = pingSendInfo.split()
                 finalIp = pingSendSplit[2].translate(None, '()')
-                print("Final Ip: " + finalIp)
-            print("Ttl: " + str(t))
             ping_info = response.splitlines()[1]
             split_by_word = str.split(ping_info)
             reverseDns = "Not Found"
@@ -80,20 +80,17 @@ class ConfigurableTracerouteExperiment(Experiment):
                     ip = stripped
                 if not '=' in stripped and '.' in stripped and not self.isIp(stripped):
                     reverseDns = stripped
-            print("Reverse Dns: " + reverseDns)
-            print("Ip Address: " + ip)
 	    results["Hop" + str(t) + "Ip"] = ip
 	    results["Hop" + str(t) + "ReverseDns"] = reverseDns
             complete_traceroute += ip + "|||" + reverseDns
             if ip == "Not Found" and reverseDns != "Not Found":
                 pass
             if ip == finalIp or t == self.max_hops:
-                print("Finished Traceroute")
+                logger.log("s", "Finished Traceroute")
                 break
             else:
                 complete_traceroute += "->"
         results["Hops"] = t
         results["traceroute"] = complete_traceroute
-	print("\nComplete Traceroute: " + complete_traceroute)
 	self.results.append(results)
 
