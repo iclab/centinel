@@ -67,14 +67,16 @@ class ConfigurableDNSExperiment(Experiment):
             except dns.exception.Timeout:
                 logger.log("e", "Query Timed out for " + self.host)
                 ans = "Timeout"
-            except Exception:
-                logger.log("e", "Error Querying " + self.record + " record for " + self.host)
+            except Exception as e:
+                logger.log("e", "Error Querying " + self.record + " record for " + self.host + " (" + str(e) + ")")
                 ans = "Error"
-        if ans == "":
-            ans = "Unavailable"
-	    logger.log("i", ans)
-	else:
-	    logger.log("s", ans)
+
+	if ans != "Error":
+	    if ans == "":
+        	ans = "Unavailable"
+		logger.log("i", ans)
+	    else:
+		logger.log("s", ans)
 	    
 
         result["record_type"] = self.record
