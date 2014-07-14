@@ -31,6 +31,11 @@ class ConfigurableTracerouteExperiment(Experiment):
 	else:
             self.start_hop = 1
 
+	if 'timeout' in self.args.keys():
+	    self.timeout = int(self.args['timeout'])
+	else:
+            self.timeout = 10
+
 	for url in url_list[0][1].split():
 	    self.host = url
             self.traceroute()
@@ -57,7 +62,7 @@ class ConfigurableTracerouteExperiment(Experiment):
         finalIp = "Placeholder"
         complete_traceroute = ""
         for t in range(self.start_hop, self.max_hops + 1):
-            process = ['ping', self.host, '-c 1', '-t ' + str(t)]
+            process = ['ping', self.host, '-c 1', '-t ' + str(t), '-W ' + str(self.timeout)]
             response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
             if t == 1:
                 pingSendInfo = response.splitlines()[0]
