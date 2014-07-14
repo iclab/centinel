@@ -3,10 +3,11 @@
 .#*
 *.log
 centinel/logs/*
+centinel/conf_experiments/*
 centinel/confs/client_config.cfg
 centinel/results/*
-centinel/results_archive/
-centinel/server_results/
+centinel/results_archive/*
+centinel/server_results/*
 centinel/server_keys/*
 centinel/server_keys/clients/*
 centinel/conf_experiments/*
