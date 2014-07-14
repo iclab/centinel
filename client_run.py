@@ -33,6 +33,8 @@ if selection:
     run_exp(selection)
     exit(0)
 
+print open("centinel_client_ascii_art", "r").read()
+
 serverconn = ServerConnection()
 
 if not serverconn.connect():
