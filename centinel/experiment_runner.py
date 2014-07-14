@@ -26,8 +26,8 @@ CUSTOM_EXP_DIR	= conf.c['custom_experiments_dir']
 def get_results_dir():
     return RESULTS_DIR
 
-def get_result_file(results_dir):
-    result_file = "result-%s.json" % (datetime.now().isoformat())
+def get_result_file(results_dir, exp_name):
+    result_file = "%s-%s.json" % (exp_name, datetime.now().isoformat())
     return os.path.join(results_dir, result_file)
 
 def get_input_file(experiment_name):
@@ -36,7 +36,6 @@ def get_input_file(experiment_name):
 
 def get_conf_input_file(experiment_name):
     input_file = "%s.cfg" % (experiment_name)
-    os.path.isfile(input_file)
     return os.path.join(CONF_EXP_DIR, input_file)
 
 def get_custom_input_file(experiment_name):
@@ -44,7 +43,14 @@ def get_custom_input_file(experiment_name):
     return os.path.join(CUSTOM_EXP_DIR, input_file)
 
 def load_experiments():
-    # look for experiments in experiments directory
+    # look for Python experiments in experiments directory
+    for path in glob.glob(os.path.join(EXPERIMENTS_DIR,'[!_]*.py')):
+        # get name of file and path
+        name, ext = os.path.splitext(os.path.basename(path))
+        # load the experiment
+        imp.load_source(name, path)
+
+    # look for Python experiments in custom experiments directory
     for path in glob.glob(os.path.join(EXPERIMENTS_DIR,'[!_]*.py')):
         # get name of file and path
         name, ext = os.path.splitext(os.path.basename(path))
@@ -56,13 +62,13 @@ def load_experiments():
 
 def load_conf_experiments():
     exp_list = []
-    # look for experiments in experiments directory
+    # look for configurable experiments in experiments directory
     for path in glob.glob(os.path.join(CONF_EXP_DIR,'[!_]*.cfg')):
         # get name of file and path
         name, ext = os.path.splitext(os.path.basename(path))
         exp_list.append(name)
 
-    # look for experiments in custom experiments directory
+    # look for configurable experiments in custom experiments directory
     for path in glob.glob(os.path.join(CUSTOM_EXP_DIR, '[!_]*.cfg')):
 	# get name of file and path
         name, ext = os.path.splitext(os.path.basename(path))
@@ -85,32 +91,46 @@ def run(selection = []):
         log("i", "Creating results directory in %s." % (results_dir))
         os.makedirs(results_dir)
 
-    result_file = get_result_file(results_dir)
-    result_file = open(result_file, "w")
-    results = {}
-
     experiments = load_experiments()
     conf_experiments = load_conf_experiments()
 
     if run_all:
         for name, Exp in experiments.items():
+	    result_file = get_result_file(results_dir, name)
+	    result_file = open(result_file, "w")
+	    results = {}
 	    results[name] = execute_experiment(name, Exp)
+	    json.dump(results, result_file)
+	    result_file.close()
 
 	for name in conf_experiments:
+	    result_file = get_result_file(results_dir, name)
+	    result_file = open(result_file, "w")
+	    results = {}
 	    results[name] = execute_conf_experiment(name)
+	    json.dump(results, result_file)
+	    result_file.close()
     else:
 	ran = []
         for name in selection:
 	    if not name in experiments.keys():
 		continue
 	    Exp = experiments[name]
+	    result_file = get_result_file(results_dir, name)
+	    result_file = open(result_file, "w")
+	    results = {}
 	    results[name] = execute_experiment(name, Exp)
 	    ran.append(name);
+	    json.dump(results, result_file)
+	    result_file.close()
 	
 	for name in selection:
 	    if not name in conf_experiments:
 		continue
 	    http_results, dns_results, ping_results, tcp_results, traceroute_results = execute_conf_experiment(name)
+	    result_file = get_result_file(results_dir, name)
+	    result_file = open(result_file, "w")
+	    results = {}
 	    if http_results:
 		results[name + ".http"] = http_results
 	    if dns_results:
@@ -122,14 +142,15 @@ def run(selection = []):
 	    if traceroute_results:
 		results[name + ".traceroute"] = traceroute_results
 	    ran.append(name)
+	    json.dump(results, result_file)
+	    result_file.close()
+
 
     for name in selection:
 	if name not in ran:
 	    log("e", "Experiment %s not found." %(name))
 
 
-    json.dump(results, result_file)
-    result_file.close()
 
     log("s", "Finished running all experiments.")
 
