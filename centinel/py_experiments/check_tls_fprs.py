@@ -1,6 +1,6 @@
 from centinel.experiment_py import Experiment
 from centinel.utils import tls
-
+from centinel.utils import logger
 
 class TLSExperiment(Experiment):
     """Check the tls fingerprints of a site"""
@@ -22,8 +22,8 @@ class TLSExperiment(Experiment):
     def tls_test(self):
         result = {"host": self.host}
 
-        print "Getting TLS Certificate from {0} on port {1} ".format(self.host,
-                                                                     self.port)
+        logger.log("i", "Getting TLS Certificate from {0} on port {1} ".format(self.host,
+                                                                     self.port))
         fpr = tls.get_fingerprint(self.host, self.port)
         result['fpr'] = fpr
         if fpr in self.fprs:
