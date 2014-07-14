@@ -265,29 +265,32 @@ class Server:
 
 	if not client_tag:
 	    print bcolors.OKBLUE + "Authenticating..." + bcolors.ENDC
-	    client_tag = self.receive_dyn(clientsocket, address)
+	    try:
+		client_tag = self.receive_dyn(clientsocket, address)
     
-	    authenticated = False
-
-	    random_token = ""
-	    received_token = ""
-	    if client_tag == "unauthorized":
-		# Only allow them to either close or initialize:
-		unauthorized = True
-	    elif client_tag not in self.client_list:
 		authenticated = False
-	    else:
-		unauthorized = False
-		random_token = self.random_string_generator(10)
-    		self.send_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
-		received_token = self.receive_crypt(clientsocket, address, self.private_key, show_progress=False)
 
-	    if unauthorized or (client_tag in self.client_list and random_token == received_token):
-		if client_tag <> "unauthorized":
-		    print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
-		    authenticated = True
-	    else:
-    		try:
+		random_token = ""
+		received_token = ""
+		if client_tag == "unauthorized":
+		    # Only allow them to either close or initialize:
+		    unauthorized = True
+		elif client_tag not in self.client_list:
+		    authenticated = False
+		else:
+		    unauthorized = False
+		    random_token = self.random_string_generator(10)
+    		    self.send_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
+		    received_token = self.receive_crypt(clientsocket, address, self.private_key, show_progress=False)
+
+		if unauthorized or (client_tag in self.client_list and random_token == received_token):
+		    if client_tag <> "unauthorized":
+			print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
+			authenticated = True
+		else:
+		    raise Exception("Authentication error.")
+    	    except Exception as e:
+	        try:
 	    	    self.send_fixed(clientsocket, address, 'e')
 	    	    self.send_dyn(clientsocket, address, "Authentication error.")
 		except:
@@ -295,7 +298,7 @@ class Server:
 		if clientsocket:
 		    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
 		    clientsocket.close()
-		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ")" + " authentication error." + bcolors.ENDC
+		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ")" + " authentication error: " + str(e) + bcolors.ENDC
 		return
 
 	    self.send_fixed(clientsocket, address, "a")
