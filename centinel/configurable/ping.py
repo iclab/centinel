@@ -48,7 +48,6 @@ class ConfigurablePingExperiment(Experiment):
             # Further experiment
             process = ['ping', self.host, '-c ' + str(self.packets), '-W ' + str(self.timeout)]
             console_response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
-	    print("Console Response: " + console_response)
             ping_data = ""
             for line in console_response.splitlines():
                 if "packets transmitted" in line and "received" in line:
