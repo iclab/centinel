@@ -2,8 +2,8 @@
 *.pyo
 .#*
 *.log
-logs/
-client_logs/
+logs/*
+client_logs/*
 results/
 results_archive/
 server_results/

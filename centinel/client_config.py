@@ -1,6 +1,7 @@
 import ConfigParser
 import os
 from utils.colors import bcolors
+from utils.logger import *
 
 class client_conf:
     c  = {  'server_address' : "nrgairport.nrg.cs.stonybrook.edu",
@@ -10,6 +11,7 @@ class client_conf:
 	    'experiments_py_dir' : os.path.join(os.path.dirname(__file__), "py_experiments"),
 	    'configurable_experiments_dir' : os.path.join(os.path.dirname(__file__), "conf_experiments"),
 	    'custom_experiments_dir' : os.path.join(os.path.dirname(__file__), "custom_experiments"),
+	    'logs_dir' : os.path.join(os.path.dirname(__file__), "logs"),
 	    'results_dir' : os.path.join(os.path.dirname(__file__), "results"),
 	    'client_keys_dir' : os.path.join(os.path.dirname(__file__), "client_keys"),
 	    'results_archive_dir' : os.path.join(os.path.dirname(__file__), "results_archive"),
@@ -17,6 +19,7 @@ class client_conf:
 	    'server_public_rsa' : os.path.join(os.path.dirname(__file__), "client_keys/server_public_rsa.pem"),
 	    'client_public_rsa' : os.path.join(os.path.dirname(__file__), "client_keys/client_public_rsa.pem"),
 	    'client_private_rsa' : os.path.join(os.path.dirname(__file__), "client_keys/client_private_rsa.pem"),
+	    'timeout' : 20,
 	    'client_tag' : "unauthorized"}
 
     def __init__(self,conf_file = '' ):
@@ -28,5 +31,5 @@ class client_conf:
 	    self.c.update(parser.items('CentinelClient'))
 	    self.config_read = True
 	except ConfigParser.Error, message:
-	    print bcolors.FAIL + 'Error reading config file (did you run init_client.py?).' + bcolors.ENDC
+	    log("w", 'Error reading config file (did you run init_client.py?).')
 	    self.config_read = False
