@@ -341,6 +341,7 @@ class Server:
 		out_file = open(os.path.join(conf.c['results_dir'],client_tag + "-" + datetime.now().time().isoformat() + "-" + results_name), 'w')
 		out_file.write(results_decrypted)
 		out_file.close()
+		self.send_fixed(clientsocket, address, "a")
 	    except Exception as e:
     		raise Exception("Error receiving results data: " + str(e))
 	    return True
