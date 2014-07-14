@@ -3,6 +3,7 @@ import os
 import subprocess
 
 from centinel.experiment_py import Experiment
+from centinel.utils import logger
 
 class ConfigurablePingExperiment(Experiment):
     name = "config_ping"
@@ -40,7 +41,7 @@ class ConfigurablePingExperiment(Experiment):
         result = {
             "host" : self.host,
         }
-        print "Running ping to ", self.host      
+        logger.log("i", "Running ping to " + self.host)      
         response = os.system("ping -c 1 -W " + str(self.timeout) + " " + self.host + " >/dev/null 2>&1")
         
         if response == 0:
@@ -60,13 +61,13 @@ class ConfigurablePingExperiment(Experiment):
             for x in range(0, len(split_data) - 1):
                 if split_data[x] == "packets" and split_data[x + 1].replace(",", "") == "transmitted":
                     packetsTransmitted = int(split_data[x - 1])
-                    print("Packets Transmitted: " + str(packetsTransmitted))
+                    logger.log("i", "Packets Transmitted: " + str(packetsTransmitted))
                 if split_data[x].replace(",", "") == "received":
                     packetsReceived = int(split_data[x - 1])
-                    print("Packets Received: " + str(packetsReceived))
-                if split_data[x].replace(",", "") == "loss" and  split_data[x - 1] == "packet":
+                    logger.log("i", "Packets Received: " + str(packetsReceived))
+                if split_data[x].replace(",", "") == "loss" and split_data[x - 1] == "packet":
                     packetsLostPercentage = int(split_data[x - 2].replace("%", ""))
-                    print("Packets Lost %: " + str(packetsLostPercentage))
+                    logger.log("i", "Packets Lost %: " + str(packetsLostPercentage))
             result["sent"] = str(packetsTransmitted)
             result["received"] = str(packetsReceived)
             result["percent_lost"] = str(packetsLostPercentage)
