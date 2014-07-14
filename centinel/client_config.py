@@ -9,6 +9,7 @@ class client_conf:
 	    'experiment_data_dir' : os.path.join(os.path.dirname(__file__), "experiment_data"),
 	    'experiments_py_dir' : os.path.join(os.path.dirname(__file__), "py_experiments"),
 	    'configurable_experiments_dir' : os.path.join(os.path.dirname(__file__), "conf_experiments"),
+	    'custom_experiments_dir' : os.path.join(os.path.dirname(__file__), "custom_experiments"),
 	    'results_dir' : os.path.join(os.path.dirname(__file__), "results"),
 	    'client_keys_dir' : os.path.join(os.path.dirname(__file__), "client_keys"),
 	    'results_archive_dir' : os.path.join(os.path.dirname(__file__), "results_archive"),

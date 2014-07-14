@@ -73,7 +73,6 @@ class ServerConnection:
 	    log("w", "Closing connection to the server.")
 	    try:
 		#no need to authenticate when closing...
-		self.send_dyn("unauthorized")
 		self.send_fixed("x")
 	    except:
 		pass
@@ -247,6 +246,8 @@ class ServerConnection:
 	    self.send_crypt(data, self.server_public_key)
 
 	    server_response = self.receive_fixed(1)
+	    if server_response <> "a":
+		raise Exception("Success message not received.")
 	except Exception as e:
 	    raise Exception("Error sending data to server: " + str(e))
 

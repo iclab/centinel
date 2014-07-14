@@ -1,22 +1,22 @@
-### Centinel
+### Centinel Client
 
 Centinel is a tool used to detect network interference and internet
 censorship.
 
 #### Install and usage
-    $ sudo apt-get install python-setuptools
 
-    # via pip
-    $ sudo pip install centinel
-    $ centinel_client
+    # acquire the latest development version
+    * git clone https://github.com/iclab/centinel-iclab.git
+    
+    # prepare and install dependencies
+    * ./prepare.sh
 
-    # latest development version
-    * git clone https://github.com/projectbismark/centinel.git
-    * # install dnspython
-        * Debian - $ sudo apt-get python-dnspython
-        * OSX    - $ pip install dnspython
-    * python centinel_client.py [experiment 1] [experiment 2] ...
-	(running without arguments will run all experiments)
+    # initialize Centinel and exchange keys with Sirocco server
+    * ./init_client.py
+
+    # run Centinel Client
+    * ./client_run.py [experiment 1] [experiment 2] ...
+	(running without arguments will run the client daemon and connect to the server)
 
 #### Supported platforms
 
@@ -26,8 +26,8 @@ censorship.
 
 #### How to make a test
 
-    * The file must end in .cfg
-    $ >newTest.cfg
+    * The file must end in .cfg and be placed in centinel/custom_experiments/
+    $ >centinel/custom_experiments/newTest.cfg
 
     * A list of URLs should be written to the file like this:
     * Every URL after the first one must be indented
@@ -57,7 +57,7 @@ censorship.
 	* record - the dns record type ("A" by default though not compatible with every type of record)
 	* resolver - the ip address of the dns resolver
 
-    # [Ping] - Pings the list of urls and records the results
+    # [Ping] - Pings the list of urls and records the results (uses system ping)
 	---Parameters---
 	* packets - the number of packets to be sent (1 by default)
 	* timeout - time in seconds before the ping times out and ends before receiving a response (10 by default)
@@ -67,13 +67,13 @@ censorship.
 
     # [Traceroute] - Performs a traceroute and records the results
 	---Parameters---
-	* max_hops - The max ttl/hops in the traceroute (30 by default)
-	* start_hop - The starting ttl/hop (1 by default)
+	* max_hops - The max TTL/hops in the traceroute (30 by default)
+	* start_hop - The starting TTL/hop (1 by default)
 	* timeout - the timeout in seconds at each hop before receiving a response (10 by default)
     
-    # [TCP] - Attempts to connect the urls through tcp connections
+    # [TCP] - Attempts to connect to the URLs through TCP connections
 	---Parameters---
-	* port - the port in which the tcp connection is made
+	* port - the port to which the TCP connection is made
 
 
 #### Example Test File ####
@@ -95,10 +95,4 @@ timeout = 10
 
 [Ping]
 
-
-	
-    
-
-    
-
-    
+###########################
