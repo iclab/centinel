@@ -5,23 +5,26 @@ import time
 from centinel import experiment_runner
 from centinel.serverconnection import ServerConnection
 from centinel.utils.colors import bcolors
+from centinel.utils.logger import *
+import logging
 
 def run_exp(selection):
-    print bcolors.OKBLUE + 'Starting the exepriments.' + bcolors.ENDC
+    log("i", 'Starting the exepriments.')
     experiment_runner.run(selection)
-    print bcolors.OKGREEN + 'Experiments done.' + bcolors.ENDC
+    log("s", 'Experiments done.')
 
 
-def sync():
-    print bcolors.OKBLUE + 'Starting sync.' + bcolors.ENDC
+def sync_res():
+    log("i", 'Starting results sync.')
     serverconn.sync_results()
 
-def fetch():
-    print bcolors.OKBLUE + 'Starting fetch.' + bcolors.ENDC
-    # TODO:
-    # Write results fetch.
+def sync_exp():
+    log("i", 'Starting experiments sync.')
+    serverconn.sync_experiments()
 
-print bcolors.HEADER + "Client daemon is running..." + bcolors.ENDC
+logging.basicConfig(filename="client.log", level=logging.DEBUG)
+
+log("i", "Client daemon is running...")
 
 selection = sys.argv
 selection.pop(0)
@@ -30,16 +33,15 @@ if selection:
     run_exp(selection)
     exit(0)
 
-
 serverconn = ServerConnection()
+
 if not serverconn.connect():
-    print bcolors.FAIL + 'Server not connected.' + bcolors.ENDC
+    log("e", 'Server not connected.')
+else:
+    log("s", "Server connection successful.")
 
 while 1:
     try:
-	
-	if not serverconn.connected:
-    	    raise Exception
 	server_response = serverconn.beat()
 
 	if not server_response:
@@ -48,49 +50,50 @@ while 1:
 
 	    
 	elif server_response <> 'beat':
-	    print bcolors.HEADER + "Executing commands... (" + server_response + ")" + bcolors.ENDC
+	    log("i", "Executing commands... (" + server_response + ")")
 	    for command in server_response.split(";"):
 	        try:
 	    	    command = command.strip()
 		    if command == '':
 		        continue
-		    elif command == "sync_results" or command == "sync":
-			sync()
-		    elif command == "fetch_exp" or command == "fetch":
-			fetch()
+		    elif command == "sync_results" or command == "sync_res":
+			sync_res()
+		    elif command == "sync_experiments" or command == "sync_exp":
+			sync_exp()
 		    elif command.split()[0] == "run_exp" or command.split()[0] == "run":
 			run_exp(command.split()[1:])
 		    else:
-			print bcolors.FAIL + "Command %s not recognized." %(command) + bcolors.ENDC
-		except:
-		    print bcolors.FAIL + "Command %s failed to execute." %(command) + bcolors.ENDC
+			log("e", "Command %s not recognized." %(command))
+		except Exception as e:
+		    log("e", "Command %s failed to execute: " %(command) + str(e))
 	serverconn.sync_experiments()
 	time.sleep(5) # Sleep for heartbeat duration.
     except (KeyboardInterrupt, SystemExit):
-	print bcolors.WARNING + "Shutdown requested, shutting centinel down..." + bcolors.ENDC
+	log("w", "Shutdown requested, shutting centinel down...")
 	serverconn.disconnect()
 	# do some shutdown stuff, then close
 	exit(0)
-    except Exception, e:
-	print bcolors.FAIL + "An exception occured: " + bcolors.ENDC, e
-	print bcolors.OKBLUE + "Trying to recover..." + bcolors.ENDC
+    except Exception as e:
+	log("e", "An exception occured: " + str(e))
+	log("i", "Trying to recover...")
 	fixed = False
 	try:
 	    while not fixed:
     		try:
 		    serverconn.disconnect()
-		    serverconn = ServerConnection()
-		    if not serverconn.connect():
-			raise Exception
-		    fixed = True
-		except:
-		    print bcolors.FAIL + "Error persists. Rerying..." + bcolors.ENDC
-		    time.sleep(5) # Sleep before retrying
-		    fixed = False
+		    fixed = serverconn.connect()
+		    if fixed:
+			break
+		except Exception as e:
+		    log("e", "An exception occured when trying to recover: " + str(e))
+		    log("i", "Rerying...")
+		time.sleep(5) # Sleep before retrying
+		fixed = False
 	except (KeyboardInterrupt, SystemExit):
-	    print bcolors.WARNING + "Shutdown requested, shutting centinel down..." + bcolors.ENDC
+	    log("w", "Shutdown requested, shutting centinel down...")
 	    # do some shutdown stuff, then close
+	    serverconn.disconnect()
 	    exit(0)
-	print bcolors.OKGREEN + "We're back in business!" + bcolors.ENDC
-	
+	log("s", "We're back in business!")
+
 serverconn.disconnect()

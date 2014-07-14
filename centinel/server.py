@@ -20,6 +20,7 @@ from Crypto.Hash import MD5
 from server_config import server_conf
 from utils.colors import bcolors
 from utils.colors import update_progress
+from utils.logger import *
 
 conf = server_conf()
 
@@ -53,7 +54,7 @@ class Server:
 	    sent = clientsocket.send(data)
 	except Exception as det: 
     	    if clientsocket:
-		print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
+		log("i", "Closing connection to the client.", address=address)
 		clientsocket.close()
 	    raise Exception("Could not send data to client (%s:%s): " %(address[0], address[1])), det
 	    return False
@@ -69,7 +70,6 @@ class Server:
     def send_dyn(self, clientsocket, address, data):
 	self.send_fixed(clientsocket, address, str(len(data)).zfill(10))
 	self.send_fixed(clientsocket, address, data)
-
 
     """
     Send a string of characters encrpyted using a given RSA key.
@@ -96,7 +96,6 @@ class Server:
 	    bytes_encrypted = bytes_encrypted + chunk_size
 	    self.send_dyn(clientsocket, address, encrypted_chunk[0])
 
-    
     """
     Receive a string of characters on the socket.
 	Size is fixed, meaning that we know how 
@@ -109,9 +108,9 @@ class Server:
             chunk = clientsocket.recv(min(message_len - bytes_recd, 2048))
             if chunk == '':
                 if clientsocket:
-		    print bcolors.WARNING + "Closing connection to the client." + bcolors.ENDC
+		    log("i", "Closing connection to the client.", address = address)
 		    clientsocket.close()
-        	raise Exception("Socket connection broken (%s:%s)" %(address[0], address[1]))
+        	raise Exception("Socket connection broken.")
 		return False
 	    chunks.append(chunk)
             bytes_recd = bytes_recd + len(chunk)
@@ -176,20 +175,14 @@ class Server:
 	The server will not run if the private and the public keys are 
 	not read.
 	"""
-	try:
-	    kf = open(conf.c['public_rsa_file'])
-	    self.public_key = kf.read()
-	    kf.close()
-	    kf = open(conf.c['private_rsa_file'])
-	    self.private_key = kf.read()
-	    kf.close()
-	except Exception as e:
-	    print bcolors.FAIL + "Error loading key files: " + str(e) + bcolors.ENDC
-	    print bcolors.FAIL + "Exiting..." + bcolors.ENDC
-	    self.connected = False
-	    return False
-
-	print bcolors.HEADER + "Server running. Awaiting connections..." + bcolors.ENDC
+	kf = open(conf.c['public_rsa_file'])
+	self.public_key = kf.read()
+	kf.close()
+	kf = open(conf.c['private_rsa_file'])
+	self.private_key = kf.read()
+	kf.close()
+	
+	log("i", "Sirocco server running. Awaiting connections...")
 
 	command_thread = threading.Thread(target=self.client_command_sender, args = ())
 	command_thread.daemon = True
@@ -199,12 +192,12 @@ class Server:
 	    while 1:
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
-		print bcolors.OKBLUE + strftime("%Y-%m-%d %H:%M:%S") + ": Got a connection from " + address[0] + ":" + str(address[1]) + bcolors.ENDC
+		log("s", "Got a connection.", address = address)
 		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))
 		client_thread.daemon = True
 		client_thread.start()
 	except (KeyboardInterrupt, SystemExit):
-	    print bcolors.WARNING + "Shutdown requested, shutting server down..." + bcolors.ENDC
+	    log("w", "Shutdown requested, shutting server down...")
 	    # do some shutdown stuff, then close
 	    exit(0)
 
@@ -235,16 +228,16 @@ class Server:
 		    self.client_commands[tag] = command_list
 		else:
 		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
-		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1])+ bcolors.ENDC
+		log("s", "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), tag=tag)
 	    elif tag == "onall" and command_list <> "chill" and command_list:
 		for client in self.client_list:
 		    if self.client_commands[client] == "chill":
 			self.client_commands[client] = command_list
 		    else:
 			self.client_commands[client] = self.client_commands[client] + "; " + command_list
-		print bcolors.HEADER + "Scheduled command list \"%s\" to be run on all clients." %(command_list)+ bcolors.ENDC
+		log("s", "Scheduled command list \"%s\" to be run on all clients." %(command_list))
 	    else:
-		print bcolors.FAIL + "Command/client tag not recognized!" + bcolors.ENDC
+		log("e", "Command/client tag not recognized!")
 
     """
     This will handle all client requests as a separate thread.
@@ -264,7 +257,7 @@ class Server:
 	client_tag = ""
 
 	if not client_tag:
-	    print bcolors.OKBLUE + "Authenticating..." + bcolors.ENDC
+	    log("i", "Authenticating...", address = address)
 	    try:
 		client_tag = self.receive_dyn(clientsocket, address)
     
@@ -285,7 +278,8 @@ class Server:
 
 		if unauthorized or (client_tag in self.client_list and random_token == received_token):
 		    if client_tag <> "unauthorized":
-			print bcolors.OKGREEN + "Authentication successful (" + client_tag + ")." + bcolors.ENDC
+	    		self.send_fixed(clientsocket, address, "a")
+			log("s", "Authentication successful.", address = address, tag = client_tag)
 			authenticated = True
 		else:
 		    raise Exception("Authentication error.")
@@ -296,26 +290,23 @@ class Server:
 		except:
 	    	    pass
 		if clientsocket:
-		    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
+		    log("w", "Closing connection.", address = address, tag = client_tag)
 		    clientsocket.close()
-		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ")" + " authentication error: " + str(e) + bcolors.ENDC
+		log("e", "Authentication error: " + str(e), address=address, tag=client_tag)
 		return
-
-	    self.send_fixed(clientsocket, address, "a")
 
 	outcome = True
 	while outcome == True:
 	    try:
 		outcome = self.handle_client_requests(clientsocket, address, client_tag, unauthorized)
 	    except Exception as e:
-		print bcolors.FAIL + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ")" + " error handling client request: " + str(e) + bcolors.ENDC
+		log ("e", "Error handling client request: " + str(e), address = address, tag = client_tag)
 		break
 	
 	# close the connection after communication ends
 	if clientsocket:
-	    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") closing connection." + bcolors.ENDC
+	    log("w", "Closing connection.", address=address, tag=client_tag)
 	    clientsocket.close()
-
 
     def handle_client_requests(self, clientsocket, address, client_tag, unauthorized = True):
 	message_type = ""
@@ -325,16 +316,18 @@ class Server:
 		message_type = self.receive_fixed(clientsocket, address, 1)
 	    except timeout:
 		retries = retries - 1
-		print bcolors.WARNING + "Client is taking a bit too long to send command (waiting %d more cycles)... " %(retries) + bcolors.ENDC
+		log("w", "Client is taking a bit too long to send command (waiting %d more cycles)... " %(retries), address = address, tag = client_tag)
 	if retries == 0:
 	    raise Exception("The client is not responding.")
-
+	
+	if retries < 5:
+	    log("i", "Client is back online.", address = address, tag = client_tag)
     	if not unauthorized:
 	    self.client_last_seen[client_tag] = datetime.now() , address[0] + ":" + str(address[1])
 
 	# The client wants to submit results:
 	if message_type == "r" and not unauthorized:
-	    print bcolors.OKGREEN + time.strftime("%d/%m/%Y - %H:%M:%S") + " " + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to submit results." + bcolors.ENDC
+	    log("i", "Client wants to submit results.", address = address, tag = client_tag)
 	    try:
     		self.send_fixed(clientsocket, address, "a")
 
@@ -342,7 +335,7 @@ class Server:
 		results_decrypted = self.receive_crypt(clientsocket, address, self.private_key)
 
 		if not os.path.exists(conf.c['results_dir']):
-    		    print "Creating results directory in %s" % (conf.c['results_dir'])
+    		    log("i", "Creating results directory in %s" % (conf.c['results_dir']))
     		    os.makedirs(conf.c['results_dir'])
 
 		out_file = open(os.path.join(conf.c['results_dir'],client_tag + "-" + datetime.now().time().isoformat() + "-" + results_name), 'w')
@@ -350,17 +343,16 @@ class Server:
 		out_file.close()
 	    except Exception as e:
     		raise Exception("Error receiving results data: " + str(e))
-
 	    return True
 
 	# The client wants to end the connection.
 	elif message_type == "x":
-	    print bcolors.OKBLUE + client_tag + "(" + address[0] + ":" + str(address[1]) + ") wants to close the connection." + bcolors.ENDC
+	    log("i", "Client wants to close the connection.", address = address, tag = client_tag)
 	    return False
 
 	# The client wants to initialize.
 	elif message_type == "i":
-	    print bcolors.OKBLUE + strftime("%Y-%m-%d %H:%M:%S") + " (" + address[0] + ":" + str(address[1]) + ") wants to initialize." + bcolors.ENDC
+	    log("i", "Client wants to initialize.", address = address)
 	    identity = self.random_string_generator()
 	    try:
 		self.send_fixed(clientsocket, address, "a")
@@ -372,7 +364,6 @@ class Server:
 		of.close()
 		self.send_fixed(clientsocket, address, "c")
 	    except Exception as e:
-		print bcolors.FAIL + "Initialization unsuccessful." + bcolors.ENDC
 		try:
 		    self.send_fixed(clientsocket, address, "e")
 		    self.send_dyn(clientsocket, address, "Initialization error.")
@@ -386,7 +377,7 @@ class Server:
 	    self.client_commands [identity] = "chill"
 	    self.client_exps [identity] = ""
 	    client_tag = identity
-	    print bcolors.OKGREEN + client_tag + "(" + address[0] + ":" + str(address[1]) + ") client initialized successfully. New tag: " + identity + bcolors.ENDC
+	    log ("s", "Client initialized successfully. New tag: " + identity, address = address, tag = client_tag)
 
 	    # After init, the client has to disconnect and login again.
 	    return False
@@ -425,7 +416,7 @@ class Server:
 		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
 	    
 		if changed:
-		    print bcolors.OKGREEN + "%s just updated its test specs." %(client_tag) + bcolors.ENDC
+		    log("i", "Client just updated its test specs.", address = address, tag = client_tag)
 	    except Exception as e:
 		raise Exception("Error synchronizing experiments: " + str(e))
 
@@ -438,7 +429,7 @@ class Server:
 		else:
 		    self.send_fixed(clientsocket, address, 'c')
 		    self.send_crypt(clientsocket, address, self.client_commands[client_tag], self.client_keys[client_tag])
-		    print bcolors.WARNING + strftime("%Y-%m-%d %H:%M:%S") + " " + client_tag + " Just received the latest commands... " + bcolors.ENDC
+		    log("i", "Client just received the latest commands.", address = address, tag = client_tag )
 		    self.client_commands[client_tag] = "chill"
 		return True
 	    except Exception as e:
@@ -449,6 +440,7 @@ class Server:
 		self.send_dyn(clientsocket, address, "Message type not recognized.")
 	    except Exception:
 		pass
+	    raise Exception("Message type \"%s\" not recognized." %(message_type))
 	    return False
 
     def current_exp_list(self, client_tag):
