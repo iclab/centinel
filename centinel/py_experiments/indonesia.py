@@ -8,6 +8,8 @@ import urllib2
 import subprocess
 
 from centinel.experiment_py import Experiment
+from centinel.utils import logger
+
 
 class IndExperiment(Experiment):
     name = "indonesia"
@@ -49,8 +51,6 @@ class IndExperiment(Experiment):
             results["A-record" + str(n)] = rdata.to_text()
             n += 1
 
-        # print('got answers for ' + dest_name + ' in ' + str(end_time - start_time))
-
     def isIp(self, string):
         a = string.split('.')
         if len(a) != 4:
@@ -68,17 +68,14 @@ class IndExperiment(Experiment):
         finalIp = "Placeholder"
         complete_traceroute = ""
         max_hops = 30
+	logger.log("i", "Conducting traceroute on " + dest_name)
         for t in range(1,max_hops + 1):
-            
-            
             process = ['ping', dest_name, '-c 1', '-t ' + str(t)]
             response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
             if t == 1:
                 pingSendInfo = response.splitlines()[0]
                 pingSendSplit = pingSendInfo.split()
                 finalIp = pingSendSplit[2].translate(None, '()')
-                print("Final Ip: " + finalIp)
-            print("Ttl: " + str(t))
             ping_info = response.splitlines()[1]
             split_by_word = str.split(ping_info)
             reverseDns = "Not Found"
@@ -89,19 +86,16 @@ class IndExperiment(Experiment):
                     ip = stripped
                 if not '=' in stripped and '.' in stripped and not self.isIp(stripped):
                     reverseDns = stripped
-            print("Reverse Dns: " + reverseDns)
-            print("Ip Address: " + ip)
 	    results["Hop" + str(t) + "Ip"] = ip
 	    results["Hop" + str(t) + "ReverseDns"] = reverseDns
             complete_traceroute += ip + "|||" + reverseDns
             if ip == "Not Found" and reverseDns != "Not Found":
                 pass
             if ip == finalIp or t == max_hops:
-                print("Finished Traceroute")
+                logger.log("s", "Finished Traceroute")
                 break
             else:
                 complete_traceroute += "->"
         results["Hops"] = t
         results["traceroute"] = complete_traceroute
-	print("\nComplete Traceroute: " + complete_traceroute)
 
