@@ -62,6 +62,7 @@ class ConfigurableTracerouteExperiment(Experiment):
 	t = self.start_hop
         finalIp = "Placeholder"
         complete_traceroute = ""
+	logger.log("i", "Performing traceroute on " + self.host)
         for t in range(self.start_hop, self.max_hops + 1):
             process = ['ping', self.host, '-c 1', '-t ' + str(t), '-W ' + str(self.timeout)]
             response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
@@ -69,7 +70,6 @@ class ConfigurableTracerouteExperiment(Experiment):
                 pingSendInfo = response.splitlines()[0]
                 pingSendSplit = pingSendInfo.split()
                 finalIp = pingSendSplit[2].translate(None, '()')
-            logger.log("i", "Ttl: " + str(t))
             ping_info = response.splitlines()[1]
             split_by_word = str.split(ping_info)
             reverseDns = "Not Found"
@@ -80,8 +80,6 @@ class ConfigurableTracerouteExperiment(Experiment):
                     ip = stripped
                 if not '=' in stripped and '.' in stripped and not self.isIp(stripped):
                     reverseDns = stripped
-            logger.log("i", ("Reverse Dns: " + reverseDns))
-            logger.log("i", "Ip Address: " + ip)
 	    results["Hop" + str(t) + "Ip"] = ip
 	    results["Hop" + str(t) + "ReverseDns"] = reverseDns
             complete_traceroute += ip + "|||" + reverseDns
