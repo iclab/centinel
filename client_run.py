@@ -6,10 +6,6 @@ from centinel import experiment_runner
 from centinel.serverconnection import ServerConnection
 from centinel.utils.colors import bcolors
 
-selection = sys.argv
-selection.pop(0)
-
-
 def run_exp(selection):
     print bcolors.OKBLUE + 'Starting the exepriments.' + bcolors.ENDC
     experiment_runner.run(selection)
@@ -26,6 +22,14 @@ def fetch():
     # Write results fetch.
 
 print bcolors.HEADER + "Client daemon is running..." + bcolors.ENDC
+
+selection = sys.argv
+selection.pop(0)
+
+if selection:
+    run_exp(selection)
+    exit(0)
+
 
 serverconn = ServerConnection()
 if not serverconn.connect():
