@@ -47,5 +47,4 @@ class ConfigurableHTTPRequestExperiment(Experiment):
             result = http.get_request(self.host, self.path)            
 	
 	result["response"]["body"] = base64.b64encode(result["response"]["body"])
-	print(result)
         self.results.append(result)
