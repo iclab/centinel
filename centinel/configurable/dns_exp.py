@@ -73,7 +73,7 @@ class ConfigurableDNSExperiment(Experiment):
 
 	if ans != "Error":
 	    if ans == "":
-        	ans = "Unavailable"
+        	ans =  self.record + " records unavailable for " + self.host
 		logger.log("i", ans)
 	    else:
 		logger.log("s", ans)
