@@ -1,6 +1,7 @@
 import ConfigParser
 import os
 import centinel.utils.http as http
+import base64
 
 from centinel.experiment_py import Experiment
 
@@ -30,5 +31,9 @@ class ConfigurableHTTPRequestExperiment(Experiment):
 	    self.http_request()
 
     def http_request(self):
-        result = http.get_request(self.host, self.path)
+        # result = base64.b64encode(http.get_request(self.host, self.path))
+	result = http.get_request(self.host, self.path)
+
+	result["response"]["body"] = base64.b64encode(result["response"]["body"])
+	print(result)
         self.results.append(result)
