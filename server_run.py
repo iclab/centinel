@@ -7,7 +7,7 @@ from centinel.server import Server
 from centinel.utils.logger import *
 
 try:
-    print open("sirocco_ascii_art", "r").read()
+    print open("sirocco_server_ascii_art", "r").read()
     logging.basicConfig(filename="server.log", level=logging.DEBUG)
     server = Server()
     server.run()
