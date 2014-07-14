@@ -18,14 +18,18 @@ class ConfigurablePingExperiment(Experiment):
 	if not parser.has_section('Ping'):
 	    return
 
-	# currently unused, because ping
-	# does not take many arguments.
+
 	self.args.update(parser.items('Ping'))
 	
         if 'packets' in self.args.keys():
 	    self.packets = int(self.args['packets'])
 	else:
             self.packets = 1
+
+	if 'timeout' in self.args.keys():
+	    self.timeout = int(self.args['timeout'])
+	else:
+	    self.timeout = 10
             
 	url_list = parser.items('URLS')
 	for url in url_list[0][1].split():
@@ -37,13 +41,14 @@ class ConfigurablePingExperiment(Experiment):
             "host" : self.host,
         }
         print "Running ping to ", self.host      
-        response = os.system("ping -c 1 " + self.host + " >/dev/null 2>&1")
+        response = os.system("ping -c 1 -W " + str(self.timeout) + " " + self.host + " >/dev/null 2>&1")
         
         if response == 0:
             result["success"] = 'true'
             # Further experiment
-            process = ['ping', self.host, '-c ' + str(self.packets)]
+            process = ['ping', self.host, '-c ' + str(self.packets), '-W ' + str(self.timeout)]
             console_response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
+	    print("Console Response: " + console_response)
             ping_data = ""
             for line in console_response.splitlines():
                 if "packets transmitted" in line and "received" in line:
