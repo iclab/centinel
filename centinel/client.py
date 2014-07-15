@@ -380,8 +380,9 @@ class ServerConnection:
 		log("i", "Removing old experiments...")
 		for exp in old_list.split("|"):
 		    try:
-			os.remove(os.path.join(conf.c['remote_experiments_dir'], exp))
-			log("i", "Removed %s." %(exp))
+			if exp:
+			    os.remove(os.path.join(conf.c['remote_experiments_dir'], exp))
+			    log("i", "Removed %s." %(exp))
 		    except Exception as e:
 			log("e", "Error removing %s." %(exp))
 
