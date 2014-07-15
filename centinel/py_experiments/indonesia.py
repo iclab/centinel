@@ -31,25 +31,34 @@ class IndExperiment(Experiment):
         self.results.append(result)
 
     def http_get(self, results, dest_name):
-        url = dest_name
-        if not url.startswith("http://") or not url.startswith("https://"):
-            url = "http://" + url
-        start_time = time.time()
-        contents = urllib2.urlopen(url)
-        end_time = time.time()
-        results["HttpTime"] = end_time - start_time
-        results["Http"] = contents.read()
+	try:
+    	    url = dest_name
+    	    if not url.startswith("http://") or not url.startswith("https://"):
+        	url = "http://" + url
+    	    start_time = time.time()
+    	    contents = urllib2.urlopen(url)
+    	    end_time = time.time()
+    	    results["HttpTime"] = end_time - start_time
+    	    results["Http"] = contents.read()
+	except Exception as e:
+	    logger.log("e", "Error in http_get in indonesia test for " + self.host + " (" + str(e) + ")")
+	    results["http_error"] = str(e)
     
     def dns_query(self, results, dest_name):
-        start_time = time.time()
-        answers = dns.resolver.query(dest_name, 'A')
-        end_time = time.time()
-        results["DnsTime"] = end_time - start_time;
-        results["DnsNumRecords"] = len(answers)
-        n = 0
-        for rdata in answers:
-            results["A-record" + str(n)] = rdata.to_text()
-            n += 1
+	try:
+    	    start_time = time.time()
+    	    answers = dns.resolver.query(dest_name, 'A')
+    	    end_time = time.time()
+    	    results["DnsTime"] = end_time - start_time;
+    	    results["DnsNumRecords"] = len(answers)
+    	    n = 0
+    	    for rdata in answers:
+        	results["A-record" + str(n)] = rdata.to_text()
+        	n += 1
+	except Exception as e:
+	    logger.log("e", "Error with dns_query in indonesia test for " + self.host + " (" + str(e) + ")")
+	    results["dns_error"] = str(e)
+	    pass
 
     def isIp(self, string):
         a = string.split('.')
@@ -72,8 +81,10 @@ class IndExperiment(Experiment):
 	    logger.log("i", "Conducting traceroute on " + dest_name)
     	    for t in range(1,max_hops + 1):
         	process = ['ping', dest_name, '-c 1', '-t ' + str(t)]
-        	response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
+        	response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate() [0]		
         	if t == 1:
+		    if response == "":
+			raise Exception("Host not available")
             	    pingSendInfo = response.splitlines()[0]
             	    pingSendSplit = pingSendInfo.split()
             	    finalIp = pingSendSplit[2].translate(None, '()')
@@ -99,5 +110,6 @@ class IndExperiment(Experiment):
             	    complete_traceroute += "->"
     	    results["Hops"] = t
     	    results["traceroute"] = complete_traceroute
-	except Exception:
-	    logger.log("e", "Error at traceroute for " + self.host + " (" + str(e) + ")")
+	except Exception as e:
+	    logger.log("e", "Error in traceroute for " + self.host + " (" + str(e) + ")")
+	    results["traceroute_error"] = str(e)
