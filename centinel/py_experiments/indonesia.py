@@ -98,9 +98,7 @@ class IndExperiment(Experiment):
                 	ip = stripped
             	    if not '=' in stripped and '.' in stripped and not self.isIp(stripped):
                 	reverseDns = stripped
-		results["Hop" + str(t) + "Ip"] = ip
-		results["Hop" + str(t) + "ReverseDns"] = reverseDns
-        	complete_traceroute += ip + "|||" + reverseDns
+        	complete_traceroute += ip + ";" + reverseDns
         	if ip == "Not Found" and reverseDns != "Not Found":
             	    pass
         	if ip == finalIp or t == max_hops:
