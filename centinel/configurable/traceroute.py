@@ -59,38 +59,43 @@ class ConfigurableTracerouteExperiment(Experiment):
 	    "max_hops" : self.max_hops,
 	    "start_hop" : self.start_hop,
         }
-	t = self.start_hop
-        finalIp = "Placeholder"
-        complete_traceroute = ""
-	logger.log("i", "Performing traceroute on " + self.host)
-        for t in range(self.start_hop, self.max_hops + 1):
-            process = ['ping', self.host, '-c 1', '-t ' + str(t), '-W ' + str(self.timeout)]
-            response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
-            if t == 1:
-                pingSendInfo = response.splitlines()[0]
-                pingSendSplit = pingSendInfo.split()
-                finalIp = pingSendSplit[2].translate(None, '()')
-            ping_info = response.splitlines()[1]
-            split_by_word = str.split(ping_info)
-            reverseDns = "Not Found"
-            ip = "Not Found";
-            for string in split_by_word:
-                stripped = string.translate(None, '():')
-                if self.isIp(stripped):
-                    ip = stripped
-                if not '=' in stripped and '.' in stripped and not self.isIp(stripped):
-                    reverseDns = stripped
-	    results["Hop" + str(t) + "Ip"] = ip
-	    results["Hop" + str(t) + "ReverseDns"] = reverseDns
-            complete_traceroute += ip + "|||" + reverseDns
-            if ip == "Not Found" and reverseDns != "Not Found":
-                pass
-            if ip == finalIp or t == self.max_hops:
-                logger.log("s", "Finished Traceroute")
-                break
-            else:
-                complete_traceroute += "->"
-        results["Hops"] = t
-        results["traceroute"] = complete_traceroute
+	try:
+	    t = self.start_hop
+    	    finalIp = "Placeholder"
+    	    complete_traceroute = ""
+	    logger.log("i", "Conducting traceroute on " + self.host)
+    	    for t in range(self.start_hop, self.max_hops + 1):
+        	process = ['ping', self.host, '-c 1', '-t ' + str(t), '-W ' + str(self.timeout)]
+        	response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
+        	if t == 1:
+		    if response == "":
+			raise Exception("Host not available")
+            	    pingSendInfo = response.splitlines()[0]
+            	    pingSendSplit = pingSendInfo.split()
+            	    finalIp = pingSendSplit[2].translate(None, '()')
+        	ping_info = response.splitlines()[1]
+        	split_by_word = str.split(ping_info)
+        	reverseDns = "Not Found"
+        	ip = "Not Found";
+        	for string in split_by_word:
+            	    stripped = string.translate(None, '():')
+            	    if self.isIp(stripped):
+                	ip = stripped
+            	    if not '=' in stripped and '.' in stripped and not self.isIp(stripped):
+                	reverseDns = stripped
+		results["Hop" + str(t) + "Ip"] = ip
+		results["Hop" + str(t) + "ReverseDns"] = reverseDns
+        	complete_traceroute += ip + "|||" + reverseDns
+        	if ip == "Not Found" and reverseDns != "Not Found":
+            	    pass
+        	if ip == finalIp or t == self.max_hops:
+            	    logger.log("s", "Finished Traceroute")
+            	    break
+        	else:
+            	    complete_traceroute += "->"
+    	    results["Hops"] = t
+    	    results["traceroute"] = complete_traceroute
+	except Exception as e:
+	    logger.log("e", "Error occured in traceroute for " + self.host + ": " + str(e))
+	    results["error"] = str(e)
 	self.results.append(results)
-
