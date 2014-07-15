@@ -1,3 +1,6 @@
+import sys
+sys.path.append("../")
+
 import math
 from time import gmtime, strftime
 import os
@@ -10,7 +13,6 @@ import gzip
 import glob
 from os.path import exists,isfile, join
 import socket
-import sys
 from utils.rsacrypt import RSACrypt
 from utils.colors import bcolors
 from utils.colors import update_progress
@@ -335,12 +337,13 @@ class ServerConnection:
 	self.send_fixed("s")
 	
 	try:
-	    cur_exp_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['configurable_experiments_dir'], '*.cfg'))]
+	    cur_exp_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['remote_experiments_dir'], '*.py'))]
+	    cur_exp_list += [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['remote_experiments_dir'], '*.cfg'))]
 
 	    msg = ""
 	    changed = False
 	    for exp in cur_exp_list:
-		exp_data = open(os.path.join(conf.c['configurable_experiments_dir'], exp + ".cfg"), 'r').read()
+		exp_data = open(os.path.join(conf.c['remote_experiments_dir'], exp), 'r').read()
 		msg = msg + exp + "%" + MD5.new(exp_data).digest() + "|"
 	
 	    if msg:
@@ -359,7 +362,7 @@ class ServerConnection:
 		    try:
 			exp_name = self.receive_dyn()
 			exp_content = self.receive_crypt(self.my_private_key)
-			f = open(os.path.join(conf.c['configurable_experiments_dir'], exp_name + ".cfg"), "w")
+			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)
 			f.close()
 			i = i - 1
@@ -377,7 +380,7 @@ class ServerConnection:
 		log("i", "Removing old experiments...")
 		for exp in old_list.split("|"):
 		    try:
-			os.remove(os.path.join(conf.c['configurable_experiments_dir'], exp + ".cfg"))
+			os.remove(os.path.join(conf.c['remote_experiments_dir'], exp))
 			log("i", "Removed %s." %(exp))
 		    except Exception as e:
 			log("e", "Error removing %s." %(exp))

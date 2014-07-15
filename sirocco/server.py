@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../")
 import math
 import time
 from time import strftime
@@ -11,7 +13,6 @@ import random
 import gzip
 import socket
 from socket import timeout
-import sys
 import threading
 import glob
 from datetime import datetime, timedelta
@@ -449,11 +450,12 @@ class Server:
 	exp_list = list()
 	exp_list += self.client_exps[client_tag]
 
-	exp_list += [os.path.splitext(os.path.basename(path))[0] + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
+	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
+	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.py'))]
 	return exp_list
 	    
     def sendexp(self, clientsocket, address, client_tag, exp):
-	f = open(os.path.join(conf.c['experiments_dir'], exp + ".cfg"), 'r')
+	f = open(os.path.join(conf.c['experiments_dir'], exp), 'r')
 	contents = f.read()
 	self.send_dyn(clientsocket, address, exp)
 	self.send_crypt(clientsocket, address, contents, self.client_keys[client_tag])

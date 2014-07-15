@@ -7,8 +7,8 @@ import time
 import urllib2
 import subprocess
 
-from centinel.experiment_py import Experiment
-from centinel.utils import logger
+from centinel.experiment import Experiment
+from utils import logger
 
 
 class IndExperiment(Experiment):

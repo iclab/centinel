@@ -4,9 +4,9 @@ import sys
 import os
 import time
 from centinel import experiment_runner
-from centinel.serverconnection import ServerConnection
-from centinel.utils.colors import bcolors
-from centinel.utils.logger import *
+from centinel.client import ServerConnection
+from utils.colors import bcolors
+from utils.logger import *
 from time import strftime
 import logging
 from centinel.client_config import client_conf

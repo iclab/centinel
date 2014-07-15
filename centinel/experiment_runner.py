@@ -1,27 +1,27 @@
-import os
 import sys
+sys.path.append("../")
+import os
 import json
 import glob
 import imp
 import getpass
-from configurable.http import ConfigurableHTTPRequestExperiment
-from configurable.tcp_connect import ConfigurableTCPConnectExperiment
-from configurable.ping	import ConfigurablePingExperiment
-from configurable.dns_exp	import ConfigurableDNSExperiment
-from configurable.traceroute	import ConfigurableTracerouteExperiment
+from test_primitives.http import ConfigurableHTTPRequestExperiment
+from test_primitives.tcp_connect import ConfigurableTCPConnectExperiment
+from test_primitives.ping	import ConfigurablePingExperiment
+from test_primitives.dns_exp	import ConfigurableDNSExperiment
+from test_primitives.traceroute	import ConfigurableTracerouteExperiment
 from utils.logger import *
 from datetime import datetime
 
-from experiment_py import Experiment, ExperimentList
+from experiment import Experiment, ExperimentList
 from client_config import client_conf
 
 conf = client_conf()
 
-EXPERIMENTS_DIR = conf.c['experiments_py_dir']
+EXPERIMENTS_DIR = conf.c['remote_experiments_dir']
+CUSTOM_EXP_DIR	= conf.c['custom_experiments_dir']
 DATA_DIR        = conf.c['experiment_data_dir']
 RESULTS_DIR	= conf.c['results_dir']
-CONF_EXP_DIR	= conf.c['configurable_experiments_dir']
-CUSTOM_EXP_DIR	= conf.c['custom_experiments_dir']
 
 def get_results_dir():
     return RESULTS_DIR
@@ -36,7 +36,7 @@ def get_input_file(experiment_name):
 
 def get_conf_input_file(experiment_name):
     input_file = "%s.cfg" % (experiment_name)
-    return os.path.join(CONF_EXP_DIR, input_file)
+    return os.path.join(EXPERIMENTS_DIR, input_file)
 
 def get_custom_input_file(experiment_name):
     input_file = "%s.cfg" % (experiment_name)
@@ -51,7 +51,7 @@ def load_experiments():
         imp.load_source(name, path)
 
     # look for Python experiments in custom experiments directory
-    for path in glob.glob(os.path.join(EXPERIMENTS_DIR,'[!_]*.py')):
+    for path in glob.glob(os.path.join(CUSTOM_EXP_DIR,'[!_]*.py')):
         # get name of file and path
         name, ext = os.path.splitext(os.path.basename(path))
         # load the experiment
@@ -63,7 +63,7 @@ def load_experiments():
 def load_conf_experiments():
     exp_list = []
     # look for configurable experiments in experiments directory
-    for path in glob.glob(os.path.join(CONF_EXP_DIR,'[!_]*.cfg')):
+    for path in glob.glob(os.path.join(EXPERIMENTS_DIR,'[!_]*.cfg')):
         # get name of file and path
         name, ext = os.path.splitext(os.path.basename(path))
         exp_list.append(name)
@@ -159,18 +159,18 @@ def execute_experiment(name, Exp):
     input_file = get_input_file(name)
 
     if not os.path.isfile(input_file):
-	log("e", "No input file found for %s. Skipping test." % (name))
+	log("e", "No input file found for \"%s\". Skipping test." % (name))
 	return
     
-    log("i", "Reading input from %s" % (input_file))
+    log("i", "Reading input from \"%s\"" % (input_file))
     input_file = open(input_file)
 
     try:
-    	log("i", "Running %s test." % (name))
+    	log("i", "Running \"%s\" test." % (name))
     	exp = Exp(input_file)
     	exp.run()
     except Exception as e:
-    	log("e", "Error: " + str(e))
+    	log("e", "Error running \"%s\": " %(name) + str(e))
 
     input_file.close()
     return exp.results

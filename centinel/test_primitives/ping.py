@@ -2,8 +2,8 @@ import ConfigParser
 import os
 import subprocess
 
-from centinel.experiment_py import Experiment
-from centinel.utils import logger
+from centinel.experiment import Experiment
+from utils import logger
 
 class ConfigurablePingExperiment(Experiment):
     name = "config_ping"

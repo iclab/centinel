@@ -2,8 +2,8 @@ import dns.resolver
 import ConfigParser
 import os
 
-from centinel.experiment_py import Experiment
-from centinel.utils import logger
+from centinel.experiment import Experiment
+from utils import logger
 
 class ConfigurableDNSExperiment(Experiment):
     name = "config_dns"

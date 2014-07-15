@@ -1,35 +1,19 @@
-import ConfigParser
 import socket
 
-from centinel.experiment_py import Experiment
+from centinel.experiment import Experiment
 
-class ConfigurableTCPConnectExperiment(Experiment):
-    name = "conig_tcp_connect"
+class TCPConnectExperiment(Experiment):
+    name = "tcp_connect"
 
     def __init__(self, input_file):
         self.input_file = input_file
         self.results = []
         self.host = None
         self.port = None
-	self.args = dict()
 
     def run(self):
-	parser = ConfigParser.ConfigParser()
-	parser.read([self.input_file,])
-	if not parser.has_section('TCP'):
-	    return
-
-	self.args.update(parser.items('TCP'))
-	
-	# one port for all of the URLs
- 	if 'packets' in self.args.keys():
-	    self.port = self.args['port']
-	else:
-            self.port = "80"
-
-	url_list = parser.items('URLS')
-	for url in url_list[0][1].split():
-	    self.host = url
+        for line in self.input_file:
+            self.host, self.port = line.strip().split(' ')
             self.tcp_connect()
 
     def tcp_connect(self):

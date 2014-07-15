@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../")
 import ConfigParser
 import os
 from utils.colors import bcolors

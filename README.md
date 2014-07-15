@@ -26,8 +26,13 @@ censorship.
 
 #### How to make a test
 
-    * The file must end in .cfg and be placed in centinel/custom_experiments/
+    * The file must either end in .cfg or .py and be placed in centinel/custom_experiments/
     $ >centinel/custom_experiments/newTest.cfg
+
+    * If writing a Python configuration:
+    * [to be added]
+
+    * If writing a test configuration:
 
     * A list of URLs should be written to the file like this:
     * Every URL after the first one must be indented
