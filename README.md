@@ -77,22 +77,22 @@ censorship.
 
 
 #### Example Test File ####
-[URLS]
-url_list = google.com
-    yahoo.com
-    rpanah.ir
 
-[HTTP]
+    [URLS]
+    url_list = google.com
+	yahoo.com
+	rpanah.ir
 
-[DNS]
-record = A
-resolver = 8.8.8.8
+    [HTTP]
 
-[Traceroute]
-timeout = 10
+    [DNS]
+    record = A
+    resolver = 8.8.8.8
 
-[TCP]
+    [Traceroute]
+    timeout = 10
 
-[Ping]
+    [TCP]
 
-###########################
+    [Ping]
+
