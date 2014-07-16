@@ -35,7 +35,7 @@ class ConfigurableTracerouteExperiment(Experiment):
 	if 'timeout' in self.args.keys():
 	    self.timeout = int(self.args['timeout'])
 	else:
-            self.timeout = 10
+            self.timeout = 3
 
 	for url in url_list[0][1].split():
 	    self.host = url
