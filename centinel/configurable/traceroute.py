@@ -1,8 +1,8 @@
 import ConfigParser
 import os
 import subprocess
-from centinel.experiment import Experiment
-from utils import logger
+from centinel.experiment_py import Experiment
+from centinel.utils import logger
 
 class ConfigurableTracerouteExperiment(Experiment):
     name = "config_traceroute"
