@@ -25,6 +25,7 @@ check_create_dir(c.c['results_archive_dir'])
 check_create_dir(c.c['logs_dir'])
 check_create_dir(c.c['remote_experiments_dir'])
 check_create_dir(c.c['custom_experiments_dir'])
+check_create_dir(c.c['experiment_data_dir'])
 
 
 if c.config_read:

@@ -24,6 +24,9 @@ cr = RSACrypt()
 try:
     check_create_dir(sco.c['server_keys_dir'])
     check_create_dir(sco.c['client_keys_dir'])
+    check_create_dir(sco.c['log_archive_dir'])
+    check_create_dir(sco.c['results_dir'])
+
     open(sco.c['public_rsa_file'], "w").write(cr.public_key_string())
     open(sco.c['private_rsa_file'], "w").write(cr.private_key_string())
 except:

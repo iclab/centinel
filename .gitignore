@@ -6,6 +6,7 @@ centinel/logs/*
 centinel/keys/*
 centinel/remote_experiments/*
 centinel/custom_experiments/*
+centinel/experiment_data/*
 centinel/results/*
 centinel/results_archive/*
 centinel/confs/client_config.cfg
