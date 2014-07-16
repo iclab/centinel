@@ -417,10 +417,11 @@ class Server:
 		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
 		else:
 		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+	    except Exception as e:
+		log ("e", "Error receiving log files: " + str(e), address=address, tag=client_tag)
 
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
-	    
 	    try:
 		client_exp_list = self.receive_crypt(clientsocket, address, self.private_key, False)
 		changed = False
