@@ -17,6 +17,7 @@ import threading
 import glob
 from datetime import datetime, timedelta
 from utils.rsacrypt import RSACrypt
+from utils.aescrypt import AESCipher
 from Crypto.Hash import MD5
 from server_config import server_conf
 from utils.colors import bcolors
@@ -73,13 +74,72 @@ class Server:
 	self.send_fixed(clientsocket, address, data)
 
     """
+    Send a string of characters encrpyted using a given AES key.
+	The message will be chopped up into chunks of fixed size.
+	The number of encrypted chunks is sent, followed by the
+	hash of the unencrypted data (used for integrity checking).
+	Encrypted chunks are sent one by one after that.
+    """
+    def send_aes_crypt(self, clientsocket, address, data, encryption_key):
+	crypt = AESCipher(encryption_key)
+
+	chunk_size = 1024
+	chunk_count = int(math.ceil(len(data) / float(chunk_size)))
+	digest = MD5.new(data).digest()
+
+	self.send_dyn(clientsocket, address, str(chunk_count))
+	self.send_dyn(clientsocket, address, digest)
+	
+	bytes_encrypted = 0
+	encrypted_data = ""
+	while bytes_encrypted < len(data):
+	    encrypted_chunk = crypt.encrypt(data[bytes_encrypted:min(bytes_encrypted+chunk_size, len(data))])
+	    bytes_encrypted = bytes_encrypted + chunk_size
+	    self.send_dyn(clientsocket, address, encrypted_chunk)
+
+    """
+    Receive a string of characters encrpyted using a given AES key.
+	The message will be received in chunks of fixed size.
+	The number of encrypted chunks is received, followed by the
+	hash of the unencrypted data (used for integrity checking).
+	Encrypted chunks are received one by one after that and 
+	decrypted using the given key. The resulting string is then
+	hashed and verified using the received hash.
+    """
+    def receive_aes_crypt(self, clientsocket, address, decryption_key, show_progress=True):
+	crypt = AESCipher(decryption_key)
+	chunk_count = int(self.receive_dyn(clientsocket, address))
+	received_digest = self.receive_dyn(clientsocket, address)
+	org = chunk_count
+	chunk_size = 1024
+	decrypted_results = ""
+	if show_progress and chunk_count:
+	    print bcolors.OKBLUE + "Progress: "
+	while chunk_count > 0:
+	    encrypted_chunk = self.receive_dyn(clientsocket, address)
+	    #print "\"" + encrytpted_chunk + "\""
+	    decrypted_results = decrypted_results + crypt.decrypt(encrypted_chunk)
+	    chunk_count = chunk_count - 1
+	    if show_progress:
+		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+	if show_progress:
+	    print bcolors.ENDC
+
+	calculated_digest = MD5.new(decrypted_results).digest()
+	if calculated_digest == received_digest:
+	    return decrypted_results
+	else:
+	    raise Exception("AES: data integrity check failed.")
+	    return False
+
+    """
     Send a string of characters encrpyted using a given RSA key.
 	The message will be chopped up into chunks of fixed size.
 	The number of encrypted chunks is sent, followed by the
 	hash of the unencrypted data (used for integrity checking).
 	Encrypted chunks are sent one by one after that.
     """
-    def send_crypt(self, clientsocket, address, data, encryption_key):
+    def send_rsa_crypt(self, clientsocket, address, data, encryption_key):
 	crypt = RSACrypt()
 	crypt.import_public_key(encryption_key)
 
@@ -96,6 +156,43 @@ class Server:
 	    encrypted_chunk = crypt.public_key_encrypt(data[bytes_encrypted:min(bytes_encrypted+chunk_size, len(data))])
 	    bytes_encrypted = bytes_encrypted + chunk_size
 	    self.send_dyn(clientsocket, address, encrypted_chunk[0])
+
+    """
+    Receive a string of characters encrpyted using a given RSA key.
+	The message will be received in chunks of fixed size.
+	The number of encrypted chunks is received, followed by the
+	hash of the unencrypted data (used for integrity checking).
+	Encrypted chunks are received one by one after that and 
+	decrypted using the given key. The resulting string is then
+	hashed and verified using the received hash.
+    """
+    def receive_rsa_crypt(self, clientsocket, address, decryption_key, show_progress=True):
+	crypt = RSACrypt()
+	crypt.import_public_key(decryption_key)
+
+	chunk_count = int(self.receive_dyn(clientsocket, address))
+	received_digest = self.receive_dyn(clientsocket, address)
+
+	org = chunk_count
+	chunk_size = 256
+	decrypted_results = ""
+	if show_progress and chunk_count:
+	    print bcolors.OKBLUE + "Progress: "
+	while chunk_count > 0:
+	    encrypted_chunk = self.receive_dyn(clientsocket, address)
+	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
+	    chunk_count = chunk_count - 1
+	    if show_progress:
+		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+	if show_progress:
+	    print bcolors.ENDC
+
+	calculated_digest = MD5.new(decrypted_results).digest()
+	if calculated_digest == received_digest:
+	    return decrypted_results
+	else:
+	    raise Exception("RSA: data integrity check failed.")
+	    return False
 
     """
     Receive a string of characters on the socket.
@@ -127,43 +224,6 @@ class Server:
 	msg = self.receive_fixed(clientsocket, address, int(msg_size))
 	return msg
 
-    """
-    Receive a string of characters encrpyted using a given RSA key.
-	The message will be received in chunks of fixed size.
-	The number of encrypted chunks is received, followed by the
-	hash of the unencrypted data (used for integrity checking).
-	Encrypted chunks are received one by one after that and 
-	decrypted using the given key. The resulting string is then
-	hashed and verified using the received hash.
-    """
-    def receive_crypt(self, clientsocket, address, decryption_key, show_progress=True):
-	crypt = RSACrypt()
-	crypt.import_public_key(decryption_key)
-
-	chunk_count = int(self.receive_dyn(clientsocket, address))
-	received_digest = self.receive_dyn(clientsocket, address)
-
-	org = chunk_count
-	chunk_size = 256
-	decrypted_results = ""
-	if show_progress and chunk_count:
-	    print bcolors.OKBLUE + "Progress: "
-	while chunk_count > 0:
-	    encrypted_chunk = self.receive_dyn(clientsocket, address)
-	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
-	    chunk_count = chunk_count - 1
-	    if show_progress:
-		update_progress( int(100 * float(org - chunk_count) / float(org)) )
-	if show_progress:
-	    print bcolors.ENDC
-
-
-	calculated_digest = MD5.new(decrypted_results).digest()
-	if calculated_digest == received_digest:
-	    return decrypted_results
-	else:
-	    raise Exception("Data integrity check failed.")
-	    return False
 
     """
     This runs ths server daemon.
@@ -256,6 +316,7 @@ class Server:
 	
 	unauthorized = False
 	client_tag = ""
+	aes_secret = ""
 
 	if not client_tag:
 	    log("i", "Authenticating...", address = address)
@@ -273,15 +334,17 @@ class Server:
 		    authenticated = False
 		else:
 		    unauthorized = False
-		    random_token = self.random_string_generator(10)
-    		    self.send_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
-		    received_token = self.receive_crypt(clientsocket, address, self.private_key, show_progress=False)
+		    # the token is going to be used as AES secret, so it has to be corrent block size
+		    random_token = self.random_string_generator(32)
+    		    self.send_rsa_crypt(clientsocket, address, random_token, self.client_keys[client_tag])
+		    received_token = self.receive_rsa_crypt(clientsocket, address, self.private_key, show_progress=False)
 
 		if unauthorized or (client_tag in self.client_list and random_token == received_token):
 		    if client_tag <> "unauthorized":
 	    		self.send_fixed(clientsocket, address, "a")
 			log("s", "Authentication successful.", address = address, tag = client_tag)
 			authenticated = True
+			aes_secret = received_token
 		else:
 		    raise Exception("Authentication error.")
     	    except Exception as e:
@@ -299,7 +362,7 @@ class Server:
 	outcome = True
 	while outcome == True:
 	    try:
-		outcome = self.handle_client_requests(clientsocket, address, client_tag, unauthorized)
+		outcome = self.handle_client_requests(clientsocket, address, client_tag, aes_secret, unauthorized)
 	    except Exception as e:
 		log ("e", "Error handling client request: " + str(e), address = address, tag = client_tag)
 		break
@@ -309,7 +372,7 @@ class Server:
 	    log("w", "Closing connection.", address=address, tag=client_tag)
 	    clientsocket.close()
 
-    def handle_client_requests(self, clientsocket, address, client_tag, unauthorized = True):
+    def handle_client_requests(self, clientsocket, address, client_tag, aes_secret, unauthorized = True):
 	message_type = ""
 	retries = 5
 	while not message_type and retries > 0:
@@ -332,8 +395,8 @@ class Server:
 	    try:
     		self.send_fixed(clientsocket, address, "a")
 
-		results_name = self.receive_dyn(clientsocket, address)
-		results_decrypted = self.receive_crypt(clientsocket, address, self.private_key)
+		results_name = self.receive_aes_crypt(clientsocket, address, aes_secret)
+		results_decrypted = self.receive_aes_crypt(clientsocket, address, aes_secret)
 
 		if not os.path.exists(conf.c['results_dir']):
     		    log("i", "Creating results directory in %s" % (conf.c['results_dir']))
@@ -348,6 +411,29 @@ class Server:
 	    log("s", "Results file \"%s\" received successfully." %(results_name))
 	    return True
 
+	# The client wants to send log files:
+	elif message_type == "g" and not unauthorized:
+	    log("i", "Client wants to send log files.", address = address, tag = client_tag)
+	    try:
+    		self.send_fixed(clientsocket, address, "a")
+
+		log_name = self.receive_aes_crypt(clientsocket, address, aes_secret)
+		log_decrypted = self.receive_aes_crypt(clientsocket, address, aes_secret)
+
+		if not os.path.exists(conf.c['log_archive_dir']):
+    		    log("i", "Creating log directory in %s" % (conf.c['log_archive_dir']))
+    		    os.makedirs(conf.c['log_archive_dir'])
+
+		out_file = open(os.path.join(conf.c['log_archive_dir'], client_tag + "-" + log_name), 'w')
+		out_file.write(log_decrypted)
+		out_file.close()
+		self.send_fixed(clientsocket, address, "a")
+	    except Exception as e:
+    		raise Exception("Error receiving log file: " + str(e))
+	    log("s", "Log file \"%s\" received successfully." %(log_name))
+	    return True
+
+
 	# The client wants to end the connection.
 	elif message_type == "x":
 	    log("i", "Client wants to close the connection.", address = address, tag = client_tag)
@@ -361,7 +447,7 @@ class Server:
 		self.send_fixed(clientsocket, address, "a")
 		self.send_dyn(clientsocket, address, identity) #size is usually 5 characters (it is easy to write down and/or remember)
 		self.send_dyn(clientsocket, address, self.public_key)
-		client_pub_key = self.receive_crypt(clientsocket, address, self.private_key)
+		client_pub_key = self.receive_rsa_crypt(clientsocket, address, self.private_key)
 		of = open(os.path.join(conf.c['client_keys_dir'], identity), "w")
 		of.write(client_pub_key)
 		of.close()
@@ -385,45 +471,11 @@ class Server:
 	    # After init, the client has to disconnect and login again.
 	    return False
 
-	# The client wants to send log files:
-	elif message_type == "g" and not unauthorized:
-	    
-	    try:
-		client_log_list = self.receive_crypt(clientsocket, address, self.private_key, False)
-		changed = False
-
-		if client_log_list == "n":
-		    client_log_list = [""]
-		else:
-		    client_log_list = client_log_list.split("|")
-
-		updates = [x for x in self.current_log_list(client_tag) if x not in client_log_list]
-
-		self.send_dyn(clientsocket, address, str(len(updates)))
-
-		for log in updates:
-		    if log:
-			changed = True
-			self.sendlog(clientsocket, address, client_tag, log.split("%")[0])
-
-		old_list = [x.split("%")[0] for x in client_log_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_log_list(client_tag)] ]
-
-		msg = ""
-		for item in old_list:
-		    msg += item + "|"
-
-		if msg:
-		    changed = True
-		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
-		else:
-		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
-	    except Exception as e:
-		log ("e", "Error receiving log files: " + str(e), address=address, tag=client_tag)
 
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
 	    try:
-		client_exp_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+		client_exp_list = self.receive_aes_crypt(clientsocket, address, aes_secret, False)
 		changed = False
 
 		if client_exp_list == "n":
@@ -438,7 +490,7 @@ class Server:
 		for exp in updates:
 		    if exp:
 			changed = True
-			self.sendexp(clientsocket, address, client_tag, exp.split("%")[0])
+			self.sendexp(clientsocket, address, client_tag, aes_secret, exp.split("%")[0])
 
 		old_list = [x.split("%")[0] for x in client_exp_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_list(client_tag)] ]
 
@@ -448,11 +500,11 @@ class Server:
 
 		if msg:
 		    changed = True
-		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
+		    self.send_aes_crypt(clientsocket, address, msg[:-1], aes_secret)
 		else:
-		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+		    self.send_aes_crypt(clientsocket, address, "n", aes_secret)
 
-		client_exp_data_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+		client_exp_data_list = self.receive_aes_crypt(clientsocket, address, aes_secret, False)
 
 		if client_exp_data_list == "n":
 		    client_exp_data_list = [""]
@@ -466,7 +518,7 @@ class Server:
 		for exp_data in updates:
 		    if exp_data:
 			changed = True
-			self.sendexp_data(clientsocket, address, client_tag, exp_data.split("%")[0])
+			self.sendexp_data(clientsocket, address, client_tag, aes_secret, exp_data.split("%")[0])
 
 		old_list = [x.split("%")[0] for x in client_exp_data_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_data_list(client_tag)] ]
 
@@ -476,9 +528,9 @@ class Server:
 
 		if msg:
 		    changed = True
-		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
+		    self.send_aes_crypt(clientsocket, address, msg[:-1], aes_secret)
 		else:
-		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+		    self.send_aes_crypt(clientsocket, address, "n", aes_secret)
 	    
 		if changed:
 		    log("i", "Client just updated its experiment set.", address = address, tag = client_tag)
@@ -493,7 +545,7 @@ class Server:
 		    self.send_fixed(clientsocket, address, 'b')
 		else:
 		    self.send_fixed(clientsocket, address, 'c')
-		    self.send_crypt(clientsocket, address, self.client_commands[client_tag], self.client_keys[client_tag])
+		    self.send_aes_crypt(clientsocket, address, self.client_commands[client_tag], aes_secret)
 		    log("i", "Client just received the latest commands.", address = address, tag = client_tag )
 		    self.client_commands[client_tag] = "chill"
 		return True
@@ -522,17 +574,17 @@ class Server:
 	exp_data_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiment_data_dir'], '*.txt'))]
 	return exp_data_list
 
-    def sendexp(self, clientsocket, address, client_tag, exp):
+    def sendexp(self, clientsocket, address, client_tag, aes_secret, exp):
 	f = open(os.path.join(conf.c['experiments_dir'], exp), 'r')
 	contents = f.read()
-	self.send_dyn(clientsocket, address, exp)
-	self.send_crypt(clientsocket, address, contents, self.client_keys[client_tag])
+	self.send_aes_crypt(clientsocket, address, exp, aes_secret)
+	self.send_aes_crypt(clientsocket, address, contents, aes_secret)
 
-    def sendexp_data(self, clientsocket, address, client_tag, exp):
+    def sendexp_data(self, clientsocket, address, client_tag, aes_secret, exp):
 	f = open(os.path.join(conf.c['experiment_data_dir'], exp), 'r')
 	contents = f.read()
-	self.send_dyn(clientsocket, address, exp)
-	self.send_crypt(clientsocket, address, contents, self.client_keys[client_tag])
+	self.send_aes_crypt(clientsocket, address, exp, aes_secret)
+	self.send_aes_crypt(clientsocket, address, contents, aes_secret)
 
     def random_string_generator(self, size=5, chars=string.ascii_uppercase + string.digits):
 	identifier = ''.join(random.choice(chars) for _ in range(size))

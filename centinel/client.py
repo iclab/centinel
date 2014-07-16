@@ -14,6 +14,7 @@ import glob
 from os.path import exists,isfile, join
 import socket
 from utils.rsacrypt import RSACrypt
+from utils.aescrypt import AESCipher
 from utils.colors import bcolors
 from utils.colors import update_progress
 from utils.logger import *
@@ -28,7 +29,7 @@ class ServerConnection:
 	self.server_address = server_address
 	self.server_port = server_port
 	self.connected = False
-
+	self.aes_secret = ""
 	
     def connect(self, do_login = True):
 	if self.connected:
@@ -120,7 +121,67 @@ class ServerConnection:
 	msg = self.receive_fixed(int(msg_size))
 	return msg
 
-    def receive_crypt(self, decryption_key, show_progress=True):
+    """
+    Send a string of characters encrpyted using a given AES key.
+	The message will be chopped up into chunks of fixed size.
+	The number of encrypted chunks is sent, followed by the
+	hash of the unencrypted data (used for integrity checking).
+	Encrypted chunks are sent one by one after that.
+    """
+    def send_aes_crypt(self, data, encryption_key):
+	crypt = AESCipher(encryption_key)
+
+	chunk_size = 1024
+	chunk_count = int(math.ceil(len(data) / float(chunk_size)))
+	digest = MD5.new(data).digest()
+
+	self.send_dyn(str(chunk_count))
+	self.send_dyn(digest)
+	
+	bytes_encrypted = 0
+	encrypted_data = ""
+	while bytes_encrypted < len(data):
+	    encrypted_chunk = crypt.encrypt(data[bytes_encrypted:min(bytes_encrypted+chunk_size, len(data))])
+	    bytes_encrypted = bytes_encrypted + chunk_size
+	    self.send_dyn(encrypted_chunk)
+
+    """
+    Receive a string of characters encrpyted using a given AES key.
+	The message will be received in chunks of fixed size.
+	The number of encrypted chunks is received, followed by the
+	hash of the unencrypted data (used for integrity checking).
+	Encrypted chunks are received one by one after that and 
+	decrypted using the given key. The resulting string is then
+	hashed and verified using the received hash.
+    """
+    def receive_aes_crypt(self, decryption_key, show_progress=True):
+	crypt = AESCipher(decryption_key)
+
+	chunk_count = int(self.receive_dyn())
+	received_digest = self.receive_dyn()
+
+	org = chunk_count
+	chunk_size = 1024
+	decrypted_results = ""
+	if show_progress and chunk_count:
+	    print bcolors.OKBLUE + "Progress: "
+	while chunk_count > 0:
+	    encrypted_chunk = self.receive_dyn()
+	    decrypted_results = decrypted_results + crypt.decrypt(encrypted_chunk)
+	    chunk_count = chunk_count - 1
+	    if show_progress:
+		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+	if show_progress:
+	    print bcolors.ENDC
+
+	calculated_digest = MD5.new(decrypted_results).digest()
+	if calculated_digest == received_digest:
+	    return decrypted_results
+	else:
+	    raise Exception("AES: data integrity check failed.")
+	    return False
+
+    def receive_rsa_crypt(self, decryption_key, show_progress=True):
 	crypt = RSACrypt()
 
 	crypt.import_public_key(decryption_key)
@@ -147,9 +208,9 @@ class ServerConnection:
 	if calculated_digest == received_digest:
 	    return decrypted_results
 	else:
-	    raise Exception("Data integrity check failed.")
+	    raise Exception("RSA: data integrity check failed.")
 
-    def send_crypt(self, data, encryption_key):
+    def send_rsa_crypt(self, data, encryption_key):
 	crypt = RSACrypt()
 	crypt.import_public_key(encryption_key)
 
@@ -169,35 +230,12 @@ class ServerConnection:
 	    bytes_encrypted = bytes_encrypted + chunk_size
 	    self.send_dyn(encrypted_chunk[0])
 
-    def sync_results(self):
-	successful = 0
-	total = 0
-	if not os.path.exists(conf.c['results_archive_dir']):
-    	    log("i", "Creating results directory in %s" % (conf.c['results_archive_dir']))
-    	    os.makedirs(conf.c['results_archive_dir'])
-
-	for result_name in listdir(conf.c['results_dir']):
-	    if isfile(join(conf.c['results_dir'],result_name)):
-		log("i", "Submitting \"" + result_name + "\"...")
-		total = total + 1
-		if self.submit_results(result_name, join(conf.c['results_dir'],result_name)):
-		    try:
-			shutil.move(os.path.join(conf.c['results_dir'], result_name), os.path.join(conf.c['results_archive_dir'], result_name))
-			log("i", "Moved \"" + result_name + "\" to the archive.")
-		    except:
-			log("e", "There was an error while moving \"" + result_name + "\" to the archive. This will be re-sent the next time.")
-		    successful = successful + 1
-		else:
-		    log("e", "There was an error while sending \"" + result_name + "\". Will retry later.")
-
-	log("i", "Sync complete (%d/%d were successful)." %(successful, total))
-
     def login(self):
 	try:
 	    self.send_dyn(conf.c['client_tag'])
 	    if conf.c['client_tag'] <> "unauthorized":
-		received_token = self.receive_crypt(self.my_private_key, show_progress=False)
-		self.send_crypt(received_token, self.server_public_key)
+		received_token = self.receive_rsa_crypt(self.my_private_key, show_progress=False)
+		self.send_rsa_crypt(received_token, self.server_public_key)
 	    server_response = self.receive_fixed(1)
 	except Exception as e:
 	    log("e", "Can't log in: "), sys.exc_info()[0] 
@@ -209,28 +247,31 @@ class ServerConnection:
 	    raise Exception("Authentication error (could not receive error details from the server).")
 	else:
 	    raise Exception("Unknown server response \"" + server_response + "\"")
+
+	self.aes_secret = received_token
 	return True
 
 
-    def submit_results(self, name, results_file_path):
+    def send_file(self, name, file_path, message):
 	if not self.connected:
 	    raise Exception("Server not connected.")
 
 	if conf.c['client_tag'] == 'unauthorized':
-	    raise Exception("Client not authorized to send results.")
+	    raise Exception("Client not authorized to send files.")
 
 	if not self.logged_in:
 	    raise Exception("Client not logged in.")
 
 	try:
-	    self.send_fixed("r")
+	    self.send_fixed(message)
 	    server_response = self.receive_fixed(1)
 	except Exception as e:
-	    raise Exception("Can't submit results: " + str(e))
+	    raise Exception("Can't submit file: " + str(e))
 	    return False
 
 	if server_response == "a":
-	    log("s", "Server ack received.")
+	    #log("s", "Server ack received.")
+	    pass
 	elif server_response == "e":
 	    raise Exception("Server error.")
 	    return False
@@ -239,19 +280,19 @@ class ServerConnection:
 
 	try:
 	    try:
-		data_file = open(results_file_path, 'r')
+		data_file = open(file_path, 'r')
 	    except Exception as e:
-		raise Exception("Can not open results file \"%s\": " %(results_file_path) + str(e))
+		raise Exception("Can not open file \"%s\": " %(file_path) + str(e))
 	    
-	    self.send_dyn(name)
 	    data = data_file.read()
-	    self.send_crypt(data, self.server_public_key)
+	    self.send_aes_crypt(name, self.aes_secret)
+	    self.send_aes_crypt(data, self.aes_secret)
 
 	    server_response = self.receive_fixed(1)
 	    if server_response <> "a":
 		raise Exception("Success message not received.")
 	except Exception as e:
-	    raise Exception("Error sending data to server: " + str(e))
+	    raise Exception("Error sending file to server: " + str(e))
 
 	return True
 
@@ -265,7 +306,8 @@ class ServerConnection:
 	    raise Exception("Can\'t initialize: " + str(e))
 
 	if server_response == "a":
-	    log("s", "Server ack received.")
+	    #log("s", "Server ack received.")
+	    pass
 	elif server_response == "e":
 	    raise Exception("Server error (could not receive error details from the server).")
 	else:
@@ -276,7 +318,7 @@ class ServerConnection:
 	    crypt = RSACrypt()
 	    my_public_key = crypt.public_key_string()
 	    self.server_public_key = self.receive_dyn()
-	    self.send_crypt(my_public_key, self.server_public_key)
+	    self.send_rsa_crypt(my_public_key, self.server_public_key)
 
 	    server_response = self.receive_fixed(1)
 
@@ -321,18 +363,69 @@ class ServerConnection:
 	    if server_response == 'b':
 		return "beat"
 	    elif server_response == 'c':
-		return self.receive_crypt(self.my_private_key)
+		return self.receive_aes_crypt(self.aes_secret)
 	    else:
 		raise Exception("Server response not recognized.")
 	except Exception as e:
 	    raise Exception("Heartbeat error: " + str(e))
-    
+
+    def send_logs(self):
+	successful = 0
+	total = 0
+	if not os.path.exists(conf.c['logs_dir']):
+    	    log("i", "Creating logs directory in %s" % (conf.c['logs_dir']))
+    	    os.makedirs(conf.c['results_archive_dir'])
+
+	for log_name in listdir(conf.c['logs_dir']):
+	    if isfile(join(conf.c['logs_dir'],log_name)):
+		log("i", "Sending \"" + log_name + "\"...")
+		total = total + 1
+		try:
+		    self.send_file(log_name, join(conf.c['logs_dir'], log_name), "g")
+		    log("s", "Sent \"" + log_name + "\" to the server.")
+		    os.remove(os.path.join(conf.c['logs_dir'], log_name))
+		    successful = successful + 1
+		except Exception as e:
+		    log("e", "There was an error while sending \"" + log_name + "\": %s. Will retry later." %(str(e)))
+
+	if total:
+	    log("s", "Sending logs complete (%d/%d were successful)." %(successful, total))
+	else:
+	    log("i", "Sending logs complete (nothing sent).")
+
+    def sync_results(self):
+	successful = 0
+	total = 0
+	if not os.path.exists(conf.c['results_archive_dir']):
+    	    log("i", "Creating results directory in %s" % (conf.c['results_archive_dir']))
+    	    os.makedirs(conf.c['results_archive_dir'])
+
+	for result_name in listdir(conf.c['results_dir']):
+	    if isfile(join(conf.c['results_dir'],result_name)):
+		log("i", "Submitting \"" + result_name + "\"...")
+		total = total + 1
+		try:
+		    self.send_file(result_name, join(conf.c['results_dir'], result_name), "r")
+		    try:
+			shutil.move(os.path.join(conf.c['results_dir'], result_name), os.path.join(conf.c['results_archive_dir'], result_name))
+			log("s", "Moved \"" + result_name + "\" to the archive.")
+		    except:
+			log("e", "There was an error while moving \"" + result_name + "\" to the archive. This will be re-sent the next time.")
+		    successful = successful + 1
+		except Exception as e:
+		    log("e", "There was an error while sending \"" + result_name + "\": %s. Will retry later." %(str(e)))
+	if total:
+	    log("s", "Sync complete (%d/%d were successful)." %(successful, total))
+	else:
+	    log("i", "Sync complete (nothing sent).")
+
+
     def sync_experiments(self):
 	if not self.connected:
 	    raise Exception("Server not connected.")
 
 	if conf.c['client_tag'] == 'unauthorized':
-	    raise Exception("Client not authorized to send results.")
+	    raise Exception("Client not authorized to sync experiments.")
 
 	self.send_fixed("s")
 	
@@ -347,9 +440,9 @@ class ServerConnection:
 		msg = msg + exp + "%" + MD5.new(exp_content).digest() + "|"
 	
 	    if msg:
-		self.send_crypt(msg[:-1], self.server_public_key)
+		self.send_aes_crypt(msg[:-1], self.aes_secret)
 	    else:
-		self.send_crypt("n", self.server_public_key)
+		self.send_aes_crypt("n", self.aes_secret)
 	    new_exp_count = self.receive_dyn()
 	
 	    i = int(new_exp_count)
@@ -361,9 +454,9 @@ class ServerConnection:
 		while i > 0:
 		    try:
 			i = i - 1
-			exp_name = self.receive_dyn()
+			exp_name = self.receive_aes_crypt(self.aes_secret)
 			print "HERE"
-			exp_content = self.receive_crypt(self.my_private_key)
+			exp_content = self.receive_aes_crypt(self.aes_secret)
 			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)
 			f.close()
@@ -377,7 +470,7 @@ class ServerConnection:
 	    raise Exception("Error downloading new experiments: " + str(e))
 
 	try:
-    	    old_list = self.receive_crypt(self.my_private_key, False)
+    	    old_list = self.receive_aes_crypt(self.aes_secret, False)
 
 	    if old_list <> "n":
 		changed = True
@@ -403,9 +496,9 @@ class ServerConnection:
 		msg = msg + exp_data + "%" + MD5.new(exp_data_contents).digest() + "|"
 	
 	    if msg:
-		self.send_crypt(msg[:-1], self.server_public_key)
+		self.send_aes_crypt(msg[:-1], self.aes_secret)
 	    else:
-		self.send_crypt("n", self.server_public_key)
+		self.send_aes_crypt("n", self.aes_secret)
 	    new_exp_data_count = self.receive_dyn()
 	
 	    i = int(new_exp_data_count)
@@ -416,8 +509,8 @@ class ServerConnection:
 		log("i", "Updating experiment data files...")
 		while i > 0:
 		    try:
-			exp_data_name = self.receive_dyn()
-			exp_data_content = self.receive_crypt(self.my_private_key)
+			exp_data_name = self.receive_aes_crypt(self.aes_secret)
+			exp_data_content = self.receive_aes_crypt(self.aes_secret)
 			f = open(os.path.join(conf.c['experiment_data_dir'], exp_data_name), "w")
 			f.write(exp_data_content)
 			f.close()
@@ -429,7 +522,7 @@ class ServerConnection:
 	    raise Exception("Error downloading new experiment data files: " + str(e))
 
 	try:
-    	    old_list = self.receive_crypt(self.my_private_key, False)
+    	    old_list = self.receive_aes_crypt(self.aes_secret, False)
 
 	    if old_list <> "n":
 		changed = True
