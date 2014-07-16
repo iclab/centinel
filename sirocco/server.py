@@ -385,6 +385,39 @@ class Server:
 	    # After init, the client has to disconnect and login again.
 	    return False
 
+	# The client wants to send log files:
+	elif message_type == "g" and not unauthorized:
+	    
+	    try:
+		client_log_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+		changed = False
+
+		if client_log_list == "n":
+		    client_log_list = [""]
+		else:
+		    client_log_list = client_log_list.split("|")
+
+		updates = [x for x in self.current_log_list(client_tag) if x not in client_log_list]
+
+		self.send_dyn(clientsocket, address, str(len(updates)))
+
+		for log in updates:
+		    if log:
+			changed = True
+			self.sendlog(clientsocket, address, client_tag, log.split("%")[0])
+
+		old_list = [x.split("%")[0] for x in client_log_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_log_list(client_tag)] ]
+
+		msg = ""
+		for item in old_list:
+		    msg += item + "|"
+
+		if msg:
+		    changed = True
+		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
+		else:
+		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
 	    
