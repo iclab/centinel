@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../")
 import math
 import time
 from time import strftime
@@ -11,7 +13,6 @@ import random
 import gzip
 import socket
 from socket import timeout
-import sys
 import threading
 import glob
 from datetime import datetime, timedelta
@@ -384,9 +385,43 @@ class Server:
 	    # After init, the client has to disconnect and login again.
 	    return False
 
+	# The client wants to send log files:
+	elif message_type == "g" and not unauthorized:
+	    
+	    try:
+		client_log_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+		changed = False
+
+		if client_log_list == "n":
+		    client_log_list = [""]
+		else:
+		    client_log_list = client_log_list.split("|")
+
+		updates = [x for x in self.current_log_list(client_tag) if x not in client_log_list]
+
+		self.send_dyn(clientsocket, address, str(len(updates)))
+
+		for log in updates:
+		    if log:
+			changed = True
+			self.sendlog(clientsocket, address, client_tag, log.split("%")[0])
+
+		old_list = [x.split("%")[0] for x in client_log_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_log_list(client_tag)] ]
+
+		msg = ""
+		for item in old_list:
+		    msg += item + "|"
+
+		if msg:
+		    changed = True
+		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
+		else:
+		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+	    except Exception as e:
+		log ("e", "Error receiving log files: " + str(e), address=address, tag=client_tag)
+
 	# The client wants to sync experiments:
 	elif message_type == "s" and not unauthorized:
-	    
 	    try:
 		client_exp_list = self.receive_crypt(clientsocket, address, self.private_key, False)
 		changed = False
@@ -416,9 +451,37 @@ class Server:
 		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
 		else:
 		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
+
+		client_exp_data_list = self.receive_crypt(clientsocket, address, self.private_key, False)
+
+		if client_exp_data_list == "n":
+		    client_exp_data_list = [""]
+		else:
+		    client_exp_data_list = client_exp_data_list.split("|")
+
+		updates = [x for x in self.current_exp_data_list(client_tag) if x not in client_exp_data_list]
+
+		self.send_dyn(clientsocket, address, str(len(updates)))
+
+		for exp_data in updates:
+		    if exp_data:
+			changed = True
+			self.sendexp_data(clientsocket, address, client_tag, exp_data.split("%")[0])
+
+		old_list = [x.split("%")[0] for x in client_exp_data_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_data_list(client_tag)] ]
+
+		msg = ""
+		for item in old_list:
+		    msg += item + "|"
+
+		if msg:
+		    changed = True
+		    self.send_crypt(clientsocket, address, msg[:-1], self.client_keys[client_tag])
+		else:
+		    self.send_crypt(clientsocket, address, "n", self.client_keys[client_tag])
 	    
 		if changed:
-		    log("i", "Client just updated its test specs.", address = address, tag = client_tag)
+		    log("i", "Client just updated its experiment set.", address = address, tag = client_tag)
 	    except Exception as e:
 		raise Exception("Error synchronizing experiments: " + str(e))
 
@@ -449,11 +512,24 @@ class Server:
 	exp_list = list()
 	exp_list += self.client_exps[client_tag]
 
-	exp_list += [os.path.splitext(os.path.basename(path))[0] + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
+	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
+	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.py'))]
 	return exp_list
 	    
+    def current_exp_data_list(self, client_tag):
+	exp_data_list = list()
+
+	exp_data_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiment_data_dir'], '*.txt'))]
+	return exp_data_list
+
     def sendexp(self, clientsocket, address, client_tag, exp):
-	f = open(os.path.join(conf.c['experiments_dir'], exp + ".cfg"), 'r')
+	f = open(os.path.join(conf.c['experiments_dir'], exp), 'r')
+	contents = f.read()
+	self.send_dyn(clientsocket, address, exp)
+	self.send_crypt(clientsocket, address, contents, self.client_keys[client_tag])
+
+    def sendexp_data(self, clientsocket, address, client_tag, exp):
+	f = open(os.path.join(conf.c['experiment_data_dir'], exp), 'r')
 	contents = f.read()
 	self.send_dyn(clientsocket, address, exp)
 	self.send_crypt(clientsocket, address, contents, self.client_keys[client_tag])

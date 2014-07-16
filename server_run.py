@@ -3,8 +3,8 @@
 import sys
 import logging
 
-from centinel.server import Server
-from centinel.utils.logger import *
+from sirocco.server import Server
+from utils.logger import *
 
 try:
     print open("sirocco_server_ascii_art", "r").read()

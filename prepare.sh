@@ -15,5 +15,3 @@ if [ `uname -s` = "Darwin" ]; then
     done;
     sudo port install scapy
 fi;
-
-python setup.py build

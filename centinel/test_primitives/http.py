@@ -1,9 +1,9 @@
 import ConfigParser
 import os
-import centinel.utils.http as http
+import utils.http as http
 import base64
 
-from centinel.experiment_py import Experiment
+from centinel.experiment import Experiment
 
 class ConfigurableHTTPRequestExperiment(Experiment):
     name = "config_http"

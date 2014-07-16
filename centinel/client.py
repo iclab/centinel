@@ -1,3 +1,6 @@
+import sys
+sys.path.append("../")
+
 import math
 from time import gmtime, strftime
 import os
@@ -10,7 +13,6 @@ import gzip
 import glob
 from os.path import exists,isfile, join
 import socket
-import sys
 from utils.rsacrypt import RSACrypt
 from utils.colors import bcolors
 from utils.colors import update_progress
@@ -335,13 +337,14 @@ class ServerConnection:
 	self.send_fixed("s")
 	
 	try:
-	    cur_exp_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['configurable_experiments_dir'], '*.cfg'))]
+	    cur_exp_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['remote_experiments_dir'], '*.py'))]
+	    cur_exp_list += [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['remote_experiments_dir'], '*.cfg'))]
 
 	    msg = ""
 	    changed = False
 	    for exp in cur_exp_list:
-		exp_data = open(os.path.join(conf.c['configurable_experiments_dir'], exp + ".cfg"), 'r').read()
-		msg = msg + exp + "%" + MD5.new(exp_data).digest() + "|"
+		exp_content = open(os.path.join(conf.c['remote_experiments_dir'], exp), 'r').read()
+		msg = msg + exp + "%" + MD5.new(exp_content).digest() + "|"
 	
 	    if msg:
 		self.send_crypt(msg[:-1], self.server_public_key)
@@ -357,15 +360,19 @@ class ServerConnection:
 		log("i", "Updating experiments...")
 		while i > 0:
 		    try:
+			i = i - 1
 			exp_name = self.receive_dyn()
+			print "HERE"
 			exp_content = self.receive_crypt(self.my_private_key)
-			f = open(os.path.join(conf.c['configurable_experiments_dir'], exp_name + ".cfg"), "w")
+			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)
 			f.close()
-			i = i - 1
 			log("s", "\"%s\" received (%d/%d)." %(exp_name, int(new_exp_count) - i, int(new_exp_count)))
 		    except Exception as e:
-			log("e", "Error downloading \"%s\" (%d/%d): " %(exp_name, int(new_exp_count) - i, int(new_exp_count)) + str(e))
+			try:
+			    log("e", "Error downloading \"%s\" (%d/%d): " %(exp_name, int(new_exp_count) - i, int(new_exp_count)) + str(e))
+			except:
+			    log("e", "Error downloading experiment %d of %d." %(int(new_exp_count) - i, int(new_exp_count)) + str(e))
 	except Exception as e:
 	    raise Exception("Error downloading new experiments: " + str(e))
 
@@ -377,13 +384,66 @@ class ServerConnection:
 		log("i", "Removing old experiments...")
 		for exp in old_list.split("|"):
 		    try:
-			os.remove(os.path.join(conf.c['configurable_experiments_dir'], exp + ".cfg"))
-			log("i", "Removed %s." %(exp))
+			if exp:
+			    os.remove(os.path.join(conf.c['remote_experiments_dir'], exp))
+			    log("i", "Removed %s." %(exp))
 		    except Exception as e:
 			log("e", "Error removing %s." %(exp))
 
 	except Exception as e:
 	    raise Exception("Error removing old experiments: " + str(e))
+	
+	try:
+	    cur_exp_data_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['experiment_data_dir'], '*.txt'))]
+
+	    msg = ""
+
+	    for exp_data in cur_exp_data_list:
+		exp_data_contents = open(os.path.join(conf.c['experiment_data_dir'], exp_data), 'r').read()
+		msg = msg + exp_data + "%" + MD5.new(exp_data_contents).digest() + "|"
+	
+	    if msg:
+		self.send_crypt(msg[:-1], self.server_public_key)
+	    else:
+		self.send_crypt("n", self.server_public_key)
+	    new_exp_data_count = self.receive_dyn()
+	
+	    i = int(new_exp_data_count)
+
+	    if i <> 0:
+		changed = True
+		log("i", "%d new experiment data files." %(i))
+		log("i", "Updating experiment data files...")
+		while i > 0:
+		    try:
+			exp_data_name = self.receive_dyn()
+			exp_data_content = self.receive_crypt(self.my_private_key)
+			f = open(os.path.join(conf.c['experiment_data_dir'], exp_data_name), "w")
+			f.write(exp_data_content)
+			f.close()
+			i = i - 1
+			log("s", "\"%s\" received (%d/%d)." %(exp_data_name, int(new_exp_data_count) - i, int(new_exp_data_count)))
+		    except Exception as e:
+			log("e", "Error downloading \"%s\" (%d/%d): " %(exp_data_name, int(new_exp_data_count) - i, int(new_exp_data_count)) + str(e))
+	except Exception as e:
+	    raise Exception("Error downloading new experiment data files: " + str(e))
+
+	try:
+    	    old_list = self.receive_crypt(self.my_private_key, False)
+
+	    if old_list <> "n":
+		changed = True
+		log("i", "Removing old experiment data files...")
+		for exp_data in old_list.split("|"):
+		    try:
+			if exp_data:
+			    os.remove(os.path.join(conf.c['experiment_data_dir'], exp_data))
+			    log("i", "Removed \"%s\"." %(exp_data))
+		    except Exception as e:
+			log("e", "Error removing \"%s\"." %(exp_data))
+
+	except Exception as e:
+	    raise Exception("Error removing old experiment data files: " + str(e))
 
 	if changed:
 	    log("s", "Experiments updated.")

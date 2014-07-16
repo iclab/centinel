@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../")
 import ConfigParser
 import os
 from utils.colors import bcolors
@@ -8,17 +10,16 @@ class client_conf:
 	    'server_port' : "8082",
 	    'centinel_homedir' : os.path.dirname(__file__),
 	    'experiment_data_dir' : os.path.join(os.path.dirname(__file__), "experiment_data"),
-	    'experiments_py_dir' : os.path.join(os.path.dirname(__file__), "py_experiments"),
-	    'configurable_experiments_dir' : os.path.join(os.path.dirname(__file__), "conf_experiments"),
+	    'remote_experiments_dir' : os.path.join(os.path.dirname(__file__), "remote_experiments"),
 	    'custom_experiments_dir' : os.path.join(os.path.dirname(__file__), "custom_experiments"),
 	    'logs_dir' : os.path.join(os.path.dirname(__file__), "logs"),
 	    'results_dir' : os.path.join(os.path.dirname(__file__), "results"),
-	    'client_keys_dir' : os.path.join(os.path.dirname(__file__), "client_keys"),
+	    'keys_dir' : os.path.join(os.path.dirname(__file__), "keys"),
 	    'results_archive_dir' : os.path.join(os.path.dirname(__file__), "results_archive"),
 	    'config_file' : os.path.join(os.path.dirname(__file__), "confs/client_config.cfg"),
-	    'server_public_rsa' : os.path.join(os.path.dirname(__file__), "client_keys/server_public_rsa.pem"),
-	    'client_public_rsa' : os.path.join(os.path.dirname(__file__), "client_keys/client_public_rsa.pem"),
-	    'client_private_rsa' : os.path.join(os.path.dirname(__file__), "client_keys/client_private_rsa.pem"),
+	    'server_public_rsa' : os.path.join(os.path.dirname(__file__), "keys/server_public_rsa.pem"),
+	    'client_public_rsa' : os.path.join(os.path.dirname(__file__), "keys/client_public_rsa.pem"),
+	    'client_private_rsa' : os.path.join(os.path.dirname(__file__), "keys/client_private_rsa.pem"),
 	    'timeout' : 20,
 	    'client_tag' : "unauthorized"}
 

@@ -1,6 +1,6 @@
-from centinel.experiment_py import Experiment
-from centinel.utils import tls
-from centinel.utils import logger
+from centinel.experiment import Experiment
+from utils import tls
+from utils import logger
 
 class TLSExperiment(Experiment):
     """Check the tls fingerprints of a site"""

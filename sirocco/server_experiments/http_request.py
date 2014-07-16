@@ -1,6 +1,6 @@
-import centinel.utils.http as http
+import utils.http as http
 
-from centinel.experiment_py import Experiment
+from centinel.experiment import Experiment
 
 class HTTPRequestExperiment(Experiment):
     name = "http_request"
