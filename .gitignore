@@ -2,6 +2,7 @@
 *.pyo
 .#*
 *.log
+centinel_latest.tar.bz2
 centinel/logs/*
 centinel/keys/*
 centinel/remote_experiments/*
