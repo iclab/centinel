@@ -8,5 +8,5 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
-def update_progress(progress):
-    sys.stdout.write( '\r[{0}{1}] {2}%'.format('#'*(progress/2), ' '*(50 - progress/2), progress) )
+def update_progress(progress, message):
+    sys.stdout.write( '\r[{0}{1}] {2}%'.format('#'*(progress/2), ' '*(50 - progress/2), progress) + " " + message )

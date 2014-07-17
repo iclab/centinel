@@ -113,6 +113,8 @@ class Server:
 	org = chunk_count
 	chunk_size = 1024
 	decrypted_results = ""
+	byte_rate = ""
+	start_time = datetime.now()
 	if show_progress and chunk_count:
 	    print bcolors.OKBLUE + "Progress: "
 	while chunk_count > 0:
@@ -121,7 +123,10 @@ class Server:
 	    decrypted_results = decrypted_results + crypt.decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
 	    if show_progress:
-		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+		time_elapsed = (datetime.now() - start_time).seconds
+		if  time_elapsed > 0:
+		    byte_rate = str((float(len(decrypted_results)) / float(time_elapsed)) / 1024.0)
+		update_progress( int(100 * float(org - chunk_count) / float(org)), byte_rate + " Kb/s " if byte_rate else "" )
 	if show_progress:
 	    print bcolors.ENDC
 
@@ -176,6 +181,8 @@ class Server:
 	org = chunk_count
 	chunk_size = 256
 	decrypted_results = ""
+	byte_rate = ""
+	start_time = datetime.now()
 	if show_progress and chunk_count:
 	    print bcolors.OKBLUE + "Progress: "
 	while chunk_count > 0:
@@ -183,7 +190,10 @@ class Server:
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
 	    if show_progress:
-		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+		time_elapsed = (datetime.now() - start_time).seconds
+		if  time_elapsed > 0:
+		    byte_rate = str((float(len(decrypted_results)) / float(time_elapsed)) / 1024.0)
+		update_progress( int(100 * float(org - chunk_count) / float(org)), byte_rate + " Kb/s " if byte_rate else "" )
 	if show_progress:
 	    print bcolors.ENDC
 
@@ -512,7 +522,6 @@ class Server:
 		    client_exp_data_list = client_exp_data_list.split("|")
 
 		updates = [x for x in self.current_exp_data_list(client_tag) if x not in client_exp_data_list]
-
 		self.send_dyn(clientsocket, address, str(len(updates)))
 
 		for exp_data in updates:

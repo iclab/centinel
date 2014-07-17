@@ -17,6 +17,9 @@ experiments_last_synced = ""
 results_last_synced = ""
 logs_last_sent = ""
 
+def die():
+    raise (SystemExit)
+
 def run_exp(selection):
     log("i", 'Starting the exepriments.')
     experiment_runner.run(selection)
@@ -32,7 +35,7 @@ def sync_res():
 def sync_exp():
     global experiments_last_synced
     log("i", 'Starting experiment sync.')
-    serverconn.sync_results()
+    serverconn.sync_experiments()
     experiments_last_synced = datetime.now()
 
 def send_logs():
@@ -88,6 +91,8 @@ while 1:
 			sync_exp()
 		    elif command.split()[0] == "run_exp" or command.split()[0] == "run":
 			run_exp(command.split()[1:])
+		    elif command == "die":
+			die()
 		    else:
 			log("e", "Command %s not recognized." %(command))
 		except Exception as e:

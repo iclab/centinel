@@ -11,6 +11,7 @@ from os import listdir
 import StringIO
 import gzip
 import glob
+from datetime import datetime, timedelta
 from os.path import exists,isfile, join
 import socket
 from utils.rsacrypt import RSACrypt
@@ -163,6 +164,8 @@ class ServerConnection:
 	org = chunk_count
 	chunk_size = 1024
 	decrypted_results = ""
+	byte_rate = ""
+	start_time = datetime.now()
 	if show_progress and chunk_count:
 	    print bcolors.OKBLUE + "Progress: "
 	while chunk_count > 0:
@@ -170,7 +173,10 @@ class ServerConnection:
 	    decrypted_results = decrypted_results + crypt.decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
 	    if show_progress:
-		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+		time_elapsed = (datetime.now() - start_time).seconds
+		if  time_elapsed > 0:
+		    byte_rate = str((float(len(decrypted_results)) / float(time_elapsed)) / 1024.0)
+		update_progress( int(100 * float(org - chunk_count) / float(org)), byte_rate + " Kb/s " if byte_rate else "" )
 	if show_progress:
 	    print bcolors.ENDC
 
@@ -192,7 +198,8 @@ class ServerConnection:
 	org = chunk_count
 	chunk_size = 256
 	decrypted_results = ""
-	
+	byte_rate = ""
+	start_time = datetime.now()
 	if show_progress:
 	    print bcolors.OKGREEN + "Progress: "
 	while chunk_count > 0:
@@ -200,7 +207,10 @@ class ServerConnection:
 	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
 	    chunk_count = chunk_count - 1
 	    if show_progress:
-		update_progress( int(100 * float(org - chunk_count) / float(org)) )
+		time_elapsed = (datetime.now() - start_time).seconds
+		if  time_elapsed > 0:
+		    byte_rate = str((float(len(decrypted_results)) / float(time_elapsed)) / 1024.0)
+		update_progress( int(100 * float(org - chunk_count) / float(org)), byte_rate + " Kb/s " if byte_rate else "" )
 	if show_progress:
 	    print bcolors.ENDC
     
@@ -238,7 +248,7 @@ class ServerConnection:
 		self.send_rsa_crypt(received_token, self.server_public_key)
 	    server_response = self.receive_fixed(1)
 	except Exception as e:
-	    log("e", "Can't log in: "), sys.exc_info()[0] 
+	    log("e", "Can't log in: " + str(e)) 
 	    return False
 	
 	if server_response == "a":

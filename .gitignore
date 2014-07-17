@@ -13,5 +13,6 @@ centinel/confs/client_config.cfg
 sirocco/server_results/*
 sirocco/server_keys/*
 sirocco/server_keys/clients/*
+sirocco/log_archive/*
 centinel.egg-info/
 dist/
