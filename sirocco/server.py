@@ -417,7 +417,7 @@ class Server:
 
     def handle_client_requests(self, clientsocket, address, client_tag, aes_secret, unauthorized = True):
 	message_type = ""
-	retries = 5
+	retries = 10
 	while not message_type and retries > 0:
 	    try:
 		message_type = self.receive_fixed(clientsocket, address, 1)
