@@ -351,6 +351,7 @@ class Server:
 		if client_tag == "unauthorized":
 		    # Only allow them to either close or initialize:
 		    unauthorized = True
+		    print "here"
 		elif client_tag not in self.client_list:
 		    authenticated = False
 		else:
@@ -366,6 +367,10 @@ class Server:
 			log("s", "Authentication successful.", address = address, tag = client_tag)
 			authenticated = True
 			aes_secret = received_token
+		    else:
+	    		self.send_fixed(clientsocket, address, "a")
+			log("w", "Unauthorized client connected...", address = address)
+			
 		else:
 		    raise Exception("Authentication error.")
     	    except Exception as e:
