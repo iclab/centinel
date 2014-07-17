@@ -15,7 +15,7 @@ censorship.
     * ./init_client.py
 
     # run Centinel Client
-    * ./client_run.py [experiment 1] [experiment 2] ...
+    * ./client.sh [experiment 1] [experiment 2] ...
 	(running without arguments will run the client daemon and connect to the server)
 
 #### Supported platforms
@@ -26,7 +26,7 @@ censorship.
 
 #### How to make a test
 
-    * The file must either end in .cfg or .py and be placed in centinel/custom_experiments/
+    * The file must either end in .cfg or .py and be placed in ~/.centinel/custom_experiments/
     $ >centinel/custom_experiments/newTest.cfg
 
     * If writing a Python configuration:
