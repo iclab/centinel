@@ -286,6 +286,14 @@ class Server:
     def client_command_sender(self):
 	while 1:
 	    com = raw_input("> ")
+	    if com == "update_centinel":
+		latest_version = open(".version", "r").read()
+		if self.version <> latest_version:
+		    log("i", "Centinel has been updated, creating new update package...")
+		    self.version = latest_version
+		    call([conf.c['pack_maker_path'], ""])
+		continue
+
 	    if com == "listclients":
 		print bcolors.WARNING + "Connected clients: " + bcolors.ENDC
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
