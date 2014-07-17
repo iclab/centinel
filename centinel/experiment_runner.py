@@ -19,9 +19,10 @@ from client_config import client_conf
 conf = client_conf()
 
 EXPERIMENTS_DIR = conf.c['remote_experiments_dir']
-CUSTOM_EXP_DIR	= conf.c['custom_experiments_dir']
-DATA_DIR        = conf.c['experiment_data_dir']
-RESULTS_DIR	= conf.c['results_dir']
+EXPERIMENT_DATA_DIR = conf.c['experiment_data_dir']
+CUSTOM_EXP_DIR = conf.c['custom_experiments_dir']
+CUSTOM_EXP_DATA_DIR = conf.c['custom_experiment_data_dir']
+RESULTS_DIR = conf.c['results_dir']
 
 def get_results_dir():
     return RESULTS_DIR
@@ -32,13 +33,17 @@ def get_result_file(results_dir, exp_name):
 
 def get_input_file(experiment_name):
     input_file = "%s.txt" % (experiment_name)
-    return os.path.join(DATA_DIR, input_file)
+    return os.path.join(EXPERIMENT_DATA_DIR, input_file)
 
-def get_conf_input_file(experiment_name):
+def get_custom_input_file(experiment_name):
+    input_file = "%s.txt" % (experiment_name)
+    return os.path.join(CUSTOM_EXP_DATA_DIR, input_file)
+
+def get_custom_conf_input_file(experiment_name):
     input_file = "%s.cfg" % (experiment_name)
     return os.path.join(EXPERIMENTS_DIR, input_file)
 
-def get_custom_input_file(experiment_name):
+def get_conf_input_file(experiment_name):
     input_file = "%s.cfg" % (experiment_name)
     return os.path.join(CUSTOM_EXP_DIR, input_file)
 
@@ -157,6 +162,8 @@ def run(selection = []):
 def execute_experiment(name, Exp):
     results = {}
     input_file = get_input_file(name)
+    if not os.path.isfile(input_file):
+	input_file = get_custom_input_file(name)
 
     if not os.path.isfile(input_file):
 	log("e", "No input file found for \"%s\". Skipping test." % (name))
@@ -179,7 +186,7 @@ def execute_conf_experiment(name):
     results = {}
     input_file = get_conf_input_file(name)
     if not os.path.isfile(input_file):
-	input_file = get_custom_input_file(name)
+	input_file = get_custom_conf_input_file(name)
 
     if not os.path.isfile(input_file):
 	log ("e", "No input file found for \"%s\". Skipping test." % (name))

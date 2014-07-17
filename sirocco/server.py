@@ -431,7 +431,7 @@ class Server:
 	    try:
     		self.send_fixed(clientsocket, address, "a")
 
-		results_name = self.receive_aes_crypt(clientsocket, address, aes_secret)
+		results_name = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
 		results_decrypted = self.receive_aes_crypt(clientsocket, address, aes_secret)
 
 		if not os.path.exists(conf.c['results_dir']):
@@ -453,7 +453,7 @@ class Server:
 	    try:
     		self.send_fixed(clientsocket, address, "a")
 
-		log_name = self.receive_aes_crypt(clientsocket, address, aes_secret)
+		log_name = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress=False)
 		log_decrypted = self.receive_aes_crypt(clientsocket, address, aes_secret)
 
 		if not os.path.exists(conf.c['log_archive_dir']):
@@ -571,7 +571,7 @@ class Server:
 		else:
 		    self.send_aes_crypt(clientsocket, address, "n", aes_secret)
 
-		client_exp_data_list = self.receive_aes_crypt(clientsocket, address, aes_secret, False)
+		client_exp_data_list = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
 
 		if client_exp_data_list == "n":
 		    client_exp_data_list = [""]

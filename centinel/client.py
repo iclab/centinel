@@ -399,7 +399,7 @@ class ServerConnection:
 	    if server_response == 'b':
 		return "beat"
 	    elif server_response == 'c':
-		return self.receive_aes_crypt(self.aes_secret)
+		return self.receive_aes_crypt(self.aes_secret, show_progress=False)
 	    else:
 		raise Exception("Server response not recognized.")
 	except Exception as e:
@@ -490,7 +490,7 @@ class ServerConnection:
 		while i > 0:
 		    try:
 			i = i - 1
-			exp_name = self.receive_aes_crypt(self.aes_secret)
+			exp_name = self.receive_aes_crypt(self.aes_secret, show_progress = False)
 			exp_content = self.receive_aes_crypt(self.aes_secret)
 			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)
@@ -544,7 +544,7 @@ class ServerConnection:
 		log("i", "Updating experiment data files...")
 		while i > 0:
 		    try:
-			exp_data_name = self.receive_aes_crypt(self.aes_secret)
+			exp_data_name = self.receive_aes_crypt(self.aes_secret, show_progress=False)
 			exp_data_content = self.receive_aes_crypt(self.aes_secret)
 			f = open(os.path.join(conf.c['experiment_data_dir'], exp_data_name), "w")
 			f.write(exp_data_content)

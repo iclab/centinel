@@ -18,6 +18,7 @@ do
 	    echo "Unpacking new Centinel package..."
 	    tar -jxvf update.tar.bz2
 	    echo "Done."
+	    ./init_client.py --offline
 	    echo "Restarting Centinel client..."
 	else
 	    echo "Update package not found!"

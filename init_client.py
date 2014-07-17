@@ -8,8 +8,6 @@ from centinel.client import ServerConnection
 from centinel.client_config import client_conf
 from utils.colors import bcolors
 
-selection = sys.argv
-selection.pop(0)
 c = client_conf()
 
 print bcolors.OKBLUE + 'Initializing the client.' + bcolors.ENDC
@@ -28,7 +26,10 @@ check_create_dir(c.c['logs_dir'])
 check_create_dir(c.c['remote_experiments_dir'])
 check_create_dir(c.c['custom_experiments_dir'])
 check_create_dir(c.c['experiment_data_dir'])
+check_create_dir(c.c['custom_experiment_data_dir'])
 
+if len(sys.argv) > 1 and sys.argv[1] == "--offline":
+    exit(0)
 
 if c.config_read:
     print bcolors.FAIL + 'A configuration file already exists for %s, are you sure you want to initialize? (if so, type \'yes\') ' %(c.c['client_tag']) + bcolors.ENDC

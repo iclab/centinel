@@ -11,6 +11,7 @@ class client_conf:
 	    'server_port' : "8082",
 	    'centinel_home_dir' : os.path.join(expanduser("~"), ".centinel"),
 	    'experiment_data_dir' : os.path.join(expanduser("~"), ".centinel/experiment_data"),
+	    'custom_experiment_data_dir' : os.path.join(expanduser("~"), ".centinel/custom_experiment_data"),
 	    'remote_experiments_dir' : os.path.join(expanduser("~"), ".centinel/remote_experiments"),
 	    'custom_experiments_dir' : os.path.join(expanduser("~"), ".centinel/custom_experiments"),
 	    'experiment_sync_delay' : "30",
