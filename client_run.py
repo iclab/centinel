@@ -19,7 +19,7 @@ results_last_synced = ""
 logs_last_sent = ""
 
 class UpdateException(Exception):
-    def __init__(self, message = "")
+    def __init__(self, message = ""):
 	self.message = message
 
 def die():
