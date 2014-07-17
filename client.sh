@@ -11,9 +11,9 @@ do
 	echo "Client update downloaded."
 	if [ -f update.tar.bz2 ]
 	then
-	    echo "Removing old Centinel files..."
+	    echo "Removing old Centinel directories..."
 	    rm -rf centinel
-	    rm -rf client_run.py
+	    rm -rf utils
 	    echo "Done."
 	    echo "Unpacking new Centinel package..."
 	    tar -jzvf update.tar.bz2
