@@ -476,7 +476,7 @@ class Server:
 	    if client_version <> self.version:
 		log("w", "Client is running Centinel version \"%s\", newest version is \"%s\". Updating..." %(client_version, self.version), address, client_tag)
 		try:
-		    self.send_update(clientsocket, address, client_tag, aes_ecret)
+		    self.send_update(clientsocket, address, client_tag, aes_secret)
 		    log("s", "Sent the latest Centinel package to the client, closing connection...", address, client_tag)
 		    return False
 		except Exception as e:
