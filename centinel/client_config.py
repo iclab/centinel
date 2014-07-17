@@ -20,7 +20,7 @@ class client_conf:
 	    'logs_dir' : os.path.join(expanduser("~"), ".centinel/logs"),
 	    'results_dir' : os.path.join(expanduser("~"), ".centinel/results"),
 	    'keys_dir' : os.path.join(expanduser("~"), ".centinel/keys"),
-	    'confs_dir' : os.path.join(expanduser("~"), ".centinel/keys"),
+	    'confs_dir' : os.path.join(expanduser("~"), ".centinel/confs"),
 	    'results_archive_dir' : os.path.join(expanduser("~"), ".centinel/results_archive"),
 	    'config_file' : os.path.join(expanduser("~"), ".centinel/confs/client_config.cfg"),
 	    'server_public_rsa' : os.path.join(expanduser("~"), ".centinel/keys/server_public_rsa.pem"),
