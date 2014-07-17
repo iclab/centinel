@@ -491,7 +491,6 @@ class ServerConnection:
 		    try:
 			i = i - 1
 			exp_name = self.receive_aes_crypt(self.aes_secret)
-			print "HERE"
 			exp_content = self.receive_aes_crypt(self.aes_secret)
 			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)
