@@ -272,7 +272,7 @@ class ServerConnection:
 	    raise Exception("Error checking for updates: " + str(e))
 
 	if server_response == "u":
-	    log("w", "There is a newer version of Centinel available (\"%s\" -> \"%s\")." %(client_version, latest_version))
+	    log("w", "There is a newer version of Centinel available.")
 	    log("i", "Downloading update package...")
 	    try:
 	        update_package_contents = self.receive_aes_crypt(self.aes_secret, show_progress=True)
