@@ -13,6 +13,7 @@ class server_conf:
 	    'log_archive_dir' : os.path.join(os.path.dirname(__file__), "log_archive"),
 	    'config_file' : os.path.join(os.path.dirname(__file__), "confs/server_config.cfg"),
 	    'client_keys_dir' : os.path.join(os.path.dirname(__file__), "server_keys/clients/"),
+	    'pack_maker_path' : os.path.join(os.path.dirname(__file__), "../make_update.sh"),
 	    'server_keys_dir' : os.path.join(os.path.dirname(__file__), "server_keys/"),
 	    'public_rsa_file' : os.path.join(os.path.dirname(__file__), "server_keys/server_public_rsa.pem"),
 	    'private_rsa_file' : os.path.join(os.path.dirname(__file__), "server_keys/server_private_rsa.pem")}

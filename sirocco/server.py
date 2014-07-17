@@ -1,4 +1,5 @@
 import sys
+from subprocess import call
 sys.path.append("../")
 import math
 import time
@@ -36,6 +37,7 @@ class Server:
 	self.sock.bind(('0.0.0.0', int(conf.c['server_port'])))
 	self.sock.listen(5)
 	self.local_only = local
+	self.version = open(".version", "r").read()
 
 	"""
 	Fill in the list of clients and their respective RSA public keys (currently read from files).
@@ -265,7 +267,11 @@ class Server:
 
 	try:
 	    while 1:
-		self.version = open(".version", "r").read()
+		latest_version = open(".version", "r").read()
+		if self.version <> latest_version:
+		    log("i", "Centinel has been updated, creating new update package...")
+		    self.version = latest_version
+		    call([conf.c['pack_maker_path'], ""])
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
 		log("s", "Got a connection.", address = address)
@@ -329,7 +335,7 @@ class Server:
 	# We don't want to wait too long for a response.
 	clientsocket.settimeout(20)
 	
-	if self.local_only and address[0].split(".")[0] != "127":
+	if self.local_only and (address[0].split(".")[0] != "127" and self.local_only and address[0].split(".")[0] != "10"):
 	    log("i", "Running in local-only mode, denying connection...", address)
 	    if clientsocket:
 		clientsocket.close()
