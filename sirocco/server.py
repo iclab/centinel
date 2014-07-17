@@ -38,6 +38,7 @@ class Server:
 	self.sock.listen(5)
 	self.local_only = local
 	self.version = open(".version", "r").read()
+	call([conf.c['pack_maker_path'], ""])
 
 	"""
 	Fill in the list of clients and their respective RSA public keys (currently read from files).
