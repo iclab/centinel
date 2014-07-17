@@ -16,7 +16,7 @@ do
 	    rm -rf utils
 	    echo "Done."
 	    echo "Unpacking new Centinel package..."
-	    tar -jzvf update.tar.bz2
+	    tar -jxvf update.tar.bz2
 	    echo "Done."
 	    echo "Restarting Centinel client..."
 	else
