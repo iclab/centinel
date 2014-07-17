@@ -27,7 +27,7 @@ from utils.logger import *
 conf = server_conf()
 
 class Server:
-    def __init__(self, sock=None):
+    def __init__(self, local = False, sock=None):
 	if sock is None:
 	    #create an INET, STREAMing socket
     	    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,6 +35,8 @@ class Server:
 	    self.sock = sock
 	self.sock.bind(('0.0.0.0', int(conf.c['server_port'])))
 	self.sock.listen(5)
+	self.local_only = local
+
 	"""
 	Fill in the list of clients and their respective RSA public keys (currently read from files).
 	TODO:
@@ -254,6 +256,8 @@ class Server:
 	kf.close()
 	
 	log("i", "Sirocco server running. Awaiting connections...")
+	if self.local_only:
+	    log("w", "Running in local-only mode, remote connections will be denied!")
 
 	command_thread = threading.Thread(target=self.client_command_sender, args = ())
 	command_thread.daemon = True
@@ -261,6 +265,7 @@ class Server:
 
 	try:
 	    while 1:
+		self.version = open(".version", "r").read()
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
 		log("s", "Got a connection.", address = address)
@@ -324,6 +329,12 @@ class Server:
 	# We don't want to wait too long for a response.
 	clientsocket.settimeout(20)
 	
+	if self.local_only and address[0].split(".")[0] != "127":
+	    log("i", "Running in local-only mode, denying connection...", address)
+	    if clientsocket:
+		clientsocket.close()
+	    return
+
 	unauthorized = False
 	client_tag = ""
 	aes_secret = ""
@@ -448,6 +459,31 @@ class Server:
 	elif message_type == "x":
 	    log("i", "Client wants to close the connection.", address = address, tag = client_tag)
 	    return False
+	
+	# The client wants to check for updates.
+	elif message_type == "v":
+	    log("i", "Client wants to check for updates.", address = address, tag = client_tag)
+	    try:
+    		client_version = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
+	    except Exception as e:
+		log("e", "Error getting client version: " + str(e), address = address, tag = client_tag)
+		return False
+	    if client_version <> self.version:
+		log("w", "Client is running Centinel version \"%s\", newest version is \"%s\". Updating..." %(client_version, self.version), address, client_tag)
+		try:
+		    self.send_update(clientsocket, address, client_tag, aes_ecret)
+		    log("s", "Sent the latest Centinel package to the client, closing connection...", address, client_tag)
+		    return False
+		except Exception as e:
+		    log("e", "Error sending the update package to the client: " + str(e), address, client_tag)
+		    return False
+	    else:
+		try:
+		    self.send_fixed(clientsocket, address, "a")
+		except Exception as e:
+		    log("e", "Error sending update message to client: " + str(e), address = address, tag = client_tag)
+		log("i", "Client already running the latest version.", address = address, tag = client_tag)
+		return True
 
 	# The client wants to initialize.
 	elif message_type == "i":
@@ -600,3 +636,8 @@ class Server:
 	while identifier in self.client_list:
 	    identifier = ''.join(random.choice(chars) for _ in range(size))
 	return identifier
+
+    def send_update(self, clientsocket, address, client_tag, aes_secret):
+	self.send_fixed(clientsocket, address, "u")
+	update_package = open("../centinel_latest.tar.bz2", "r").read()
+	self.send_aes_crypt(clientsocket, address, update_package, aes_secret)

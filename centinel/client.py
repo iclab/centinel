@@ -242,13 +242,14 @@ class ServerConnection:
 
     def login(self):
 	try:
+	    log("i", "Authenticating with the server...")
 	    self.send_dyn(conf.c['client_tag'])
 	    if conf.c['client_tag'] <> "unauthorized":
 		received_token = self.receive_rsa_crypt(self.my_private_key, show_progress=False)
 		self.send_rsa_crypt(received_token, self.server_public_key)
 	    server_response = self.receive_fixed(1)
 	except Exception as e:
-	    log("e", "Can't log in: " + str(e)) 
+	    log("e", "Can't authenticate: " + str(e)) 
 	    return False
 	
 	if server_response == "a":
@@ -261,6 +262,31 @@ class ServerConnection:
 	self.aes_secret = received_token
 	return True
 
+    def check_for_updates(self):
+	try:
+	    client_version = open(".version", "r").read()
+	    self.send_fixed("v")
+	    self.send_aes_crypt(client_version, self.aes_secret)
+	    server_response = self.receive_fixed(1)
+	except Exception as e:
+	    raise Exception("Error checking for updates: " + str(e))
+
+	if server_response == "u":
+	    log("w", "There is a newer version of Centinel available (\"%s\" -> \"%s\")." %(client_version, latest_version))
+	    log("i", "Downloading update package...")
+	    try:
+	        update_package_contents = self.receive_aes_crypt(self.aes_secret, show_progress=True)
+		of = open("../update.tar.bz2", "w")
+		of.write(update_package_contents)
+		of.close()
+	    except Exception as e:
+	        raise Exception("Error downloading update package: " + str(e))
+	    return True
+	elif server_response == "a":
+	    return False
+	else:
+	    raise Exception("Error checking for updates: server response not recognized!")
+		
 
     def send_file(self, name, file_path, message):
 	if not self.connected:

@@ -13,6 +13,7 @@ import logging
 from centinel.client_config import client_conf
 
 conf = client_conf()
+last_checked_for_updates = ""
 experiments_last_synced = ""
 results_last_synced = ""
 logs_last_sent = ""
@@ -25,6 +26,15 @@ def run_exp(selection):
     experiment_runner.run(selection)
     log("s", 'Experiments done.')
 
+def update_check():
+    global last_checked_for_updates
+    log("i", 'Checking for updates...')
+    if not serverconn.check_for_updates():
+	last_checked_for_updates = datetime.now()
+	log("i", "Already running the latest version.")
+    else:
+	log("w", "Centinel update package received, shutting down to apply updates...")
+	exit(2)
 
 def sync_res():
     global results_last_synced
@@ -66,9 +76,22 @@ serverconn = ServerConnection()
 if not serverconn.connect():
     log("e", 'Server not connected.')
 
-
 while 1:
     try:
+
+	if not last_checked_for_updates or ((datetime.now() - last_checked_for_updates).seconds > int(conf.c['update_check_delay'])):
+	    update_check()
+
+	if not experiments_last_synced or ((datetime.now() - experiments_last_synced).seconds > int(conf.c['experiment_sync_delay'])):
+	    sync_exp()
+
+	if not results_last_synced or ((datetime.now() - results_last_synced).seconds > int(conf.c['result_sync_delay'])):
+	    sync_res()
+
+	if not logs_last_sent or ((datetime.now() - logs_last_sent).seconds > int(conf.c['log_send_delay'])):
+	    send_logs()
+
+
 	server_response = serverconn.beat()
 
 	if not server_response:
@@ -97,15 +120,6 @@ while 1:
 			log("e", "Command %s not recognized." %(command))
 		except Exception as e:
 		    log("e", "Command %s failed to execute: " %(command) + str(e))
-
-	if not experiments_last_synced or ((datetime.now() - experiments_last_synced).seconds > int(conf.c['experiment_sync_delay'])):
-	    sync_exp()
-
-	if not results_last_synced or ((datetime.now() - results_last_synced).seconds > int(conf.c['result_sync_delay'])):
-	    sync_res()
-
-	if not logs_last_sent or ((datetime.now() - logs_last_sent).seconds > int(conf.c['log_send_delay'])):
-	    send_logs()
 
 	time.sleep(5) # Sleep for heartbeat duration.
     except (KeyboardInterrupt, SystemExit):

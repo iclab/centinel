@@ -19,7 +19,9 @@ def check_create_dir(path):
         print "Creating directory in %s" % (path)
         os.makedirs(path)
 
+check_create_dir(c.c['centinel_home_dir'])
 check_create_dir(c.c['keys_dir'])
+check_create_dir(c.c['confs_dir'])
 check_create_dir(c.c['results_dir'])
 check_create_dir(c.c['results_archive_dir'])
 check_create_dir(c.c['logs_dir'])
