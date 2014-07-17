@@ -267,11 +267,6 @@ class Server:
 
 	try:
 	    while 1:
-		latest_version = open(".version", "r").read()
-		if self.version <> latest_version:
-		    log("i", "Centinel has been updated, creating new update package...")
-		    self.version = latest_version
-		    call([conf.c['pack_maker_path'], ""])
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
 		log("s", "Got a connection.", address = address)
@@ -482,6 +477,12 @@ class Server:
 	# The client wants to check for updates.
 	elif message_type == "v":
 	    log("i", "Client wants to check for updates.", address = address, tag = client_tag)
+	    latest_version = open(".version", "r").read()
+	    if self.version <> latest_version:
+	        log("i", "Centinel has been updated, creating new update package...")
+	        self.version = latest_version
+	        call([conf.c['pack_maker_path'], ""])
+
 	    try:
     		client_version = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
 	    except Exception as e:
