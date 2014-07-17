@@ -276,7 +276,7 @@ class ServerConnection:
 	    log("i", "Downloading update package...")
 	    try:
 	        update_package_contents = self.receive_aes_crypt(self.aes_secret, show_progress=True)
-		of = open("../update.tar.bz2", "w")
+		of = open("update.tar.bz2", "w")
 		of.write(update_package_contents)
 		of.close()
 	    except Exception as e:
