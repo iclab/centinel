@@ -18,6 +18,10 @@ experiments_last_synced = ""
 results_last_synced = ""
 logs_last_sent = ""
 
+class UpdateException(Exception):
+    def __init__(self, message = "")
+	self.message = message
+
 def die():
     raise (SystemExit)
 
@@ -33,8 +37,7 @@ def update_check():
 	last_checked_for_updates = datetime.now()
 	log("i", "Already running the latest version.")
     else:
-	log("w", "Centinel update package received, shutting down to apply updates...")
-	exit(2)
+	raise UpdateException
 
 def sync_res():
     global results_last_synced
@@ -127,6 +130,10 @@ while 1:
 	serverconn.disconnect()
 	# do some shutdown stuff, then close
 	exit(0)
+    except UpdateException:
+    	log("w", "Centinel update package received, shutting down to apply updates...")
+	exit(2)
+
     except Exception as e:
 	log("e", "An exception occured: " + str(e))
 	log("i", "Trying to recover...")
