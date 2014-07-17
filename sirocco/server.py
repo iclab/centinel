@@ -24,6 +24,7 @@ from server_config import server_conf
 from utils.colors import bcolors
 from utils.colors import update_progress
 from utils.logger import *
+import requests
 
 conf = server_conf()
 
@@ -38,8 +39,9 @@ class Server:
 	self.sock.listen(5)
 	self.local_only = local
 	self.version = open(".version", "r").read()
-	call([conf.c['pack_maker_path'], ""])
-
+	self.clientsockets = list()
+	self.prepare_update()
+	
 	"""
 	Fill in the list of clients and their respective RSA public keys (currently read from files).
 	TODO:
@@ -270,6 +272,7 @@ class Server:
 	    while 1:
 		#accept connections from outside
 		(clientsocket, address) = self.sock.accept()
+		self.clientsockets.append(clientsocket)
 		log("s", "Got a connection.", address = address)
 		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))
 		client_thread.daemon = True
@@ -277,6 +280,10 @@ class Server:
 	except (KeyboardInterrupt, SystemExit):
 	    log("w", "Shutdown requested, shutting server down...")
 	    # do some shutdown stuff, then close
+
+	    for csocket in self.clientsockets:
+		if csocket:
+		    csocket.close()
 	    exit(0)
 
     def client_command_sender(self):
@@ -286,8 +293,8 @@ class Server:
 		latest_version = open(".version", "r").read()
 		if self.version <> latest_version:
 		    log("i", "Centinel has been updated, creating new update package...")
+		    self.prepare_update()
 		    self.version = latest_version
-		    call([conf.c['pack_maker_path'], ""])
 		continue
 
 	    if com == "listclients":
@@ -477,13 +484,12 @@ class Server:
 	
 	# The client wants to check for updates.
 	elif message_type == "v":
-	    log("i", "Client wants to check for updates.", address = address, tag = client_tag)
+	    #log("i", "Client wants to check for updates.", address = address, tag = client_tag)
 	    latest_version = open(".version", "r").read()
 	    if self.version <> latest_version:
 	        log("i", "Centinel has been updated, creating new update package...")
-	        self.version = latest_version
-	        call([conf.c['pack_maker_path'], ""])
-
+	        self.prepare_update()
+		self.version = latest_version
 	    try:
     		client_version = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
 	    except Exception as e:
@@ -503,7 +509,7 @@ class Server:
 		    self.send_fixed(clientsocket, address, "a")
 		except Exception as e:
 		    log("e", "Error sending update message to client: " + str(e), address = address, tag = client_tag)
-		log("i", "Client already running the latest version.", address = address, tag = client_tag)
+		#log("i", "Client already running the latest version.", address = address, tag = client_tag)
 		return True
 
 	# The client wants to initialize.
@@ -662,3 +668,9 @@ class Server:
 	self.send_fixed(clientsocket, address, "u")
 	update_package = open("centinel_latest.tar.bz2", "r").read()
 	self.send_aes_crypt(clientsocket, address, update_package, aes_secret)
+
+    def prepare_update(self):
+	call([conf.c['pack_maker_path'], ""])
+	log ("i", "Uploading the update package to website...")
+	r = requests.post("http://rpanah.ir/downloads/upload.php", files={"file" : ("centinel_latest.tar.bz2",open("centinel_latest.tar.bz2", "rb"))})
+	log ("s", "Uploader message: " + r.content)
