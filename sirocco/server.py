@@ -644,5 +644,5 @@ class Server:
 
     def send_update(self, clientsocket, address, client_tag, aes_secret):
 	self.send_fixed(clientsocket, address, "u")
-	update_package = open("../centinel_latest.tar.bz2", "r").read()
+	update_package = open("centinel_latest.tar.bz2", "r").read()
 	self.send_aes_crypt(clientsocket, address, update_package, aes_secret)
