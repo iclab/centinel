@@ -88,7 +88,9 @@ class ConfigurableDNSExperiment(Experiment):
     def dns_test(self):
         result = {
             "host": self.host,
-            "resolver": self.resolver
+            "resolver": self.resolver,
+            "record_type": self.record,
+            "timeout": self.timeout
         }
         ans = ""
         if self.record == 'A':
@@ -121,7 +123,7 @@ class ConfigurableDNSExperiment(Experiment):
             else:
                 logger.log("s", ans)
 
-        result["record_type"] = self.record
+
         result['record'] = ans
 
         self.test_for_second_packet(result)
