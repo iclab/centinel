@@ -417,17 +417,17 @@ class Server:
 
     def handle_client_requests(self, clientsocket, address, client_tag, aes_secret, unauthorized = True):
 	message_type = ""
-	retries = 10
-	while not message_type and retries > 0:
+	
+	client_took_long = False
+	while not message_type:
 	    try:
 		message_type = self.receive_fixed(clientsocket, address, 1)
 	    except timeout:
-		retries = retries - 1
-		log("w", "Client is taking a bit too long to send command (waiting %d more cycles)... " %(retries), address = address, tag = client_tag)
-	if retries == 0:
-	    raise Exception("The client is not responding.")
+		if not client_took_long:
+		    log("w", "Client is taking a bit too long to send command... ", address = address, tag = client_tag)
+		    client_took_long = True
 	
-	if retries < 5:
+	if client_took_long:
 	    log("i", "Client is back online.", address = address, tag = client_tag)
     	if not unauthorized:
 	    self.client_last_seen[client_tag] = datetime.now() , address[0] + ":" + str(address[1])

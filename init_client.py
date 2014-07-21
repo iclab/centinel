@@ -38,12 +38,22 @@ if c.config_read:
 	print bcolors.OKBLUE + 'Nothing changed, exiting.' + bcolors.ENDC
 	exit(0)
 
-
-print bcolors.OKBLUE + 'Connecting to server...' + bcolors.ENDC
-serverconn = ServerConnection()
-if not serverconn.connect(do_login = False):
-    exit(1)
-
-serverconn.initialize_client()
+retry = True
+while retry:
+    try:
+	print bcolors.OKBLUE + 'Connecting to server...' + bcolors.ENDC
+	serverconn = ServerConnection()
+	if not serverconn.connect(do_login = False):
+	    raise Exception("Could not connect.")
+	serverconn.initialize_client()
+    except Exception as e:
+	print bcolors.FAIL + "Error initializing: " + str(e) + bcolors.ENDC
+	print bcolors.OKBLUE + "Want to retry? " + bcolors.ENDC
+	ans = raw_input()
+	if ans.lower() == "yes" or ans.lower() == "y" or ans.lower() == "Y":
+	    print bcolors.OKBLUE + 'Retrying...' + bcolors.ENDC
+	    retry = True
+	else:
+	    retry = False
 
 serverconn.disconnect()

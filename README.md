@@ -15,7 +15,7 @@ censorship.
     * ./init_client.py
 
     # run Centinel Client
-    * ./client.sh [experiment 1] [experiment 2] ...
+    * ./centinel.py [experiment 1] [experiment 2] ...
 	(running without arguments will run the client daemon and connect to the server)
 
 #### Supported platforms

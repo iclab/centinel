@@ -39,5 +39,5 @@ class client_conf:
 	    self.c.update(parser.items('CentinelClient'))
 	    self.config_read = True
 	except ConfigParser.Error, message:
-	    log("w", 'Error reading config file (did you run init_client.py?).')
+	    #log("w", 'Error reading config file (did you run init_client.py?).')
 	    self.config_read = False

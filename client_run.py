@@ -57,104 +57,106 @@ def send_logs():
     serverconn.send_logs()
     logs_last_sent = datetime.now()
 
-if not os.path.exists(conf.c['logs_dir']):
-    log("i", "Creating logs directory in %s." % (conf.c['logs_dir']))
-    os.makedirs(conf.c['logs_dir'])
+def centinel_run(args):
+    if not os.path.exists(conf.c['logs_dir']):
+        log("i", "Creating logs directory in %s." % (conf.c['logs_dir']))
+	os.makedirs(conf.c['logs_dir'])
 
-logging.basicConfig(filename=os.path.join(conf.c['logs_dir'], strftime("%Y-%m-%d-%H:%M:%S")  + ".log"), level=logging.DEBUG)
+    logging.basicConfig(filename=os.path.join(conf.c['logs_dir'], strftime("%Y-%m-%d-%H:%M:%S")  + ".log"), level=logging.DEBUG)
 
-log("i", "Client daemon is running...")
+    log("i", "Client daemon is running...")
 
-selection = sys.argv
-selection.pop(0)
+    selection = args
+    selection.pop(0)
 
-if selection:
-    run_exp(selection)
-    exit(0)
+    if selection:
+	run_exp(selection)
+	return 0
 
-print open("centinel_client_ascii_art", "r").read()
+    print open("centinel_client_ascii_art", "r").read()
 
-serverconn = ServerConnection()
+    global serverconn
+    serverconn = ServerConnection()
 
-if not serverconn.connect():
-    log("e", 'Server not connected.')
+    if not serverconn.connect():
+	log("e", 'Server not connected.')
 
-while 1:
-    try:
+    while 1:
+	try:
 
-	if not last_checked_for_updates or ((datetime.now() - last_checked_for_updates).seconds > int(conf.c['update_check_delay'])):
-	    update_check()
+	    if not last_checked_for_updates or ((datetime.now() - last_checked_for_updates).seconds > int(conf.c['update_check_delay'])):
+		update_check()
 
-	if not experiments_last_synced or ((datetime.now() - experiments_last_synced).seconds > int(conf.c['experiment_sync_delay'])):
-	    sync_exp()
+	    if not experiments_last_synced or ((datetime.now() - experiments_last_synced).seconds > int(conf.c['experiment_sync_delay'])):
+		sync_exp()
 
-	if not results_last_synced or ((datetime.now() - results_last_synced).seconds > int(conf.c['result_sync_delay'])):
-	    sync_res()
+	    if not results_last_synced or ((datetime.now() - results_last_synced).seconds > int(conf.c['result_sync_delay'])):
+		sync_res()
 
-	if not logs_last_sent or ((datetime.now() - logs_last_sent).seconds > int(conf.c['log_send_delay'])):
-	    send_logs()
+	    if not logs_last_sent or ((datetime.now() - logs_last_sent).seconds > int(conf.c['log_send_delay'])):
+		send_logs()
 
 
-	server_response = serverconn.beat()
+	    server_response = serverconn.beat()
 
-	if not server_response:
-	    serverconn.disconnect()
-	    raise(Exception)
+	    if not server_response:
+		serverconn.disconnect()
+		raise(Exception)
 
 	    
-	elif server_response <> 'beat':
-	    log("i", "Executing commands... (" + server_response + ")")
-	    for command in server_response.split(";"):
-	        try:
-	    	    command = command.strip()
-		    if command == '':
-		        continue
-		    elif command == "sync_results" or command == "sync_res":
-			sync_res()
-		    elif command == "send_logs":
-			send_logs()
-		    elif command == "sync_experiments" or command == "sync_exp":
-			sync_exp()
-		    elif command.split()[0] == "run_exp" or command.split()[0] == "run":
-			run_exp(command.split()[1:])
-		    elif command == "die":
-			die()
-		    else:
-			log("e", "Command %s not recognized." %(command))
-		except Exception as e:
-		    log("e", "Command %s failed to execute: " %(command) + str(e))
+	    elif server_response <> 'beat':
+		log("i", "Executing commands... (" + server_response + ")")
+		for command in server_response.split(";"):
+	    	    try:
+	    		command = command.strip()
+			if command == '':
+		    	    continue
+			elif command == "sync_results" or command == "sync_res":
+			    sync_res()
+			elif command == "send_logs":
+			    send_logs()
+			elif command == "sync_experiments" or command == "sync_exp":
+			    sync_exp()
+			elif command.split()[0] == "run_exp" or command.split()[0] == "run":
+			    run_exp(command.split()[1:])
+			elif command == "die":
+			    die()
+			else:
+			    log("e", "Command %s not recognized." %(command))
+		    except Exception as e:
+			log("e", "Command %s failed to execute: " %(command) + str(e))
 
-	time.sleep(5) # Sleep for heartbeat duration.
-    except (KeyboardInterrupt, SystemExit):
-	log("w", "Shutdown requested, shutting centinel down...")
-	serverconn.disconnect()
-	# do some shutdown stuff, then close
-	exit(0)
-    except UpdateException:
-    	log("w", "Centinel update package received, shutting down to apply updates...")
-	exit(2)
-
-    except Exception as e:
-	log("e", "An exception occured: " + str(e))
-	log("i", "Trying to recover...")
-	fixed = False
-	try:
-	    while not fixed:
-    		try:
-		    serverconn.disconnect()
-		    fixed = serverconn.connect()
-		    if fixed:
-			break
-		except Exception as e:
-		    log("e", "An exception occured when trying to recover: " + str(e))
-		    log("i", "Rerying...")
-		time.sleep(5) # Sleep before retrying
-		fixed = False
+	    time.sleep(5) # Sleep for heartbeat duration.
 	except (KeyboardInterrupt, SystemExit):
 	    log("w", "Shutdown requested, shutting centinel down...")
-	    # do some shutdown stuff, then close
 	    serverconn.disconnect()
-	    exit(0)
-	log("s", "We're back in business!")
+	    # do some shutdown stuff, then close
+	    return 0
+	except UpdateException:
+	    log("w", "Centinel update package received, shutting down to apply updates...")
+	    return 2
 
-serverconn.disconnect()
+	except Exception as e:
+	    log("e", "An exception occured: " + str(e))
+	    log("i", "Trying to recover...")
+	    fixed = False
+	    try:
+		while not fixed:
+    		    try:
+			serverconn.disconnect()
+			fixed = serverconn.connect()
+			if fixed:
+			    break
+		    except Exception as e:
+			log("e", "An exception occured when trying to recover: " + str(e))
+			log("i", "Rerying...")
+		    time.sleep(5) # Sleep before retrying
+		    fixed = False
+	    except (KeyboardInterrupt, SystemExit):
+		log("w", "Shutdown requested, shutting centinel down...")
+		# do some shutdown stuff, then close
+		serverconn.disconnect()
+		return 0
+	    log("s", "We're back in business!")
+
+    serverconn.disconnect()

@@ -4,7 +4,7 @@
 if [ `uname -s` = "Linux" ]; then
     for dep in `cat .pydeps-linux`
     do
-	sudo apt-get install python-$dep
+	sudo apt-get install -y python-$dep
     done;
 fi;
 
