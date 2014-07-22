@@ -4,12 +4,15 @@ import os
 import struct
 import random
 import socket
+import base64
 
 from centinel.experiment import Experiment
 from utils import logger
 
+
 class ConfigurableDNSExperiment(Experiment):
     name = "config_dns"
+
     def __init__(self, input_file):
         self.input_file = input_file
         self.results = []
@@ -62,25 +65,29 @@ class ConfigurableDNSExperiment(Experiment):
             sock.sendto(packet, (self.resolver, 53))
             received_first_packet = False
             try:
-                data, addr = sock.recvfrom(1024)
+                first_packet, addr = sock.recvfrom(1024)
                 received_first_packet = True
+                result["first_packet"] = base64.b64encode(first_packet)
             except socket.timeout:
                 logger.log("i", "Didn't receive first packet")
             received_second_packet = False
-            result["first_packet"] = str(received_first_packet)
+            result["received_first_packet"] = str(received_first_packet)
             if received_first_packet:
+
                 try:
                     second_packet, addr = sock.recvfrom(1024)
                     received_second_packet = True
+                    result["second_packet"] = base64.b64encode(second_packet)
                     logger.log("i", "Received second DNS Packet")
                 except socket.timeout:
                     logger.log("i", "Didn't receive second packet")
-            result["second_packet"] = str(received_second_packet)
+            result["received_second_packet"] = str(received_second_packet)
         except socket.timeout:
             logger.log("i", "Socket timed out")
         except Exception as e:
             logger.log("e", "Error in socket creation: " + str(e))
-        sock.close()
+        if sock is not None:
+            sock.close()
 
 
 
@@ -122,7 +129,6 @@ class ConfigurableDNSExperiment(Experiment):
                 logger.log("i", ans)
             else:
                 logger.log("s", ans)
-
 
         result['record'] = ans
 
