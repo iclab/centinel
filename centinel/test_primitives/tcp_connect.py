@@ -22,7 +22,7 @@ class ConfigurableTCPConnectExperiment(Experiment):
 	self.args.update(parser.items('TCP'))
 	
 	# one port for all of the URLs
- 	if 'packets' in self.args.keys():
+ 	if 'port' in self.args.keys():
 	    self.port = self.args['port']
 	else:
             self.port = "80"
