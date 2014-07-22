@@ -37,7 +37,14 @@ class ConfigurableTracerouteExperiment(Experiment):
             self.timeout = 3
 
         for url in url_list[0][1].split():
-            self.host = url
+            temp_url = url
+            if temp_url.startswith("http://") or temp_url.startswith("https://"):
+                split_url = temp_url.split("/")
+                for x in range(1, len(split_url)):
+                    if split_url[x] != "":
+                        temp_url = split_url[x]
+                        break
+            self.host = temp_url
             self.traceroute()
 
     def isIp(self, string):

@@ -43,7 +43,14 @@ class ConfigurableDNSExperiment(Experiment):
 
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
-            self.host = url
+            temp_url = url
+            if temp_url.startswith("http://") or temp_url.startswith("https://"):
+                split_url = temp_url.split("/")
+                for x in range(1, len(split_url)):
+                    if split_url[x] != "":
+                        temp_url = split_url[x]
+                        break
+            self.host = temp_url
             self.dns_test()
 
     def build_packet(self, url, record_type=0x0001):
@@ -73,7 +80,6 @@ class ConfigurableDNSExperiment(Experiment):
             received_second_packet = False
             result["received_first_packet"] = str(received_first_packet)
             if received_first_packet:
-
                 try:
                     second_packet, addr = sock.recvfrom(1024)
                     received_second_packet = True
