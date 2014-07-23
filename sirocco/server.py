@@ -368,7 +368,6 @@ class Server:
 		if client_tag == "unauthorized":
 		    # Only allow them to either close or initialize:
 		    unauthorized = True
-		    print "here"
 		elif client_tag not in self.client_list:
 		    authenticated = False
 		else:
