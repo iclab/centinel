@@ -50,6 +50,8 @@ class ConfigurableDNSExperiment(Experiment):
                     if split_url[x] != "":
                         temp_url = split_url[x]
                         break
+            elif '/' in temp_url:
+                temp_url = temp_url.split("/")[0]
             self.host = temp_url
             self.dns_test()
 
