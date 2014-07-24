@@ -40,6 +40,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
 
         for url in url_list[0][1].split():
             temp_url = url
+            self.path = '/'
             host_index = 0
             if temp_url.startswith("http://") or temp_url.startswith("https://"):
                 split_url = temp_url.split("/")
@@ -54,7 +55,6 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                 split = temp_url.split("/")
                 temp_url = split[0]
                 if len(split) > 1:
-                    self.path = ''
                     for x in range(1, len(split)):
                         self.path += split[x] + '/'
             self.host = temp_url
