@@ -210,7 +210,7 @@ class KobraConnection:
 		    # TODO:
 		    # implement.
 		print server_message
-	except timeout:
+	except socket.timeout:
 	    pass
 	except Exception as e:
 	    log("e", "Error receiving server message: " + str(e))
