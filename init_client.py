@@ -46,6 +46,7 @@ while retry:
 	if not serverconn.connect(do_login = False):
 	    raise Exception("Could not connect.")
 	serverconn.initialize_client()
+	retry = False
     except Exception as e:
 	print bcolors.FAIL + "Error initializing: " + str(e) + bcolors.ENDC
 	print bcolors.OKBLUE + "Want to retry? " + bcolors.ENDC
