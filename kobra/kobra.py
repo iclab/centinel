@@ -51,7 +51,7 @@ class KobraConnection:
     	    except socket.error, (value,message): 
     		if self.serversocket: 
     		    self.serversocket.close() 
-    		log("e", "Could not connect to server (%s:%s): " %(self.server_address, self.server_port) + message )
+    		log("e", "Could not connect to server (%s:%s): " %(address, self.server_port) + message )
 		self.connected = False
 	if not self.connected:
 	    return False

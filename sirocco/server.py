@@ -407,12 +407,12 @@ class Server:
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if lasttime <> "":
 		        if datetime.now() - lasttime < timedelta(seconds=60):
-			    self.send_aes_crypt(clientsocket, address, "%s\t%s\t\t%s(%d seconds ago)\t\t%s" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds, geolocate(lastaddress)[0]+", "+geolocate(lastaddress)[1]), aes_secret)
+			    self.send_aes_crypt(clientsocket, address, "%s\t%s\t\t%s(%d seconds ago)\t\t%s" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds, (geolocate(lastaddress)[0]+", "+geolocate(lastaddress)[1]) if geolocate(lastaddress) else "" ), aes_secret)
 		    
 		self.send_aes_crypt(clientsocket, address,  "Disconnected clients: ", aes_secret)
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if not lasttime or datetime.now() - lasttime >= timedelta(seconds=60):
-		        self.send_aes_crypt(clientsocket, address,  "%s\t%s\t\t%s(%s seconds ago)\t\t%s" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite",geolocate(lastaddress)[0]+", "+geolocate(lastaddress)[1]), aes_secret)
+		        self.send_aes_crypt(clientsocket, address,  "%s\t%s\t\t%s(%s seconds ago)\t\t%s" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite",(geolocate(lastaddress)[0]+", "+geolocate(lastaddress)[1]) if geolocate(lastaddress) else "" ), aes_secret)
 		return True
 		
 

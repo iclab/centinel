@@ -1,4 +1,4 @@
-import urllib
+import requests
 
 """
     Geolocate an IP address.
@@ -16,7 +16,10 @@ import urllib
 
 """
 def geolocate(ip):
-    response = urllib.urlopen('http://ip-api.com/line/' + ip).read()
-    country = response.split('\n')[1]
-    city = response.split('\n')[4]
+    response = requests.get('http://ip-api.com/line/' + ip.split(":")[0])
+    if response.content.split('\n')[0] == "success":
+	country = response.content.split('\n')[1]
+        city = response.content.split('\n')[4]
+    else:
+	return False
     return country, city
