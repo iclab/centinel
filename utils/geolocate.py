@@ -15,7 +15,7 @@ import urllib
 	IP: 12.215.42.19
 
 """
-def geolocate(ip)
+def geolocate(ip):
     response = urllib.urlopen('http://api.hostip.info/get_html.php?ip=' + ip + '&position=true').read()
     country = response.split('\n')[0].split(' ', 1)[1]
     city = response.split('\n')[1].split(' ', 1)[1]

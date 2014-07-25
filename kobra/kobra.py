@@ -200,7 +200,11 @@ class KobraConnection:
 	self.end_session = False
 	try:
 	    while not self.end_session:
-		server_message = self.receive_aes_crypt(self.aes_secret, show_progress=False)
+		try:
+		    server_message = self.receive_aes_crypt(self.aes_secret, show_progress=False)
+		except socket.timeout:
+		    continue
+		    pass
 		if server_message == "<END>":
 		    self.end_session = True
 		    print "Server wants to end connection"
@@ -210,8 +214,6 @@ class KobraConnection:
 		    # TODO:
 		    # implement.
 		print server_message
-	except socket.timeout:
-	    pass
 	except Exception as e:
 	    log("e", "Error receiving server message: " + str(e))
 	    self.end_session = True

@@ -24,6 +24,7 @@ from server_config import server_conf
 from utils.colors import bcolors
 from utils.colors import update_progress
 from utils.logger import *
+from utils.geolocate import geolocate
 import requests
 
 conf = server_conf()
@@ -372,7 +373,7 @@ class Server:
 	    try:
 		com = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
 		outcome = self.kobra_command_handler(clientsocket, address, username, aes_secret, com)
-	    except timeout:
+	    except socket.timeout:
 		pass
 	    except Exception as e:
 		log ("e", "Error handling Kobra command: " + str(e), address = address, tag = username)
@@ -382,8 +383,6 @@ class Server:
 	if clientsocket:
 	    log("w", "Closing Kobra connection.", address=address, tag=username)
 	    clientsocket.close()
-
-		
 
     def kobra_command_handler(self, clientsocket, address, username, aes_secret, com):
 	try:
@@ -408,12 +407,12 @@ class Server:
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if lasttime <> "":
 		        if datetime.now() - lasttime < timedelta(seconds=60):
-			    self.send_aes_crypt(clientsocket, address, "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds), aes_secret)
+			    self.send_aes_crypt(clientsocket, address, "%s\t%s\t\t%s(%d seconds ago)\t\t%s" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds, geolocate(lastaddress)[0]+", "+geolocate(lastaddress)[1]), aes_secret)
 		    
 		self.send_aes_crypt(clientsocket, address,  "Disconnected clients: ", aes_secret)
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if not lasttime or datetime.now() - lasttime >= timedelta(seconds=60):
-		        self.send_aes_crypt(clientsocket, address,  "%s\t%s\t\t%s(%s seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite"), aes_secret)
+		        self.send_aes_crypt(clientsocket, address,  "%s\t%s\t\t%s(%s seconds ago)\t\t%s" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite",geolocate(lastaddress)[0]+", "+geolocate(lastaddress)[1]), aes_secret)
 		return True
 		
 
