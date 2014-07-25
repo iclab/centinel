@@ -6,7 +6,9 @@ from utils.colors import bcolors
 
 class server_conf:
     c  = {  'server_port' : "8082",
+	    'kobra_port' : "8083",
 	    'centinel_homedir' : os.path.dirname(__file__),
+	    'kobra_users_file' : os.path.join(os.path.dirname(__file__), "kobra_users_list"),
 	    'experiments_dir' : os.path.join(os.path.dirname(__file__), "server_experiments"),
 	    'experiment_data_dir' : os.path.join(os.path.dirname(__file__), "server_experiments_data"),
 	    'results_dir' : os.path.join(os.path.dirname(__file__), "server_results"),

@@ -37,6 +37,11 @@ class Server:
 	    self.sock = sock
 	self.sock.bind(('0.0.0.0', int(conf.c['server_port'])))
 	self.sock.listen(5)
+
+    	self.kobra_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	self.kobra_sock.bind(('0.0.0.0', int(conf.c['kobra_port'])))
+	self.kobra_sock.listen(5)
+
 	self.local_only = local
 	self.version = open(".version", "r").read()
 	self.clientsockets = list()
@@ -48,6 +53,8 @@ class Server:
 	Read from database.
 	"""
 	self.client_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['client_keys_dir'], '*'))]
+	self.kobra_users_list = [user_pass_pair.split(",")[0] for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n")]
+	self.kobra_passwords = dict((user_pass_pair.split(",")[0],user_pass_pair.split(",")[1])  for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n"))
 	self.client_keys = dict()
 	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
 	self.client_commands = dict((c, "chill") for c in self.client_list)
@@ -264,9 +271,9 @@ class Server:
 	if self.local_only:
 	    log("w", "Running in local-only mode, remote connections will be denied!")
 
-	command_thread = threading.Thread(target=self.client_command_sender, args = ())
-	command_thread.daemon = True
-	command_thread.start()
+	kobra_thread = threading.Thread(target=self.kobra_run, args = ())
+	kobra_thread.daemon = True
+	kobra_thread.start()
 
 	try:
 	    while 1:
@@ -286,35 +293,132 @@ class Server:
 		    csocket.close()
 	    exit(0)
 
-    def client_command_sender(self):
-	while 1:
-	    com = raw_input("> ")
+    def kobra_run(self):
+	try:
+	    while 1:
+		#accept connections from outside
+		(clientsocket, address) = self.kobra_sock.accept()
+		self.clientsockets.append(clientsocket)
+		log("s", "Got a connection.", address = address)
+		kobra_user_thread = threading.Thread(target=self.kobra_connection_handler, args = (clientsocket, address))
+		kobra_user_thread.daemon = True
+		kobra_user_thread.start()
+	except (KeyboardInterrupt, SystemExit):
+	    log("w", "Shutdown requested, shutting server down...")
+	    # do some shutdown stuff, then close
+
+	    for csocket in self.clientsockets:
+		if csocket:
+		    csocket.close()
+	    exit(0)
+
+    def kobra_connection_handler(self, clientsocket, address):
+	# We don't want to wait too long for a response.
+	clientsocket.settimeout(20)
+	
+	if self.local_only and (address[0].split(".")[0] != "127" and self.local_only and address[0].split(".")[0] != "10"):
+	    log("i", "Running in local-only mode, denying connection...", address)
+	    if clientsocket:
+		clientsocket.close()
+	    return
+
+	unauthorized = False
+	username = ""
+	aes_secret = ""
+ 
+	if not username:
+	    log("i", "Authenticating with Kobra...", address = address)
+	    try:
+		username = self.receive_dyn(clientsocket, address)
+    
+		authenticated = False
+
+		random_token = ""
+		received_token = ""
+
+		if username not in self.kobra_users_list:
+		    authenticated = False
+	    	    self.send_fixed(clientsocket, address, "e")
+		    raise Exception("Username \"%s\" not found!" %(username))
+		else:
+		    unauthorized = False
+		    # the token is going to be used as AES secret, so it has to be correct block size
+		    random_token = self.random_string_generator(32)
+    		    self.send_aes_crypt(clientsocket, address, random_token, self.kobra_passwords[username])
+		    received_token = self.receive_aes_crypt(clientsocket, address, self.kobra_passwords[username], show_progress=False)
+
+		    if random_token == received_token:
+	    		self.send_fixed(clientsocket, address, "a")
+			log("s", "Kobra authentication successful.", address = address, tag = username)
+			authenticated = True
+			aes_secret = received_token
+		    else:
+	    		self.send_fixed(clientsocket, address, "e")
+			raise Exception("Kobra password authentication failed!")
+    	    except Exception as e:
+	        try:
+	    	    self.send_fixed(clientsocket, address, 'e')
+	    	    self.send_dyn(clientsocket, address, "Kobra authentication error.")
+		except:
+	    	    pass
+		if clientsocket:
+		    log("w", "Closing Kobra connection.", address = address, tag=username)
+		    clientsocket.close()
+		log("e", "Kobra authentication error: " + str(e), address=address, tag=username)
+		return
+
+	outcome = True
+	while outcome == True:
+	    try:
+		com = self.receive_aes_crypt(clientsocket, address, aes_secret)
+		outcome = self.kobra_command_handler(clientsocket, address, username, aes_secret, com)
+	    except Exception as e:
+		log ("e", "Error handling Kobra command: " + str(e), address = address, tag = username)
+		break
+	
+	# close the connection after communication ends
+	if clientsocket:
+	    log("w", "Closing Kobra connection.", address=address, tag=username)
+	    clientsocket.close()
+
+		
+
+    def kobra_command_handler(self, clientsocket, address, username, aes_secret, com):
+	try:
+	    if com == "exit" or com == "quit":
+		self.send_aes_crypt(clientsocket, address, aes_secret, "<END>")
+		return False
+
 	    if com == "update_centinel":
 		latest_version = open(".version", "r").read()
 		if self.version <> latest_version:
 		    log("i", "Centinel has been updated, creating new update package...")
+		    self.send_aes_crypt(clientsocket, address, aes_secret, "Centinel has been updated, creating new update package...")
 		    self.prepare_update()
 		    self.version = latest_version
-		continue
+		else:
+		    self.send_aes_crypt(clientsocket, address, aes_secret, "Centinel is up to date.")
+		    
+		return True
 
 	    if com == "listclients":
-		print bcolors.WARNING + "Connected clients: " + bcolors.ENDC
+		self.send_aes_crypt(clientsocket, address, aes_secret, "Connected clients: ")
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if lasttime <> "":
 		        if datetime.now() - lasttime < timedelta(seconds=60):
-			    print bcolors.OKBLUE + "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds) + bcolors.ENDC
+			    self.send_aes_crypt(clientsocket, address, aes_secret, "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds))
 		    
-		print bcolors.WARNING + "Disconnected clients: " + bcolors.ENDC
+		self.send_aes_crypt(clientsocket, address, aes_secret,  "Disconnected clients: ")
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if not lasttime or datetime.now() - lasttime >= timedelta(seconds=60):
-		        print bcolors.FAIL + "%s\t%s\t\t%s(%s seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite") + bcolors.ENDC
-		continue
+		        self.send_aes_crypt(clientsocket, address, aes_secret,  "%s\t%s\t\t%s(%s seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite"))
+		return True
 		
 
 	    if len(com.split()) < 2:
-		print bcolors.FAIL + "No command given!" + bcolors.ENDC
-		print bcolors.FAIL + "\tUsage: [client_tag | onall] [command1];[command2];..." + bcolors.ENDC
-		continue
+		self.send_aes_crypt(clientsocket, address, aes_secret,  "No command given!")
+		self.send_aes_crypt(clientsocket, address, aes_secret,  "\tUsage: [client_tag | onall] [command1];[command2];...")
+		return True
 	    tag, command_list = com.split(" ", 1);
 	    if tag in self.client_list and command_list <> "chill" and command_list:
 		if self.client_commands[tag] == "chill":
@@ -322,6 +426,7 @@ class Server:
 		else:
 		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
 		log("s", "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), tag=tag)
+		self.send_aes_crypt(clientsocket, address, aes_secret, "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]))
 	    elif tag == "onall" and command_list <> "chill" and command_list:
 		for client in self.client_list:
 		    if self.client_commands[client] == "chill":
@@ -329,8 +434,14 @@ class Server:
 		    else:
 			self.client_commands[client] = self.client_commands[client] + "; " + command_list
 		log("s", "Scheduled command list \"%s\" to be run on all clients." %(command_list))
+		self.send_aes_crypt(clientsocket, address, aes_secret, "Scheduled command list \"%s\" to be run on all clients." %(command_list))
 	    else:
-		log("e", "Command/client tag not recognized!")
+		self.send_aes_crypt(clientsocket, address, aes_secret, "Command \"%s\" not recognized." %(com))
+
+	    return True
+	except Exception as e:
+	    log ("e", "Error handling Kobra command \"%s\"." %(com))
+	    return False
 
     """
     This will handle all client requests as a separate thread.
