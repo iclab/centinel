@@ -7,7 +7,7 @@ from utils.colors import bcolors
 from utils.logger import *
 
 class client_conf:
-    c  = {  'server_address' : "nrgairport.nrg.cs.stonybrook.edu",
+    c  = {  'server_addresses' : "nrgairport.nrg.cs.stonybrook.edu 130.245.145.2",
 	    'server_port' : "8082",
 	    'centinel_home_dir' : os.path.join(expanduser("~"), ".centinel"),
 	    'experiment_data_dir' : os.path.join(expanduser("~"), ".centinel/experiment_data"),

@@ -16,7 +16,7 @@ import urllib
 
 """
 def geolocate(ip):
-    response = urllib.urlopen('http://api.hostip.info/get_html.php?ip=' + ip + '&position=true').read()
-    country = response.split('\n')[0].split(' ', 1)[1]
-    city = response.split('\n')[1].split(' ', 1)[1]
+    response = urllib.urlopen('http://ip-api.com/line/' + ip).read()
+    country = response.split('\n')[0].split('\n')[1]
+    city = response.split('\n')[1].split('\n')[4]
     return country, city

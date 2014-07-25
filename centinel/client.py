@@ -26,8 +26,9 @@ conf = client_conf()
 
 class ServerConnection:
     
-    def __init__(self, server_address = conf.c['server_address'], server_port = int(conf.c['server_port'])):
-	self.server_address = server_address
+    def __init__(self, server_addresses = conf.c['server_addresses'], server_port = int(conf.c['server_port'])):
+	self.server_addresses = server_addresses.split(" ")
+	self.server_address = ""
 	self.server_port = server_port
 	self.connected = False
 	self.aes_secret = ""
@@ -36,16 +37,24 @@ class ServerConnection:
 	if self.connected:
 	    return True
 
-	self.serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-	try:
-	    self.serversocket.connect((self.server_address, self.server_port))
-        except socket.error, (value,message): 
-    	    if self.serversocket: 
-    		self.serversocket.close() 
-    	    log("e", "Could not connect to server (%s:%s): " %(self.server_address, self.server_port) + message )
-	    self.connected = False
+	self.connected = False
+	for address in self.server_addresses:
+	    try:
+		self.serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.serversocket.connect((address, self.server_port))
+		self.connected = True
+		self.server_address = address
+		break
+    	    except socket.error, (value,message): 
+    		if self.serversocket: 
+    		    self.serversocket.close() 
+    		log("e", "Could not connect to server (%s:%s): " %(address, self.server_port) + message )
+		self.connected = False
+	if not self.connected:
 	    return False
+	else:
+	    log("s", "Connected to %s:%s." %(self.server_address, self.server_port) )
+		
 	try:
 	    kf = open(conf.c['server_public_rsa'])
 	    self.server_public_key = kf.read()

@@ -27,8 +27,9 @@ from getpass import getpass
 
 class KobraConnection:
     
-    def __init__(self, server_address, server_port):
-	self.server_address = server_address
+    def __init__(self, server_addresses, server_port):
+	self.server_addresses = server_addresses.split(" ")
+	self.server_address = ""
 	self.server_port = server_port
 	self.connected = False
 	self.aes_secret = ""
@@ -39,18 +40,24 @@ class KobraConnection:
 	if self.connected:
 	    return True
 
-	self.serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-	try:
-	    self.serversocket.connect((self.server_address, self.server_port))
-        except socket.error, (value,message): 
-    	    if self.serversocket: 
-    		self.serversocket.close() 
-    	    log("e", "Could not connect to server (%s:%s): " %(self.server_address, self.server_port) + message )
-	    self.connected = False
+	self.connected = False
+	for address in self.server_addresses:
+	    try:
+		self.serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.serversocket.connect((address, self.server_port))
+		self.connected = True
+		self.server_address = address
+		break
+    	    except socket.error, (value,message): 
+    		if self.serversocket: 
+    		    self.serversocket.close() 
+    		log("e", "Could not connect to server (%s:%s): " %(self.server_address, self.server_port) + message )
+		self.connected = False
+	if not self.connected:
 	    return False
+	else:
+	    log("s", "Connected to %s:%s." %(self.server_address, self.server_port) )
 
-	self.connected = True
 	# Don't wait more than 15 seconds for the server.
 	self.serversocket.settimeout(15)
 	log("i", "Server connection successful.")
@@ -229,12 +236,18 @@ class KobraConnection:
 	    log("e", "Error sending message to the server: " + str(e))
 	    self.end_session = True
 	    exit(0)
+	except (KeyboardInterrupt, SystemExit):
+	    log("w", "Shutdown requested, shutting Kobra down...")
+	    # do some shutdown stuff, then close
+	    self.serversocket.close()
+	    self.end_session = True
+	    exit(0)
 	return
 
 
 username = ""
 password = ""
-server = "nrgairport.nrg.cs.stonybrook.edu"
+server = "nrgairport.nrg.cs.stonybrook.edu 130.245.145.2"
 port = "8083"
 
 if len(sys.argv) == 2:
