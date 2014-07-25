@@ -338,13 +338,13 @@ class Server:
 
 		if username not in self.kobra_users_list:
 		    authenticated = False
-	    	    self.send_fixed(clientsocket, address, "e")
+		    self.send_fixed(clientsocket, address, "e")
 		    raise Exception("Username \"%s\" not found!" %(username))
 		else:
 		    unauthorized = False
 		    # the token is going to be used as AES secret, so it has to be correct block size
 		    random_token = self.random_string_generator(32)
-    		    self.send_aes_crypt(clientsocket, address, random_token, self.kobra_passwords[username])
+		    self.send_aes_crypt(clientsocket, address, random_token, self.kobra_passwords[username])
 		    received_token = self.receive_aes_crypt(clientsocket, address, self.kobra_passwords[username], show_progress=False)
 
 		    if random_token == received_token:
@@ -370,8 +370,10 @@ class Server:
 	outcome = True
 	while outcome == True:
 	    try:
-		com = self.receive_aes_crypt(clientsocket, address, aes_secret)
+		com = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
 		outcome = self.kobra_command_handler(clientsocket, address, username, aes_secret, com)
+	    except timeout:
+		pass
 	    except Exception as e:
 		log ("e", "Error handling Kobra command: " + str(e), address = address, tag = username)
 		break
@@ -386,38 +388,38 @@ class Server:
     def kobra_command_handler(self, clientsocket, address, username, aes_secret, com):
 	try:
 	    if com == "exit" or com == "quit":
-		self.send_aes_crypt(clientsocket, address, aes_secret, "<END>")
+		self.send_aes_crypt(clientsocket, address, "<END>", aes_secret)
 		return False
 
 	    if com == "update_centinel":
 		latest_version = open(".version", "r").read()
 		if self.version <> latest_version:
 		    log("i", "Centinel has been updated, creating new update package...")
-		    self.send_aes_crypt(clientsocket, address, aes_secret, "Centinel has been updated, creating new update package...")
+		    self.send_aes_crypt(clientsocket, address, "Centinel has been updated, creating new update package...", aes_secret)
 		    self.prepare_update()
 		    self.version = latest_version
 		else:
-		    self.send_aes_crypt(clientsocket, address, aes_secret, "Centinel is up to date.")
+		    self.send_aes_crypt(clientsocket, address, "Centinel is up to date.", aes_secret)
 		    
 		return True
 
 	    if com == "listclients":
-		self.send_aes_crypt(clientsocket, address, aes_secret, "Connected clients: ")
+		self.send_aes_crypt(clientsocket, address, "Connected clients: ", aes_secret)
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if lasttime <> "":
 		        if datetime.now() - lasttime < timedelta(seconds=60):
-			    self.send_aes_crypt(clientsocket, address, aes_secret, "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds))
+			    self.send_aes_crypt(clientsocket, address, "%s\t%s\t\t%s(%d seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S"), (datetime.now() - lasttime).seconds), aes_secret)
 		    
-		self.send_aes_crypt(clientsocket, address, aes_secret,  "Disconnected clients: ")
+		self.send_aes_crypt(clientsocket, address,  "Disconnected clients: ", aes_secret)
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if not lasttime or datetime.now() - lasttime >= timedelta(seconds=60):
-		        self.send_aes_crypt(clientsocket, address, aes_secret,  "%s\t%s\t\t%s(%s seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite"))
+		        self.send_aes_crypt(clientsocket, address,  "%s\t%s\t\t%s(%s seconds ago)" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite"), aes_secret)
 		return True
 		
 
 	    if len(com.split()) < 2:
-		self.send_aes_crypt(clientsocket, address, aes_secret,  "No command given!")
-		self.send_aes_crypt(clientsocket, address, aes_secret,  "\tUsage: [client_tag | onall] [command1];[command2];...")
+		self.send_aes_crypt(clientsocket, address,  "No command given!", aes_secret)
+		self.send_aes_crypt(clientsocket, address,  "\tUsage: [client_tag | onall] [command1];[command2];...", aes_secret)
 		return True
 	    tag, command_list = com.split(" ", 1);
 	    if tag in self.client_list and command_list <> "chill" and command_list:
@@ -426,7 +428,7 @@ class Server:
 		else:
 		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
 		log("s", "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), tag=tag)
-		self.send_aes_crypt(clientsocket, address, aes_secret, "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]))
+		self.send_aes_crypt(clientsocket, address, "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), aes_secret)
 	    elif tag == "onall" and command_list <> "chill" and command_list:
 		for client in self.client_list:
 		    if self.client_commands[client] == "chill":
@@ -434,13 +436,13 @@ class Server:
 		    else:
 			self.client_commands[client] = self.client_commands[client] + "; " + command_list
 		log("s", "Scheduled command list \"%s\" to be run on all clients." %(command_list))
-		self.send_aes_crypt(clientsocket, address, aes_secret, "Scheduled command list \"%s\" to be run on all clients." %(command_list))
+		self.send_aes_crypt(clientsocket, address, "Scheduled command list \"%s\" to be run on all clients." %(command_list), aes_secret)
 	    else:
-		self.send_aes_crypt(clientsocket, address, aes_secret, "Command \"%s\" not recognized." %(com))
+		self.send_aes_crypt(clientsocket, address, "Command \"%s\" not recognized." %(com), aes_secret)
 
 	    return True
 	except Exception as e:
-	    log ("e", "Error handling Kobra command \"%s\"." %(com))
+	    log ("e", "Error handling Kobra command \"%s\": " %(com) + str(e))
 	    return False
 
     """

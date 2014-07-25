@@ -33,6 +33,7 @@ class KobraConnection:
 	self.connected = False
 	self.aes_secret = ""
 	self.username = ""
+	self.end_session = False
 	
     def connect(self):
 	if self.connected:
@@ -196,31 +197,37 @@ class KobraConnection:
 	return True
 
     def receiver(self):
-	end_session = False
+	self.end_session = False
 	try:
-	    while not end_session:
+	    while not self.end_session:
 		server_message = self.receive_aes_crypt(self.aes_secret, show_progress=False)
 		if server_message == "<END>":
-		    end_session = True
-		    continue
+		    self.end_session = True
+		    print "Server wants to end connection"
+		    return
 		if server_message == "<FILE>":
 		    print "Server wants to send a file, where shall we save it?"
 		    # TODO:
 		    # implement.
 		print server_message
+	except timeout:
+	    pass
 	except Exception as e:
 	    log("e", "Error receiving server message: " + str(e))
+	    self.end_session = True
 	    exit(1)
 	exit(0)
 
     def sender(self):
 	try:
-	    while True:
+	    while not self.end_session:
     		command = raw_input("> ")
 		self.send_aes_crypt(command, self.aes_secret)
 	except Exception as e:
 	    log("e", "Error sending message to the server: " + str(e))
+	    self.end_session = True
 	    exit(0)
+	return
 
 
 username = ""
@@ -264,12 +271,14 @@ kobraconn = KobraConnection(server, int(port))
 kobraconn.connect()
 if kobraconn.login(username, password) == True:
     command_thread = threading.Thread(target=kobraconn.sender, args = ())
-    #command_thread.daemon = True
+    command_thread.daemon = True
     command_thread.start()
 
     message_thread = threading.Thread(target=kobraconn.receiver, args = ())
-    #message_thread.daemon = True
+    message_thread.daemon = True
     message_thread.start()
 
+    message_thread.join()
+    #command_thread.join()
 else:
     print "Error logging in!"
