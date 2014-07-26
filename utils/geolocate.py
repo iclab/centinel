@@ -23,3 +23,7 @@ def geolocate(ip):
     else:
 	return False
     return country, city
+
+def getmyip():
+    response = requests.get("http://ipinfo.io/ip")
+    return response.content.split()[0]
