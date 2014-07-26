@@ -36,7 +36,7 @@ class client_conf:
 	    if not self.conf_file:
 		self.conf_file = self.c['config_file']
 	    self.parser.read([self.conf_file,])
-	    self.c.update(parser.items('CentinelClient'))
+	    self.c.update(self.parser.items('CentinelClient'))
 	    self.config_read = True
 	    self.update()
 	except ConfigParser.Error, message:
