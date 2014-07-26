@@ -379,10 +379,8 @@ class ServerConnection:
 	    pkf.write(self.server_public_key)
 	    pkf.close()
 
-	    pkf = open(conf.c['config_file'], "w")
-	    pkf.write("[CentinelClient]\n")
-	    pkf.write("client_tag="+new_identity)
-	    pkf.close()
+	    conf.set("client_tag",new_identity)
+	    conf.update()
 
 	    conf.c['client_tag'] = new_identity
 	    if server_response == "c":

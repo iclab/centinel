@@ -29,15 +29,32 @@ class client_conf:
 	    'client_private_rsa' : os.path.join(expanduser("~"), ".centinel/keys/client_private_rsa.pem"),
 	    'timeout' : 20,
 	    'client_tag' : "unauthorized"}
-
-    def __init__(self,conf_file = '' ):
-	parser = ConfigParser.ConfigParser()
+    conf_file = ''
+    def __init__(self):
+	self.parser = ConfigParser.ConfigParser()
 	try:
-	    if not conf_file:
-		conf_file = self.c['config_file']
-	    parser.read([conf_file,])
+	    if not self.conf_file:
+		self.conf_file = self.c['config_file']
+	    self.parser.read([self.conf_file,])
 	    self.c.update(parser.items('CentinelClient'))
 	    self.config_read = True
+	    self.update()
 	except ConfigParser.Error, message:
 	    #log("w", 'Error reading config file (did you run init_client.py?).')
 	    self.config_read = False
+
+    def update(self):
+	try:
+	    for key, val in self.c.iteritems():
+		self.parser.set('CentinelClient', key, val)
+	    of = open(self.conf_file, 'w')
+	    self.parser.write(of)
+	    of.close()
+	except Exception as e:
+	    log("e", "Error writing config file: " + str(e))
+
+    def set(self, key, val):
+	try:
+	    self.parser.set('CentinelClient', key, val)
+	except Exception as e:
+	    log("e", "Error setting config value: " + str(e))
