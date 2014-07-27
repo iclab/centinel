@@ -27,7 +27,8 @@ class client_conf:
 	    'server_public_rsa' : os.path.join(expanduser("~"), ".centinel/keys/server_public_rsa.pem"),
 	    'client_public_rsa' : os.path.join(expanduser("~"), ".centinel/keys/client_public_rsa.pem"),
 	    'client_private_rsa' : os.path.join(expanduser("~"), ".centinel/keys/client_private_rsa.pem"),
-	    'timeout' : 20,
+	    'timeout' : "20",
+	    'run_id' : "0",
 	    'client_tag' : "unauthorized"}
     conf_file = ''
     def __init__(self):
@@ -36,7 +37,7 @@ class client_conf:
 	    if not self.conf_file:
 		self.conf_file = self.c['config_file']
 	    self.parser.read([self.conf_file,])
-	    self.c.update(parser.items('CentinelClient'))
+	    self.c.update(self.parser.items('CentinelClient'))
 	    self.config_read = True
 	    self.update()
 	except ConfigParser.Error, message:

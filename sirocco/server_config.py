@@ -26,7 +26,7 @@ class server_conf:
 	    if not self.conf_file:
 		self.conf_file = self.c['config_file']
 	    self.parser.read([self.conf_file,])
-	    self.c.update(parser.items('CentinelServer'))
+	    self.c.update(self.parser.items('CentinelServer'))
 	    self.update()
 	except ConfigParser.Error, message:
 	    #log("w", 'Error reading config file (did you run init_client.py?).')

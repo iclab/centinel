@@ -282,6 +282,8 @@ if not password:
 	password = getpass ("Password cannot be empty, enter again: ")
 
 
+logging.basicConfig(filename="/tmp/kobra.log", level=logging.DEBUG)
+
 kobraconn = KobraConnection(server, int(port))
 kobraconn.connect()
 if kobraconn.login(username, password) == True:

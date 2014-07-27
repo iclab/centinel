@@ -24,7 +24,7 @@ from server_config import server_conf
 from utils.colors import bcolors
 from utils.colors import update_progress
 from utils.logger import *
-from utils.geolocate import geolocate
+from utils.onlineapis import geolocate, getmyip, getESTTime
 import requests
 
 conf = server_conf()

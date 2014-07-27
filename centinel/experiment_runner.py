@@ -11,6 +11,7 @@ from test_primitives.ping	import ConfigurablePingExperiment
 from test_primitives.dns_exp	import ConfigurableDNSExperiment
 from test_primitives.traceroute	import ConfigurableTracerouteExperiment
 from utils.logger import *
+from utils.onlineapis import getmyip, geolocate, getESTTime
 from datetime import datetime
 
 from experiment import Experiment, ExperimentList
@@ -27,8 +28,8 @@ RESULTS_DIR = conf.c['results_dir']
 def get_results_dir():
     return RESULTS_DIR
 
-def get_result_file(results_dir, exp_name):
-    result_file = "%s-%s.json" % (exp_name, datetime.now().isoformat())
+def get_result_file(results_dir, exp_name, run_id):
+    result_file = "%s-%s-%s.json" % (exp_name, run_id, datetime.now().isoformat())
     return os.path.join(results_dir, result_file)
 
 def get_input_file(experiment_name):
@@ -83,7 +84,7 @@ def load_conf_experiments():
     return exp_list
     
 
-def run(selection = []):
+def run(selection = [], operator = "centinel"):
     results_dir = get_results_dir()    
 
     if not selection:
@@ -101,18 +102,18 @@ def run(selection = []):
 
     if run_all:
         for name, Exp in experiments.items():
-	    result_file = get_result_file(results_dir, name)
+	    results,run_id = prep_results(operator, name)
+	    result_file = get_result_file(results_dir, name, run_id)
 	    result_file = open(result_file, "w")
-	    results = {}
-	    results[name] = execute_experiment(name, Exp)
+	    results[name] = execute_experiment(name, Exp, run_id)
 	    json.dump(results, result_file)
 	    result_file.close()
 
 	for name in conf_experiments:
 	    result_file = get_result_file(results_dir, name)
 	    result_file = open(result_file, "w")
-	    results = {}
-	    results[name] = execute_conf_experiment(name)
+	    results,run_id = prep_results(operator, name)
+	    results[name] = execute_conf_experiment(name, run_id)
 	    json.dump(results, result_file)
 	    result_file.close()
     else:
@@ -121,10 +122,10 @@ def run(selection = []):
 	    if not name in experiments.keys():
 		continue
 	    Exp = experiments[name]
-	    result_file = get_result_file(results_dir, name)
+	    results,run_id = prep_results(operator, name)
+	    result_file = get_result_file(results_dir, name, run_id)
 	    result_file = open(result_file, "w")
-	    results = {}
-	    results[name] = execute_experiment(name, Exp)
+	    results[name] = execute_experiment(name, Exp, run_id)
 	    ran.append(name);
 	    json.dump(results, result_file)
 	    result_file.close()
@@ -132,20 +133,20 @@ def run(selection = []):
 	for name in selection:
 	    if not name in conf_experiments:
 		continue
-	    http_results, dns_results, ping_results, tcp_results, traceroute_results = execute_conf_experiment(name)
-	    result_file = get_result_file(results_dir, name)
+	    results,run_id = prep_results(operator, name)
+	    http_results, dns_results, ping_results, tcp_results, traceroute_results = execute_conf_experiment(name, run_id)
+	    result_file = get_result_file(results_dir, name, run_id)
 	    result_file = open(result_file, "w")
-	    results = {}
 	    if http_results:
-		results[name + ".http"] = http_results
+		results["std_http"] = http_results
 	    if dns_results:
-		results[name + ".dns"] = dns_results
+		results["std_dns"] = dns_results
 	    if tcp_results:
-		results[name + ".tcp"] = tcp_results
+		results["std_tcp"] = tcp_results
 	    if ping_results:
-		results[name + ".ping"] = ping_results
+		results["std_ping"] = ping_results
 	    if traceroute_results:
-		results[name + ".traceroute"] = traceroute_results
+		results["std_traceroute"] = traceroute_results
 	    ran.append(name)
 	    json.dump(results, result_file)
 	    result_file.close()
@@ -159,7 +160,7 @@ def run(selection = []):
 
     log("s", "Finished running all experiments.")
 
-def execute_experiment(name, Exp):
+def execute_experiment(name, Exp, run_id):
     results = {}
     input_file = get_input_file(name)
     if not os.path.isfile(input_file):
@@ -173,30 +174,31 @@ def execute_experiment(name, Exp):
     input_file = open(input_file)
 
     try:
-    	log("i", "Running \"%s\" test." % (name))
+    	log("w", "Running \"%s\" (run ID: %s) test.: %s" % (name, run_id))
     	exp = Exp(input_file)
     	exp.run()
     except Exception as e:
-    	log("e", "Error running \"%s\": " %(name) + str(e))
+    	log("e", "Error running \"%s\" (run ID: %s): " %(name, run_id) + str(e))
 
     input_file.close()
     return exp.results
 
-def execute_conf_experiment(name):
+def execute_conf_experiment(name, run_id):
     results = {}
     input_file = get_conf_input_file(name)
     if not os.path.isfile(input_file):
 	input_file = get_custom_conf_input_file(name)
 
     if not os.path.isfile(input_file):
-	log ("e", "No input file found for \"%s\". Skipping test." % (name))
+	log ("e", "No input file found for \"%s\" (run ID: %s). Skipping test." % (name, run_id))
 	return
     
     log ("i", "Reading config experiment from \"%s\"" % (input_file))
 
+    log("w", "Running \"%s\" (run ID: %s) test." % (name, run_id))
+
     http_results = dns_results = ping_results = tcp_results = traceroute_results = ""
     try:
-    	log("i", "Running \"%s\" test." % (name))
     	exp = ConfigurableHTTPRequestExperiment(input_file)
     	exp.run()
 	http_results = exp.results
@@ -232,3 +234,29 @@ def execute_conf_experiment(name):
     	log("e", "Error running traceroute test: " + str(e))
 
     return http_results, dns_results, ping_results, tcp_results, traceroute_results
+
+def prep_results(operator, experiment_name):
+    results = {}
+    run_id = str(int(conf.c["run_id"]) + 1)
+    ip = getmyip()
+    esttime = getESTTime()
+    localtime = datetime.now().isoformat()
+    country = geolocate(ip)[0]
+    city = geolocate(ip)[1]
+
+    meta = { "est_time"		: esttime,
+	     "local_time"	: localtime,
+	     "client_tag"   	: conf.c["client_tag"],
+	     "exp_name"		: experiment_name,
+	     "country"		: country,
+	     "city"		: city,
+	     "operator" 	: operator,
+	     "ext_ip"		: ip,
+	     "run_id"		: run_id
+	   }
+
+    conf.set("run_id", run_id)
+    conf.update()
+    results["meta"] = meta
+
+    return results, run_id

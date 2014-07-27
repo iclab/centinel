@@ -70,7 +70,7 @@ class ServerConnection:
 
 	self.connected = True
 	# Don't wait more than 15 seconds for the server.
-	self.serversocket.settimeout(conf.c['timeout'])
+	self.serversocket.settimeout(int(conf.c['timeout']))
 	log("i", "Server connection successful.")
 	if do_login:
 	    self.logged_in = self.login()
@@ -379,12 +379,13 @@ class ServerConnection:
 	    pkf.write(self.server_public_key)
 	    pkf.close()
 
-	    conf.set("client_tag",new_identity)
-	    conf.update()
 
 	    conf.c['client_tag'] = new_identity
 	    if server_response == "c":
 		log("s", "Server key negotiation and handshake successful. New tag: " + new_identity)
+		conf.set("client_tag",new_identity)
+		conf.update()
+
 	    elif server_response == "e":
 		raise Exception("Server error.")
 	    else:

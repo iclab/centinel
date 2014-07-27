@@ -5,15 +5,6 @@ import requests
 	results:
 	    [0]: country
 	    [1]: city
-    The HTTP response looks like this:
-	
-	Country: UNITED STATES (US)
-	City: Aurora, TX
-
-	Latitude: 33.0582
-	Longitude: -97.5159
-	IP: 12.215.42.19
-
 """
 def geolocate(ip):
     response = requests.get('http://ip-api.com/line/' + ip.split(":")[0])
@@ -24,6 +15,16 @@ def geolocate(ip):
 	return False
     return country, city
 
+"""
+    Get external IP address.
+"""
 def getmyip():
     response = requests.get("http://ipinfo.io/ip")
+    return response.content.split()[0]
+
+"""
+    Get the current EST time.
+"""
+def getESTTime():
+    response = requests.get("http://www.timeapi.org/est/now")
     return response.content.split()[0]
