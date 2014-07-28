@@ -45,8 +45,6 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                 split = key.split("header_")
                 for x in range(1, len(split)):  # Just in case there are any conflicts in the split or header name
                     header_key += split[x]
-                # TODO Remove debug print statement
-                print("HEADER_KEY", header_key, "VALUE", value)
                 self.headers[header_key] = value
 
         url_list = parser.items('URLS')
