@@ -88,24 +88,30 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         is_redirecting = str(status).startswith("3") or "location" in result["response"]["headers"]
         result["redirect"] = str(is_redirecting)
         last_redirect = ""
-        try:
-            redirect_number = 1
-            while str(result["response"]["status"]).startswith("3") or "location" in result["response"]["headers"]:
-                redirect_str = "redirect" + str(redirect_number)
-                redirect_url = result["response"]["headers"]["location"]
-                ssl = redirect_url.startswith("https://")
-                if redirect_url == last_redirect:
-                    break
-                host, path = self.get_host_and_path_from_url(redirect_url)
-                redirect_result = http.get_request(host, path, ssl=ssl)
-                result[redirect_str + "_body"] = redirect_result["response"]["body"]
-                result[redirect_str + "_headers"] = redirect_result["response"]["headers"]
-                last_redirect = redirect_url
-                redirect_number += 1
-            if is_redirecting:
-                result["total_redirects"] = str(redirect_number - 1)
-        except Exception as e:
-            logger.log("e", "Http redirect failed: " + str(e))
-            return
+        if is_redirecting:
+            try:
+                redirect_number = 1
+                redirect_result = None
+                while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") or "location" in redirect_result["response"]["headers"]):
+                    redirect_str = "redirect" + str(redirect_number)
+                    if redirect_result is None:
+                        redirect_url = result["response"]["headers"]["location"]
+                    else:
+                        redirect_url = redirect_result["response"]["headers"]["location"]
+                    print("HOST", self.host, "STATUS", result["response"]["status"], "REDIRECT_URL", redirect_url)
+                    ssl = redirect_url.startswith("https://")
+                    if redirect_url == last_redirect:
+                        break
+                    host, path = self.get_host_and_path_from_url(redirect_url)
+                    redirect_result = http.get_request(host, path, ssl=ssl)
+                    result[redirect_str + "_body"] = redirect_result["response"]["body"]
+                    result[redirect_str + "_headers"] = redirect_result["response"]["headers"]
+                    last_redirect = redirect_url
+                    redirect_number += 1
+                if is_redirecting:
+                    result["total_redirects"] = str(redirect_number - 1)
+            except Exception as e:
+                logger.log("e", "Http redirect failed: " + str(e))
+                return
         result["response"]["body"] = base64.b64encode(result["response"]["body"])
         self.results.append(result)
