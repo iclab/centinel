@@ -2,6 +2,7 @@ import ConfigParser
 import os
 import utils.http as http
 import base64
+from utils import logger
 
 from centinel.experiment import Experiment
 
@@ -15,6 +16,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         self.host = None
         self.path = "/"
         self.args = dict()
+        self.ssl = False
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -39,39 +41,71 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         url_list = parser.items('URLS')
 
         for url in url_list[0][1].split():
-            temp_url = url
             self.path = '/'
-            host_index = 0
-            url_without_http = ""
-            if temp_url.startswith("http://") or temp_url.startswith("https://"):
-                split_url = temp_url.split("/")
-                for x in range(1, len(split_url)):
-                    if split_url[x] != "":
-                        temp_url = split_url[x]
-                        host_index = x
-                        break
-                url_without_http = temp_url
-                for x in range(host_index + 1, len(split_url)):
-                    url_without_http += '/' + split_url[x]
-                url_without_http_split = url_without_http.split("/")
-                for x in range(1, len(url_without_http_split)):
-                    self.path += url_without_http_split[x] + '/'
-            elif '/' in temp_url:
-                split = temp_url.split("/")
-                temp_url = split[0]
-                if len(split) > 1:
-                    for x in range(1, len(split)):
-                        self.path += split[x] + '/'
-            self.host = temp_url
+            self.host, self.path = self.get_host_and_path_from_url(url)
             self.whole_url = url
             self.http_request()
 
-    def http_request(self):
+    def get_host_and_path_from_url(self, url):
+        path = '/'
+        temp_url = url
+        url_without_http = ""
+        host = ""
+        if temp_url.startswith("http://") or temp_url.startswith("https://"):
+            split_url = temp_url.split("/")
+            for x in range(1, len(split_url)):
+                if split_url[x] != "":
+                    temp_url = split_url[x]
+                    host_index = x
+                    break
+            url_without_http = temp_url
+            for x in range(host_index + 1, len(split_url)):
+                url_without_http += '/' + split_url[x]
+            url_without_http_split = url_without_http.split("/")
+            for x in range(1, len(url_without_http_split)):
+                if url_without_http_split[x] != '':
+                    path += url_without_http_split[x] + '/'
+        elif '/' in temp_url:
+            split = temp_url.split("/")
+            temp_url = split[0]
+            if len(split) > 1:
+                for x in range(1, len(split)):
+                    path += split[x] + '/'
 
+        host = temp_url
+        return host, path
+
+    def http_request(self):
         if self.addHeaders:
-            result = http.get_request(self.host, self.path, self.headers)
+            result = http.get_request(self.host, self.path, self.headers, self.ssl)
         else:
-            result = http.get_request(self.host, self.path)
+            result = http.get_request(self.host, self.path, ssl=self.ssl)
         result["whole_url"] = self.whole_url
+        if "body" not in result["response"]:
+            logger.log("e", "No HTTP Response")
+            return
+        status = result["response"]["status"]
+        is_redirecting = str(status).startswith("3") or "location" in result["response"]["headers"]
+        result["redirect"] = str(is_redirecting)
+        last_redirect = ""
+        try:
+            redirect_number = 1
+            while str(result["response"]["status"]).startswith("3") or "location" in result["response"]["headers"]:
+                redirect_str = "redirect" + str(redirect_number)
+                redirect_url = result["response"]["headers"]["location"]
+                ssl = redirect_url.startswith("https://")
+                if redirect_url == last_redirect:
+                    break
+                host, path = self.get_host_and_path_from_url(redirect_url)
+                redirect_result = http.get_request(host, path, ssl=ssl)
+                result[redirect_str + "_body"] = redirect_result["response"]["body"]
+                result[redirect_str + "_headers"] = redirect_result["response"]["headers"]
+                last_redirect = redirect_url
+                redirect_number += 1
+            if is_redirecting:
+                result["total_redirects"] = str(redirect_number - 1)
+        except Exception as e:
+            logger.log("e", "Http redirect failed: " + str(e))
+            return
         result["response"]["body"] = base64.b64encode(result["response"]["body"])
         self.results.append(result)
