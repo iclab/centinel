@@ -98,7 +98,6 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                         redirect_url = result["response"]["headers"]["location"]
                     else:
                         redirect_url = redirect_result["response"]["headers"]["location"]
-                    print("HOST", self.host, "STATUS", result["response"]["status"], "REDIRECT_URL", redirect_url)
                     ssl = redirect_url.startswith("https://")
                     if redirect_url == last_redirect:
                         break
