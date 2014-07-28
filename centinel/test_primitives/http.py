@@ -17,6 +17,8 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         self.path = "/"
         self.args = dict()
         self.ssl = False
+        self.headers = {}
+        self.addHeaders = False
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -25,9 +27,6 @@ class ConfigurableHTTPRequestExperiment(Experiment):
             return
 
         self.args.update(parser.items('HTTP'))
-
-        self.headers = {}
-        self.addHeaders = False
 
         if 'browser' in self.args.keys():
             self.browser = self.args['browser']
@@ -38,6 +37,18 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                 self.headers["user-agent"] = "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:16.0.1) Gecko/20121011 Firefox/16.0.1"
             elif self.browser == "Chrome" or self.browser == "Google Chrome":
                 self.headers["user-agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.56 Safari/537.17"
+        for key in self.args.keys():
+            if key.startswith("header_"):
+                self.addHeaders = True
+                value = self.args[key]
+                header_key = ""
+                split = key.split("header_")
+                for x in range(1, len(split)):  # Just in case there are any conflicts in the split or header name
+                    header_key += split[x]
+                # TODO Remove debug print statement
+                print("HEADER_KEY", header_key, "VALUE", value)
+                self.headers[header_key] = value
+
         url_list = parser.items('URLS')
 
         for url in url_list[0][1].split():
@@ -82,7 +93,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
             result = http.get_request(self.host, self.path, ssl=self.ssl)
         result["whole_url"] = self.whole_url
         if "body" not in result["response"]:
-            logger.log("e", "No HTTP Response")
+            logger.log("e", "No HTTP Response from " + self.whole_url)
             return
         status = result["response"]["status"]
         is_redirecting = str(status).startswith("3") or "location" in result["response"]["headers"]
@@ -105,6 +116,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                     redirect_result = http.get_request(host, path, ssl=ssl)
                     result[redirect_str + "_body"] = redirect_result["response"]["body"]
                     result[redirect_str + "_headers"] = redirect_result["response"]["headers"]
+                    result[redirect_str + "_status"] = redirect_result["response"]["status"]
                     last_redirect = redirect_url
                     redirect_number += 1
                 if is_redirecting:
