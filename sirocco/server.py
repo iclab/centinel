@@ -447,7 +447,7 @@ class Server:
 			    found = True
 		    if not found:
 			self.send_aes_crypt(clientsocket, address, "Experiment and run ID not found!" , aes_secret)
-	    elif len(com.split()) == 2:
+	    elif len(com.split()) > 2:
 		tag, command_list = com.split(" ", 1);
 		if tag in self.client_list and command_list <> "chill" and command_list:
 		    if self.client_commands[tag] == "chill":
