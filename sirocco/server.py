@@ -54,8 +54,8 @@ class Server:
 	Read from database.
 	"""
 	self.client_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['client_keys_dir'], '*'))]
-	self.kobra_users_list = [user_pass_pair.split(",")[0] for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n")]
-	self.kobra_passwords = dict((user_pass_pair.split(",")[0],user_pass_pair.split(",")[1])  for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n"))
+	self.kobra_users_list = [user_pass_pair.split(",")[0] for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n") if user_pass_pair ]
+	self.kobra_passwords = dict((user_pass_pair.split(",")[0],user_pass_pair.split(",")[1])  for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n") if user_pass_pair )
 	self.client_keys = dict()
 	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
 	self.client_commands = dict((c, "chill") for c in self.client_list)
@@ -556,7 +556,11 @@ class Server:
     		    log("i", "Creating results directory in %s" % (conf.c['results_dir']))
     		    os.makedirs(conf.c['results_dir'])
 
-		out_file = open(os.path.join(conf.c['results_dir'],client_tag + "-" + datetime.now().isoformat() + "-" + results_name), 'w')
+		if not os.path.exists(os.path.join(conf.c['results_dir'], client_tag)):
+    		    log("i", "Creating results directory in %s" % (os.path.join(conf.c['results_dir'], client_tag)))
+    		    os.makedirs(conf.c['results_dir'])
+
+		out_file = open(os.path.join(conf.c['results_dir'], client_tag + "/" + datetime.now().isoformat() + "-" + results_name), 'w')
 		out_file.write(results_decrypted)
 		out_file.close()
 		self.send_fixed(clientsocket, address, "a")
