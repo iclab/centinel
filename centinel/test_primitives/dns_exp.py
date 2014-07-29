@@ -109,12 +109,16 @@ class ConfigurableDNSExperiment(Experiment):
         }
         ans = ""
         if self.record == 'A':
-            res = dns.resolver.query(self.host, self.record)
-            for i in res.response.answer:
-                if ans == "":
-                    ans = i.to_text()
-                else:
-                    ans = ans + ", " + i.to_text()
+            try:
+                res = dns.resolver.query(self.host, self.record)
+                for i in res.response.answer:
+                    if ans == "":
+                        ans = i.to_text()
+                    else:
+                        ans = ans + ", " + i.to_text()
+            except Exception as e:
+                logger.log("e", "Error querying " + self.record + " record for " + self.host + " (" + str(e) + ")")
+                return
         else:
             try:
                 query = dns.message.make_query(self.host, self.record)
