@@ -19,11 +19,11 @@ from client_config import client_conf
 
 conf = client_conf()
 
-EXPERIMENTS_DIR = conf.c['remote_experiments_dir']
-EXPERIMENT_DATA_DIR = conf.c['experiment_data_dir']
-CUSTOM_EXP_DIR = conf.c['custom_experiments_dir']
-CUSTOM_EXP_DATA_DIR = conf.c['custom_experiment_data_dir']
-RESULTS_DIR = conf.c['results_dir']
+EXPERIMENTS_DIR = conf['remote_experiments_dir']
+EXPERIMENT_DATA_DIR = conf['experiment_data_dir']
+CUSTOM_EXP_DIR = conf['custom_experiments_dir']
+CUSTOM_EXP_DATA_DIR = conf['custom_experiment_data_dir']
+RESULTS_DIR = conf['results_dir']
 
 def get_results_dir():
     return RESULTS_DIR
@@ -237,7 +237,7 @@ def execute_conf_experiment(name, run_id):
 
 def prep_results(operator, experiment_name):
     results = {}
-    run_id = str(int(conf.c["run_id"]) + 1)
+    run_id = str(int(conf["run_id"]) + 1)
     ip = getmyip()
     esttime = getESTTime()
     localtime = datetime.now().isoformat()
@@ -246,7 +246,7 @@ def prep_results(operator, experiment_name):
 
     meta = { "est_time"		: esttime,
 	     "local_time"	: localtime,
-	     "client_tag"   	: conf.c["client_tag"],
+	     "client_tag"   	: conf["client_tag"],
 	     "exp_name"		: experiment_name,
 	     "country"		: country,
 	     "city"		: city,

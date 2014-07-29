@@ -22,11 +22,14 @@ class server_conf:
     conf_file = ""
     def __init__(self):
 	self.parser = ConfigParser.ConfigParser()
+	self.parser.add_section('SiroccoServer')
 	try:
 	    if not self.conf_file:
 		self.conf_file = self.c['config_file']
+	    for key, val in self.c.iteritems():
+		self.parser.set('SiroccoServer', key, val)
 	    self.parser.read([self.conf_file,])
-	    self.c.update(self.parser.items('CentinelServer'))
+	    self.c.update(self.parser.items('SiroccoServer'))
 	    self.update()
 	except ConfigParser.Error, message:
 	    #log("w", 'Error reading config file (did you run init_client.py?).')
@@ -34,8 +37,6 @@ class server_conf:
 
     def update(self):
 	try:
-	    for key, val in self.c.iteritems():
-		self.parser.set('CentinelClient', key, val)
 	    of = open(self.conf_file, 'w')
 	    self.parser.write(of)
 	    of.close()
@@ -44,6 +45,9 @@ class server_conf:
 
     def set(self, key, val):
 	try:
-	    self.parser.set('CentinelClient', key, val)
+	    self.parser.set('SiroccoServer', key, val)
 	except Exception as e:
 	    log("e", "Error setting config value: " + str(e))
+
+    def __getitem__(self, index):
+	return self.parser.get('SiroccoServer', index)

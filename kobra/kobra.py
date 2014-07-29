@@ -203,45 +203,44 @@ class KobraConnection:
 	self.aes_secret = received_token
 	return True
 
-    def receiver(self):
-	self.end_session = False
+    def run(self):
 	try:
-	    while not self.end_session:
+	    while True:
+		try:
+    		    command = raw_input(self.username + "@" + self.server_address + "# ")
+		    self.send_aes_crypt(command, self.aes_secret)
+		except Exception as e:
+		    log("e", "Error sending message to the server: " + str(e))
+		    return
 		try:
 		    server_message = self.receive_aes_crypt(self.aes_secret, show_progress=False)
 		except socket.timeout:
-		    continue
 		    pass
+		except Exception as e:
+		    log("e", "Error receiving server message: " + str(e))
+		    return
+
 		if server_message == "<END>":
-		    self.end_session = True
 		    print "Server wants to end connection"
 		    return
 		if server_message == "<FILE>":
-		    print "Server wants to send a file, where shall we save it?"
-		    # TODO:
-		    # implement.
-		print server_message
-	except Exception as e:
-	    log("e", "Error receiving server message: " + str(e))
-	    self.end_session = True
-	    exit(1)
-	exit(0)
+	    	    print "Server wants to send a file, where shall we save it?"
+	    	    # TODO:
+	    	    # implement.
 
-    def sender(self):
-	try:
-	    while not self.end_session:
-    		command = raw_input("> ")
-		self.send_aes_crypt(command, self.aes_secret)
-	except Exception as e:
-	    log("e", "Error sending message to the server: " + str(e))
-	    self.end_session = True
-	    exit(0)
+		if server_message == "<START_MESSAGE>":
+		    while server_message != "<END_MESSAGE>":
+			server_message = self.receive_aes_crypt(self.aes_secret, show_progress=False)
+			if server_message != "<END_MESSAGE>":
+			    print server_message
+
 	except (KeyboardInterrupt, SystemExit):
 	    log("w", "Shutdown requested, shutting Kobra down...")
 	    # do some shutdown stuff, then close
 	    self.serversocket.close()
 	    self.end_session = True
-	    exit(0)
+	    return
+
 	return
 
 
@@ -287,15 +286,6 @@ logging.basicConfig(filename="/tmp/kobra.log", level=logging.DEBUG)
 kobraconn = KobraConnection(server, int(port))
 kobraconn.connect()
 if kobraconn.login(username, password) == True:
-    command_thread = threading.Thread(target=kobraconn.sender, args = ())
-    command_thread.daemon = True
-    command_thread.start()
-
-    message_thread = threading.Thread(target=kobraconn.receiver, args = ())
-    message_thread.daemon = True
-    message_thread.start()
-
-    message_thread.join()
-    #command_thread.join()
+    kobraconn.run()
 else:
     print "Error logging in!"

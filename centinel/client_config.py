@@ -33,9 +33,12 @@ class client_conf:
     conf_file = ''
     def __init__(self):
 	self.parser = ConfigParser.ConfigParser()
+	self.parser.add_section('CentinelClient')
 	try:
 	    if not self.conf_file:
 		self.conf_file = self.c['config_file']
+	    for key, val in self.c.iteritems():
+		self.parser.set('CentinelClient', key, val)
 	    self.parser.read([self.conf_file,])
 	    self.c.update(self.parser.items('CentinelClient'))
 	    self.config_read = True
@@ -46,8 +49,6 @@ class client_conf:
 
     def update(self):
 	try:
-	    for key, val in self.c.iteritems():
-		self.parser.set('CentinelClient', key, val)
 	    of = open(self.conf_file, 'w')
 	    self.parser.write(of)
 	    of.close()
@@ -59,3 +60,6 @@ class client_conf:
 	    self.parser.set('CentinelClient', key, val)
 	except Exception as e:
 	    log("e", "Error setting config value: " + str(e))
+
+    def __getitem__(self, index):
+	return self.parser.get('CentinelClient', index)

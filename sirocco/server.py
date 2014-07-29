@@ -26,6 +26,10 @@ from utils.colors import update_progress
 from utils.logger import *
 from utils.onlineapis import geolocate, getmyip, getESTTime
 import requests
+import json
+import pprint
+import base64
+
 
 conf = server_conf()
 
@@ -36,11 +40,11 @@ class Server:
     	    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	else:
 	    self.sock = sock
-	self.sock.bind(('0.0.0.0', int(conf.c['server_port'])))
+	self.sock.bind(('0.0.0.0', int(conf['server_port'])))
 	self.sock.listen(5)
 
     	self.kobra_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	self.kobra_sock.bind(('0.0.0.0', int(conf.c['kobra_port'])))
+	self.kobra_sock.bind(('0.0.0.0', int(conf['kobra_port'])))
 	self.kobra_sock.listen(5)
 
 	self.local_only = local
@@ -53,11 +57,11 @@ class Server:
 	TODO:
 	Read from database.
 	"""
-	self.client_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf.c['client_keys_dir'], '*'))]
-	self.kobra_users_list = [user_pass_pair.split(",")[0] for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n") if user_pass_pair ]
-	self.kobra_passwords = dict((user_pass_pair.split(",")[0],user_pass_pair.split(",")[1])  for user_pass_pair in open(conf.c['kobra_users_file'], 'r').read().split("\n") if user_pass_pair )
+	self.client_list = [os.path.splitext(os.path.basename(path))[0] for path in glob.glob(os.path.join(conf['client_keys_dir'], '*'))]
+	self.kobra_users_list = [user_pass_pair.split(",")[0] for user_pass_pair in open(conf['kobra_users_file'], 'r').read().split("\n") if user_pass_pair ]
+	self.kobra_passwords = dict((user_pass_pair.split(",")[0],user_pass_pair.split(",")[1])  for user_pass_pair in open(conf['kobra_users_file'], 'r').read().split("\n") if user_pass_pair )
 	self.client_keys = dict()
-	self.client_keys = dict((c, open(os.path.join(conf.c['client_keys_dir'],c), 'r').read()) for c in self.client_list)
+	self.client_keys = dict((c, open(os.path.join(conf['client_keys_dir'],c), 'r').read()) for c in self.client_list)
 	self.client_commands = dict((c, "chill") for c in self.client_list)
 	self.client_exps = dict((c, []) for c in self.client_list)
 	self.client_last_seen = dict((c, ("", "nowhere")) for c in self.client_list)
@@ -261,10 +265,10 @@ class Server:
 	The server will not run if the private and the public keys are 
 	not read.
 	"""
-	kf = open(conf.c['public_rsa_file'])
+	kf = open(conf['public_rsa_file'])
 	self.public_key = kf.read()
 	kf.close()
-	kf = open(conf.c['private_rsa_file'])
+	kf = open(conf['private_rsa_file'])
 	self.private_key = kf.read()
 	kf.close()
 	
@@ -389,7 +393,8 @@ class Server:
 	    if com == "exit" or com == "quit":
 		self.send_aes_crypt(clientsocket, address, "<END>", aes_secret)
 		return False
-
+	    self.send_aes_crypt(clientsocket, address, "<START_MESSAGE>", aes_secret)
+	    
 	    if com == "update_centinel":
 		latest_version = open(".version", "r").read()
 		if self.version <> latest_version:
@@ -400,9 +405,7 @@ class Server:
 		else:
 		    self.send_aes_crypt(clientsocket, address, "Centinel is up to date.", aes_secret)
 		    
-		return True
-
-	    if com == "listclients":
+	    elif com == "listclients":
 		self.send_aes_crypt(clientsocket, address, "Connected clients: ", aes_secret)
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if lasttime <> "":
@@ -413,32 +416,58 @@ class Server:
 		for client, (lasttime, lastaddress) in self.client_last_seen.items():
 		    if not lasttime or datetime.now() - lasttime >= timedelta(seconds=60):
 		        self.send_aes_crypt(clientsocket, address,  "%s\t%s\t\t%s(%s seconds ago)\t\t%s" %(client, lastaddress, lasttime.strftime("%Y-%m-%d %H:%M:%S") if lasttime else "never", str((datetime.now() - lasttime).seconds) if lasttime else "infinite",(geolocate(lastaddress)[0]+", "+geolocate(lastaddress)[1]) if geolocate(lastaddress) else "" ), aes_secret)
-		return True
-		
 
-	    if len(com.split()) < 2:
-		self.send_aes_crypt(clientsocket, address,  "No command given!", aes_secret)
-		self.send_aes_crypt(clientsocket, address,  "\tUsage: [client_tag | onall] [command1];[command2];...", aes_secret)
-		return True
-	    tag, command_list = com.split(" ", 1);
-	    if tag in self.client_list and command_list <> "chill" and command_list:
-		if self.client_commands[tag] == "chill":
-		    self.client_commands[tag] = command_list
+	    elif len(com.split()) == 2 and com.split()[0] == "listresults":
+		tag = com.split()[1]
+		if not os.path.exists(os.path.join(conf['results_dir'], tag)):
+		    self.send_aes_crypt(clientsocket, address,  "Client results directory not found.", aes_secret)
 		else:
-		    self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
-		log("s", "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), tag=tag)
-		self.send_aes_crypt(clientsocket, address, "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), aes_secret)
-	    elif tag == "onall" and command_list <> "chill" and command_list:
-		for client in self.client_list:
-		    if self.client_commands[client] == "chill":
-			self.client_commands[client] = command_list
+		    for path in glob.glob(os.path.join(conf['results_dir'], tag + '/*.json')):
+			results = json.loads(open(path,'r').read())
+			#pp = pprint.PrettyPrinter(indent=2)
+			#results["std_http"][0]["response"]["body"] = base64.b64decode(results["std_http"][0]["response"]["body"])
+			#pp.pprint(results)
+			self.send_aes_crypt(clientsocket, address, (results["meta"]["exp_name"] + ":\t" + results["meta"]["run_id"] + "\t" + results["meta"]["local_time"]).encode("utf8"), aes_secret)
+
+	    elif len(com.split()) == 4 and com.split()[0] == "printresults":
+		tag = com.split()[1]
+		experiment_name = com.split()[2]
+		run_id = com.split()[3]
+		if not os.path.exists(os.path.join(conf['results_dir'], tag)):
+		    self.send_aes_crypt(clientsocket, address,  "Client results directory not found.", aes_secret)
+		else:
+		    found = False
+		    for path in glob.glob(os.path.join(conf['results_dir'], tag + '/*.json')):
+			results = json.loads(open(path,'r').read())
+			if results["meta"]["exp_name"] == experiment_name and results["meta"]["run_id"] == run_id:
+			    pp = pprint.PrettyPrinter(indent=2)
+			    results["std_http"][0]["response"]["body"] = base64.b64decode(results["std_http"][0]["response"]["body"])
+			    formatted = pp.pformat(results).replace('\\n', '\n')
+			    self.send_aes_crypt(clientsocket, address, (formatted).encode("utf8"), aes_secret)
+			    found = True
+		    if not found:
+			self.send_aes_crypt(clientsocket, address, "Experiment and run ID not found!" , aes_secret)
+	    elif len(com.split()) == 2:
+		tag, command_list = com.split(" ", 1);
+		if tag in self.client_list and command_list <> "chill" and command_list:
+		    if self.client_commands[tag] == "chill":
+			self.client_commands[tag] = command_list
 		    else:
-			self.client_commands[client] = self.client_commands[client] + "; " + command_list
-		log("s", "Scheduled command list \"%s\" to be run on all clients." %(command_list))
-		self.send_aes_crypt(clientsocket, address, "Scheduled command list \"%s\" to be run on all clients." %(command_list), aes_secret)
+			self.client_commands[tag] = self.client_commands[tag] + "; " + command_list
+		    log("s", "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), tag=tag)
+		    self.send_aes_crypt(clientsocket, address, "Scheduled command list \"%s\" to be run on %s. (last seen %s at %s)" %(self.client_commands[tag],tag, self.client_last_seen[tag][0], self.client_last_seen[tag][1]), aes_secret)
+		elif tag == "onall" and command_list <> "chill" and command_list:
+		    for client in self.client_list:
+			if self.client_commands[client] == "chill":
+			    self.client_commands[client] = command_list
+			else:
+			    self.client_commands[client] = self.client_commands[client] + "; " + command_list
+		    log("s", "Scheduled command list \"%s\" to be run on all clients." %(command_list))
+		    self.send_aes_crypt(clientsocket, address, "Scheduled command list \"%s\" to be run on all clients." %(command_list), aes_secret)
 	    else:
 		self.send_aes_crypt(clientsocket, address, "Command \"%s\" not recognized." %(com), aes_secret)
 
+	    self.send_aes_crypt(clientsocket, address, "<END_MESSAGE>", aes_secret)
 	    return True
 	except Exception as e:
 	    log ("e", "Error handling Kobra command \"%s\": " %(com) + str(e))
@@ -552,15 +581,15 @@ class Server:
 		results_name = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress = False)
 		results_decrypted = self.receive_aes_crypt(clientsocket, address, aes_secret)
 
-		if not os.path.exists(conf.c['results_dir']):
-    		    log("i", "Creating results directory in %s" % (conf.c['results_dir']))
-    		    os.makedirs(conf.c['results_dir'])
+		if not os.path.exists(conf['results_dir']):
+    		    log("i", "Creating results directory in %s" % (conf['results_dir']))
+    		    os.makedirs(conf['results_dir'])
 
-		if not os.path.exists(os.path.join(conf.c['results_dir'], client_tag)):
-    		    log("i", "Creating results directory in %s" % (os.path.join(conf.c['results_dir'], client_tag)))
-    		    os.makedirs(conf.c['results_dir'])
+		if not os.path.exists(os.path.join(conf['results_dir'], client_tag)):
+    		    log("i", "Creating results directory in %s" % (os.path.join(conf['results_dir'], client_tag)))
+    		    os.makedirs(os.path.join(conf['results_dir'], client_tag))
 
-		out_file = open(os.path.join(conf.c['results_dir'], client_tag + "/" + datetime.now().isoformat() + "-" + results_name), 'w')
+		out_file = open(os.path.join(conf['results_dir'], client_tag + "/" + datetime.now().isoformat() + "-" + results_name), 'w')
 		out_file.write(results_decrypted)
 		out_file.close()
 		self.send_fixed(clientsocket, address, "a")
@@ -578,11 +607,11 @@ class Server:
 		log_name = self.receive_aes_crypt(clientsocket, address, aes_secret, show_progress=False)
 		log_decrypted = self.receive_aes_crypt(clientsocket, address, aes_secret)
 
-		if not os.path.exists(conf.c['log_archive_dir']):
-    		    log("i", "Creating log directory in %s" % (conf.c['log_archive_dir']))
-    		    os.makedirs(conf.c['log_archive_dir'])
+		if not os.path.exists(conf['log_archive_dir']):
+    		    log("i", "Creating log directory in %s" % (conf['log_archive_dir']))
+    		    os.makedirs(conf['log_archive_dir'])
 
-		out_file = open(os.path.join(conf.c['log_archive_dir'], client_tag + "-" + log_name), 'w')
+		out_file = open(os.path.join(conf['log_archive_dir'], client_tag + "-" + log_name), 'w')
 		out_file.write(log_decrypted)
 		out_file.close()
 		self.send_fixed(clientsocket, address, "a")
@@ -636,7 +665,7 @@ class Server:
 		self.send_dyn(clientsocket, address, self.public_key)
 		client_pub_key = self.receive_rsa_crypt(clientsocket, address, self.private_key)
 		self.send_rsa_crypt(clientsocket, address, identity, client_public_key) #size is usually 5 characters (it is easy to write down and/or remember)
-		of = open(os.path.join(conf.c['client_keys_dir'], identity), "w")
+		of = open(os.path.join(conf['client_keys_dir'], identity), "w")
 		of.write(client_pub_key)
 		of.close()
 		self.send_fixed(clientsocket, address, "c")
@@ -751,24 +780,24 @@ class Server:
 	exp_list = list()
 	exp_list += self.client_exps[client_tag]
 
-	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.cfg'))]
-	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiments_dir'], '*.py'))]
+	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf['experiments_dir'], '*.cfg'))]
+	exp_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf['experiments_dir'], '*.py'))]
 	return exp_list
 	    
     def current_exp_data_list(self, client_tag):
 	exp_data_list = list()
 
-	exp_data_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf.c['experiment_data_dir'], '*.txt'))]
+	exp_data_list += [os.path.basename(path) + "%" + MD5.new(open(path,'r').read()).digest() for path in glob.glob(os.path.join(conf['experiment_data_dir'], '*.txt'))]
 	return exp_data_list
 
     def sendexp(self, clientsocket, address, client_tag, aes_secret, exp):
-	f = open(os.path.join(conf.c['experiments_dir'], exp), 'r')
+	f = open(os.path.join(conf['experiments_dir'], exp), 'r')
 	contents = f.read()
 	self.send_aes_crypt(clientsocket, address, exp, aes_secret)
 	self.send_aes_crypt(clientsocket, address, contents, aes_secret)
 
     def sendexp_data(self, clientsocket, address, client_tag, aes_secret, exp):
-	f = open(os.path.join(conf.c['experiment_data_dir'], exp), 'r')
+	f = open(os.path.join(conf['experiment_data_dir'], exp), 'r')
 	contents = f.read()
 	self.send_aes_crypt(clientsocket, address, exp, aes_secret)
 	self.send_aes_crypt(clientsocket, address, contents, aes_secret)
@@ -785,7 +814,7 @@ class Server:
 	self.send_aes_crypt(clientsocket, address, update_package, aes_secret)
 
     def prepare_update(self):
-	call([conf.c['pack_maker_path'], ""])
+	call([conf['pack_maker_path'], ""])
 	log ("i", "Uploading the update package to website...")
 	r = requests.post("http://rpanah.ir/downloads/upload.php", files={"file" : ("centinel_latest.tar.bz2",open("centinel_latest.tar.bz2", "rb"))})
 	log ("s", "Uploader message: " + r.content)
