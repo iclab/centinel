@@ -363,7 +363,7 @@ class ServerConnection:
 	    my_public_key = crypt.public_key_string()
 	    self.server_public_key = self.receive_dyn()
 	    self.send_rsa_crypt(my_public_key, self.server_public_key)
-	    new_identity = self.receive_rsa_crypt(my_public_key) #identities are usually of length 5
+	    new_identity = self.receive_rsa_crypt(crypt.private_key_string()) #identities are usually of length 5
 
 	    server_response = self.receive_fixed(1)
 
