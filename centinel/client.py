@@ -359,11 +359,11 @@ class ServerConnection:
 	    raise Exception("Unknown server response \"" + server_response + "\"")
 
 	try:
-	    new_identity = self.receive_dyn() #identities are usually of length 5
 	    crypt = RSACrypt()
 	    my_public_key = crypt.public_key_string()
 	    self.server_public_key = self.receive_dyn()
 	    self.send_rsa_crypt(my_public_key, self.server_public_key)
+	    new_identity = self.receive_rsa_crypt(my_public_key) #identities are usually of length 5
 
 	    server_response = self.receive_fixed(1)
 
