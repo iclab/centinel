@@ -208,6 +208,8 @@ class KobraConnection:
 	    while True:
 		try:
     		    command = raw_input(self.username + "@" + self.server_address + "# ")
+		    if not command:
+			continue
 		    self.send_aes_crypt(command, self.aes_secret)
 		except Exception as e:
 		    log("e", "Error sending message to the server: " + str(e))
