@@ -8,7 +8,7 @@ import base64
 
 from centinel.experiment import Experiment
 from utils import logger
-
+from dns import reversename
 
 class ConfigurableDNSExperiment(Experiment):
     name = "config_dns"
@@ -54,6 +54,18 @@ class ConfigurableDNSExperiment(Experiment):
                 temp_url = temp_url.split("/")[0]
             self.host = temp_url
             self.dns_test()
+
+    def isIp(self, string):
+        a = string.split('.')
+        if len(a) != 4:
+            return False
+        for x in a:
+            if not x.isdigit():
+                return False
+            i = int(x)
+            if i < 0 or i > 255:
+                return False
+        return True
 
     def build_packet(self, url, record_type=0x0001):
         packet = struct.pack("!6H", random.randint(1, 65536), 256, 1, 0, 0, 0)
@@ -108,7 +120,19 @@ class ConfigurableDNSExperiment(Experiment):
             "timeout": self.timeout
         }
         ans = ""
-        if self.record == 'A':
+
+        if self.isIp(self.host):
+            try:
+                addr = reversename.from_address(self.host)
+                answers = dns.resolver.query(addr, "PTR")
+                result["record_type"] = "PTR"
+                for x in range(0, len(answers)):
+                    ans += str(answers[x])
+                    if x != len(answers) - 1:
+                        ans += ", "
+            except Exception as e:
+                logger.log("e", "Error querying PTR records for Ip " + self.host + " (" + str(e) + ")")
+        elif self.record == 'A':
             try:
                 res = dns.resolver.query(self.host, self.record)
                 for i in res.response.answer:
