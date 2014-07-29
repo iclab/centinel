@@ -110,6 +110,10 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                     ssl = redirect_url.startswith("https://")
                     if redirect_url == last_redirect:
                         break
+                    if last_redirect == "":
+                        logger.log("i", "Redirecting from " + self.whole_url + " to " + redirect_url)
+                    else:
+                        logger.log("i", "Redirecting from " + last_redirect + " to " + redirect_url)
                     host, path = self.get_host_and_path_from_url(redirect_url)
                     redirect_result = http.get_request(host, path, ssl=ssl)
                     result[redirect_str + "_body"] = redirect_result["response"]["body"]
