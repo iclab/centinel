@@ -98,6 +98,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         result["redirect"] = str(is_redirecting)
         last_redirect = ""
         if is_redirecting:
+            all_redirects = [] # Contains dict("string", "string")
             try:
                 redirect_number = 1
                 redirect_result = None
@@ -116,13 +117,17 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                         logger.log("i", "Redirecting from " + last_redirect + " to " + redirect_url)
                     host, path = self.get_host_and_path_from_url(redirect_url)
                     redirect_result = http.get_request(host, path, ssl=ssl)
-                    result[redirect_str + "_body"] = base64.b64encode(redirect_result["response"]["body"])
-                    result[redirect_str + "_headers"] = redirect_result["response"]["headers"]
-                    result[redirect_str + "_status"] = redirect_result["response"]["status"]
+                    temp_results = {}
+                    temp_results["headers"] = redirect_result["response"]["headers"]
+                    temp_results["status"] = redirect_result["response"]["status"]
+                    temp_results["body"] = base64.b64encode(redirect_result["response"]["body"])
                     last_redirect = redirect_url
                     redirect_number += 1
+                    all_redirects.append(temp_results)
                 if is_redirecting:
+                    result["redirects"] = all_redirects
                     result["total_redirects"] = str(redirect_number - 1)
+
             except Exception as e:
                 logger.log("e", "Http redirect failed: " + str(e))
                 return
