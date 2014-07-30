@@ -68,6 +68,7 @@ class ConfigurableTracerouteExperiment(Experiment):
             "start_hop": self.start_hop,
             "timeout": self.timeout
         }
+        traceroute_results = [] # Contains Dict("string", "string")
         try:
             t = self.start_hop
             finalIp = "Placeholder"
@@ -92,6 +93,10 @@ class ConfigurableTracerouteExperiment(Experiment):
                         ip = stripped
                     if '=' not in stripped and '.' in stripped and not self.isIp(stripped):
                         reverseDns = stripped
+                temp_results = {}
+                temp_results["ip"] = ip
+                temp_results["reverse_dns"] = reverseDns
+                traceroute_results.append(temp_results)
                 complete_traceroute += ip + ";" + reverseDns
                 if ip == "Not Found" and reverseDns != "Not Found":
                     pass
@@ -101,7 +106,7 @@ class ConfigurableTracerouteExperiment(Experiment):
                 else:
                     complete_traceroute += "->"
             results["Hops"] = t
-            results["traceroute"] = complete_traceroute
+            results["traceroute"] = traceroute_results
         except Exception as e:
             logger.log("e", "Error occured in traceroute for " + self.host + ": " + str(e))
             results["error"] = str(e)
