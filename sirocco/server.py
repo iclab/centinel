@@ -664,7 +664,7 @@ class Server:
 		self.send_fixed(clientsocket, address, "a")
 		self.send_dyn(clientsocket, address, self.public_key)
 		client_pub_key = self.receive_rsa_crypt(clientsocket, address, self.private_key)
-		self.send_rsa_crypt(clientsocket, address, identity, client_public_key) #size is usually 5 characters (it is easy to write down and/or remember)
+		self.send_rsa_crypt(clientsocket, address, identity, client_pub_key) #size is usually 5 characters (it is easy to write down and/or remember)
 		of = open(os.path.join(conf['client_keys_dir'], identity), "w")
 		of.write(client_pub_key)
 		of.close()
