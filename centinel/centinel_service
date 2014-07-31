@@ -1,0 +1,59 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          centinel
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Centinel daemon run on startup.
+# Description:       Centinel Client Daemon
+### END INIT INFO
+
+
+NAME=centinel
+DESC="Centinel Client Daemon"
+
+#USERGROUP="root:root"
+
+#Helper functions
+start() {
+        start-stop-daemon --start --quiet --background --make-pidfile \
+                --pidfile /var/run/$NAME.pid \
+                --exec /opt/centinel/centinel.py
+#		--chuid $USERGROUP
+}
+
+stop() {
+        start-stop-daemon --stop --quiet --pidfile /var/run/$NAME.pid --retry 30
+}
+
+case "$1" in
+  start)
+        echo -n "Starting $DESC: "
+        start
+	echo "\t[OK]"
+
+        ;;
+  stop)
+        echo -n "Stopping $DESC: "
+	stop
+	echo "\t[OK]"
+        ;;
+  restart)
+        echo -n "Restarting $DESC: "
+        #set +e
+        stop
+        #set -e
+        sleep 2
+        start
+	echo "\t[OK]"
+        ;;
+  *)
+        N=/etc/init.d/$NAME
+        echo "Usage: $N {start|stop|restart}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

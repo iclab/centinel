@@ -1,4 +1,4 @@
-import centinel.utils.http as http
+import utils.http as http
 
 from centinel.experiment import Experiment
 
