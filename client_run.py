@@ -83,6 +83,8 @@ def centinel_run(args):
 
     while 1:
 	try:
+	    if not serverconn.logged_in:
+		raise Exception("Not logged in.")
 
 	    if not last_checked_for_updates or ((datetime.now() - last_checked_for_updates).seconds > int(conf.c['update_check_delay'])):
 		update_check()
@@ -101,7 +103,7 @@ def centinel_run(args):
 
 	    if not server_response:
 		serverconn.disconnect()
-		raise(Exception)
+		raise Exception("No server response received.")
 
 	    
 	    elif server_response <> 'beat':
@@ -144,7 +146,7 @@ def centinel_run(args):
 		while not fixed:
     		    try:
 			serverconn.disconnect()
-			fixed = serverconn.connect()
+			fixed = serverconn.connect() and serverconn.logged_in
 			if fixed:
 			    break
 		    except Exception as e:

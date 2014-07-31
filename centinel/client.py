@@ -13,7 +13,9 @@ import gzip
 import glob
 from datetime import datetime, timedelta
 from os.path import exists,isfile, join
-import socket
+import socket, ssl, pprint
+import M2Crypto
+
 from utils.rsacrypt import RSACrypt
 from utils.aescrypt import AESCipher
 from utils.colors import bcolors
@@ -40,8 +42,17 @@ class ServerConnection:
 	self.connected = False
 	for address in self.server_addresses:
 	    try:
-		self.serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		
+		self.serversocket = ssl.wrap_socket(s,
+                    				    #ca_certs="/etc/ssl/certs/ca-certificates.crt",
+                        			    #cert_reqs=ssl.CERT_REQUIRED,
+						    ssl_version=ssl.PROTOCOL_TLSv1
+    						   )
+
 		self.serversocket.connect((address, self.server_port))
+
+		
 		self.connected = True
 		self.server_address = address
 		break
@@ -73,7 +84,11 @@ class ServerConnection:
 	self.serversocket.settimeout(int(conf.c['timeout']))
 	log("i", "Server connection successful.")
 	if do_login:
-	    self.logged_in = self.login()
+	    try:
+		self.logged_in = self.login()
+	    except Exception as e:
+		log("e", "Error logging in: " + str(e))
+		self.logged_in = False
 	else:
 	    self.logged_in = False
 	self.connected = True
@@ -250,6 +265,18 @@ class ServerConnection:
 	    self.send_dyn(encrypted_chunk[0])
 
     def login(self):
+
+	try:
+	    received_server_cert = ssl.DER_cert_to_PEM_cert(self.serversocket.getpeercert(True))
+	
+	    if received_server_cert != open(conf["server_certificate"], "r").read():
+		raise Exception("Server certificate can not be recognized!")
+	    x509 = M2Crypto.X509.load_cert_string(received_server_cert)
+	    
+	    log("w", "Server certificate details: " + pprint.pformat(x509.get_subject().as_text()))
+	except Exception as e:
+	    raise Exception("Error verifying server certificate: " + str(e))
+
 	try:
 	    log("i", "Authenticating with the server...")
 	    self.send_dyn(conf.c['client_tag'])
@@ -342,7 +369,21 @@ class ServerConnection:
 	return True
 
     def initialize_client(self):
+	
 	try:
+	    received_server_cert = ssl.DER_cert_to_PEM_cert(self.serversocket.getpeercert(True))
+	
+	    x509 = M2Crypto.X509.load_cert_string(received_server_cert)
+	    log("w", "Server certificate details: " + pprint.pformat(x509.get_subject().as_text()))
+
+	    of = open(conf["server_certificate"], "w")
+	    of.write(received_server_cert)
+	    of.close()
+	except Exception as e:
+	    raise Exception("Can not write server certificate: " + str(e))
+
+	try:
+
 	    self.send_dyn("unauthorized")
 	    self.receive_fixed(1)
 	    self.send_fixed("i")

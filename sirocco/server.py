@@ -12,7 +12,7 @@ import StringIO
 import string
 import random
 import gzip
-import socket
+import socket, ssl
 from socket import timeout
 import threading
 import glob
@@ -283,7 +283,11 @@ class Server:
 	try:
 	    while 1:
 		#accept connections from outside
-		(clientsocket, address) = self.sock.accept()
+		(newsocket, address) = self.sock.accept()
+
+		#TLS wrap
+		clientsocket = ssl.wrap_socket(newsocket, server_side=True, certfile=conf["server_certificate"], keyfile=conf["server_key"], ssl_version=ssl.PROTOCOL_TLSv1)
+
 		self.clientsockets.append(clientsocket)
 		log("s", "Got a connection.", address = address)
 		client_thread = threading.Thread(target=self.client_connection_handler, args = (clientsocket, address))

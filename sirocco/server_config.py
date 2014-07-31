@@ -18,7 +18,9 @@ class server_conf:
 	    'pack_maker_path' : os.path.join(os.path.dirname(__file__), "../make_update.sh"),
 	    'server_keys_dir' : os.path.join(os.path.dirname(__file__), "server_keys/"),
 	    'public_rsa_file' : os.path.join(os.path.dirname(__file__), "server_keys/server_public_rsa.pem"),
-	    'private_rsa_file' : os.path.join(os.path.dirname(__file__), "server_keys/server_private_rsa.pem")}
+	    'private_rsa_file' : os.path.join(os.path.dirname(__file__), "server_keys/server_private_rsa.pem"),
+	    'server_certificate' : os.path.join(os.path.dirname(__file__), "server_keys/TLS_server_cert.pem"),
+	    'server_key' : os.path.join(os.path.dirname(__file__), "server_keys/TLS_server_key.pem")}
     conf_file = ""
     def __init__(self):
 	self.parser = ConfigParser.ConfigParser()
