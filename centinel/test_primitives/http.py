@@ -90,6 +90,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         else:
             result = http.get_request(self.host, self.path, ssl=self.ssl)
         result["whole_url"] = self.whole_url
+        result["host"] = self.host
         if "body" not in result["response"]:
             logger.log("e", "No HTTP Response from " + self.whole_url)
             return
@@ -103,7 +104,9 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                 redirect_number = 1
                 redirect_result = None
                 while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") or "location" in redirect_result["response"]["headers"]):
-                    redirect_str = "redirect" + str(redirect_number)
+                    if redirect_number > 50:
+                        logger.log("i", "Breaking redirect loop. Over 50 redirects")
+                        break
                     if redirect_result is None:
                         redirect_url = result["response"]["headers"]["location"]
                     else:
