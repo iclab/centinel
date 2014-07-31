@@ -16,5 +16,6 @@ sirocco/server_keys/*
 sirocco/server_keys/clients/*
 sirocco/log_archive/*
 sirocco/kobra_users_list
+sirocco/confs/*
 centinel.egg-info/
 dist/
