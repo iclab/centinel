@@ -22,7 +22,11 @@ def get_results():
 def get_clients():
     return request("/clients")
 
-def request(slug):
-    url = "%s%s" % (config.server_url, slug)
-    req = requests.get(url)
-    return req.json()
+def submit_result(file_name):
+    with open(file_name) as result_file:
+        file = {'result' : result_file}
+        url = "%s%s" % (config.server_url, "/results")
+        requests.post(url, files=file)
+
+    if req.status_code != requests.codes.ok:
+        raise req.raise_for_status()
