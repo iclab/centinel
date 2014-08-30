@@ -1,6 +1,15 @@
 import requests
 import config
 
+def request(slug):
+    url = "%s%s" % (config.server_url, slug)
+    req = requests.get(url)
+
+    if req.status_code != requests.codes.ok:
+        raise req.raise_for_status()
+
+    return req.json()
+
 def get_recommended_versions():
     return request("/versions")
 
