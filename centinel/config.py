@@ -12,5 +12,6 @@ data_dir        = os.path.join(os.path.dirname(__file__), "data")
 results_dir     = os.path.join(centinel_home, 'results')
 
 # logging
-log_level       = logging.INFO
-log_file        = os.path.join(centinel_home, "centinel.log")
+log_level       = logging.INFO 
+log_file        = None # or use os.path.join(centinel_home, "centinel.log")
+log_format      = '%(levelname)s: %(message)s'
