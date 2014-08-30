@@ -13,7 +13,7 @@ censorship.
     $ sudo pip install centinel
     $ centinel
 
-##### latest development version
+##### Latest development version
     * git clone https://github.com/projectbismark/centinel.git
     # install dnspython
     * python centinel.py

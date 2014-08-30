@@ -4,6 +4,7 @@ import json
 import glob
 import imp
 import config
+import logging
 
 from datetime import datetime
 
@@ -29,8 +30,11 @@ def load_experiments():
     return ExperimentList.experiments
 
 def run():
+    logging.basicConfig(filename=config.log_file, level=config.log_level)
+    logging.info('Started centinel')
+
     if not os.path.exists(config.results_dir):
-        print "Creating results directory in %s" % (results_dir)
+        logging.warn("Creating results directory in %s" % (results_dir))
         os.makedirs(results_dir)
 
     result_file = get_result_file()
@@ -43,18 +47,18 @@ def run():
         input_file = get_input_file(name)
 
         if not os.path.isfile(input_file):
-            print "No input file found for %s. Skipping test." % (name)
+            logging.warn("No input file found for %s. Skipping test." % (name))
             continue
 
-        print "Reading input from %s" % (input_file)
+        logging.info("Reading input from %s" % (input_file))
         input_file = open(input_file)
 
         try:
-            print "Running %s test." % (name)
+            logging.info("Running %s test." % (name))
             exp = Exp(input_file)
             exp.run()
         except Exception, e:
-            print "Error: %s", str(e)
+            logging.error("Error in %s: %s" % (name, str(e)))
 
         input_file.close()
 
@@ -63,4 +67,4 @@ def run():
     json.dump(results, result_file)
     result_file.close()
 
-    print "All experiments over. Check results."
+    logging.info("All experiments over. Check results.")
