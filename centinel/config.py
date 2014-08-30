@@ -15,3 +15,6 @@ results_dir     = os.path.join(centinel_home, 'results')
 log_level       = logging.INFO 
 log_file        = None # or use os.path.join(centinel_home, "centinel.log")
 log_format      = '%(levelname)s: %(message)s'
+
+# server
+server_url      = "http://127.0.0.1:5000"

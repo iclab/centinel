@@ -5,7 +5,7 @@ censorship.
 
 #### Install and usage
 ##### Debian
-    $ sudo apt-get install python-setuptools python-dnspython
+    $ sudo apt-get install python-setuptools python-dnspython python-requests
     $ sudo pip install centinel
     $ centinel
 
@@ -15,7 +15,7 @@ censorship.
 
 ##### Latest development version
     * git clone https://github.com/projectbismark/centinel.git
-    # install dnspython
+    # install dnspython, requests
     * python centinel.py
 
 #### Supported platforms
