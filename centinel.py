@@ -25,6 +25,8 @@ if __name__ == "__main__":
     except Exception, e:
         print "Unable to get latest version: %s" % str(e)
 
+    centinel.client.setup_logging()
+
     if args.sync:
         centinel.backend.sync()
 

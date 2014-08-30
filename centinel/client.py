@@ -10,6 +10,11 @@ from datetime import datetime
 
 from experiment import Experiment, ExperimentList
 
+def setup_logging():
+    logging.basicConfig(filename=config.log_file,
+                        format=config.log_format,
+                        level=config.log_level)
+
 def get_result_file():
     result_file = "result-%s.json" % (datetime.now().isoformat())
     return os.path.join(config.results_dir, result_file)
@@ -30,9 +35,6 @@ def load_experiments():
     return ExperimentList.experiments
 
 def run(experiments=None):
-    logging.basicConfig(filename=config.log_file,
-                        format=config.log_format,
-                        level=config.log_level)
     logging.info('Started centinel')
 
     if not os.path.exists(config.results_dir):
