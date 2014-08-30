@@ -29,7 +29,7 @@ def load_experiments():
     # return dict of experiment names and classes
     return ExperimentList.experiments
 
-def run():
+def run(experiments=None):
     logging.basicConfig(filename=config.log_file,
                         format=config.log_format,
                         level=config.log_level)
@@ -43,7 +43,7 @@ def run():
     result_file = open(result_file, "w")
     results = {}
 
-    experiments = load_experiments()
+    experiments = experiments or load_experiments()
 
     for name, Exp in experiments.items():
         input_file = get_input_file(name)
