@@ -18,3 +18,5 @@ log_format      = '%(levelname)s: %(message)s'
 
 # server
 server_url      = "http://127.0.0.1:5000"
+server_username = "foo"
+server_password = "bar"
