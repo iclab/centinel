@@ -44,6 +44,7 @@ def sync():
     logging.info("Starting sync with %s", config.server_url)
 
     # send all results
+    # XXX: delete all files after sync?
     for path in glob.glob(os.path.join(config.results_dir,'[!_]*.json')):
         try:
             submit_result(path)
