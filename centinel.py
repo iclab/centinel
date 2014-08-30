@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 import argparse
 
 import centinel
@@ -29,5 +30,6 @@ if __name__ == "__main__":
 
     if args.sync:
         centinel.backend.sync()
+        sys.exit(0)
 
     centinel.client.run()

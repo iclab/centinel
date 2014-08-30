@@ -29,7 +29,7 @@ def submit_result(file_name):
 
     with open(file_name) as result_file:
         file = {'result' : result_file}
-        url = "%s%s" % (config.server_url, "/results")
+        url = "%s/%s" % (config.server_url, "results")
         req = requests.post(url, files=file)
 
     req.raise_for_status()
@@ -59,8 +59,11 @@ def sync():
     available_experiments = set(available_experiments)
 
     # download new experiments from server
-    for experiment in get_experiments():
-        if experiment not in available_experiments:
-            download_experiment(file_name)
+    try:
+        for experiment in get_experiments():
+            if experiment not in available_experiments:
+                download_experiment(file_name)
+    except Exception, e:
+        logging.error("Unable to download experiment files")
 
     logging.info("Finished sync with %s", config.server_url)
