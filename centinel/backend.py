@@ -21,7 +21,7 @@ class User:
 
     def request(self, slug):
         url = "%s/%s" % (config.server_url, slug)
-        req = requests.get(url, auth=self.auth)
+        req = requests.get(url, auth=self.auth, proxies=config.proxy)
         req.raise_for_status()
 
         return req.json()
@@ -46,10 +46,10 @@ class User:
         logging.info("Uploading result file - %s", file_name)
 
         with open(file_name) as result_file:
-            file = {'result' : result_file}
-            url  = "%s/%s" % (config.server_url, "results")
-            req  = requests.post(url, files=file,
-                                 proxies=config.proxy, auth=self.auth)
+            files = {'result' : result_file}
+            url   = "%s/%s" % (config.server_url, "results")
+            req   = requests.post(url, proxies=config.proxy,
+                                 files=files, auth=self.auth)
 
         req.raise_for_status()
 
@@ -70,7 +70,8 @@ class User:
         url     = "%s/%s" % (config.server_url, "register")
         payload = {'username': username, 'password': password}
         headers = {'content-type': 'application/json'}
-        req     = requests.post(url, data=json.dumps(payload), headers=headers)
+        req     = requests.post(url, data=json.dumps(payload),
+                                proxies=config.proxy, headers=headers)
 
         req.raise_for_status()
 
