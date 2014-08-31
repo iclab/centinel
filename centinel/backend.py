@@ -17,7 +17,7 @@ class User:
                 self.password = login_details.get('password')
                 self.auth     = (self.username, self.password)
         else:
-            user.create_user()
+            self.create_user()
 
     def request(self, slug):
         url = "%s/%s" % (config.server_url, slug)
