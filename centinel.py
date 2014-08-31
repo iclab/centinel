@@ -20,7 +20,6 @@ if __name__ == "__main__":
     centinel.client.setup_logging()
 
     if args.sync:
-        User = centinel.backend.User()
-        User.sync()
+        centinel.backend.sync()
     else:
         centinel.client.run()
