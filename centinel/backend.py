@@ -1,69 +1,115 @@
 import os
 import glob
+import uuid
+import json
 import requests
 import logging
 
 import config
 
-def request(slug):
-    url = "%s/%s" % (config.server_url, slug)
-    req = requests.get(url, proxies=config.proxy)
+class User:
+    def __init__(self):
+        self.username = None
+        self.password = None
+        self.auth     = None
 
-    req.raise_for_status()
-    return req.json()
+    def request(self, slug):
+        url = "%s/%s" % (config.server_url, slug)
+        req = requests.get(url, auth=self.auth)
+        req.raise_for_status()
 
-def get_recommended_version():
-    return int(request("version")["version"])
+        return req.json()
 
-def get_experiments():
-    return request("experiments")["experiments"]
+    @property
+    def recommended_version(self):
+        return int(self.request("version")["version"])
 
-def get_results():
-    return request("results")
+    @property
+    def experiments(self):
+        return self.request("experiments")["experiments"]
 
-def get_clients():
-    return request("clients")
+    @property
+    def results(self):
+        return self.request("results")
 
-def submit_result(file_name):
-    logging.info("Uploading result file - %s", file_name)
+    @property
+    def clients(self):
+        return self.request("clients")
 
-    with open(file_name) as result_file:
-        file = {'result' : result_file}
-        url = "%s/%s" % (config.server_url, "results")
-        req = requests.post(url, files=file, proxies=config.proxy)
+    def submit_result(self, file_name):
+        logging.info("Uploading result file - %s", file_name)
 
-    req.raise_for_status()
+        with open(file_name) as result_file:
+            file = {'result' : result_file}
+            url  = "%s/%s" % (config.server_url, "results")
+            req  = requests.post(url, files=file,
+                                 proxies=config.proxy, auth=self.auth)
 
-def download_experiment(name):
-    logging.info("Downloading experiment - %s", name)
+        req.raise_for_status()
 
-    url = "%s/%s/%s" % (config.server_url, "experiments", name)
-    req = requests.get(url, proxies=config.proxy)
+    def download_experiment(self, name):
+        logging.info("Downloading experiment - %s", name)
 
-def sync():
-    logging.info("Starting sync with %s", config.server_url)
+        url = "%s/%s/%s" % (config.server_url, "experiments", name)
+        req = requests.get(url, proxies=config.proxy, auth=self.auth)
 
-    # send all results
-    # XXX: delete all files after sync?
-    for path in glob.glob(os.path.join(config.results_dir,'[!_]*.json')):
+    def register(self, username, password):
+        logging.info("Registering new user %s" % (username))
+
+        url     = "%s/%s" % (config.server_url, "register")
+        payload = {'username': username, 'password': password}
+        headers = {'content-type': 'application/json'}
+        req     = requests.post(url, data=json.dumps(payload), headers=headers)
+
+        req.raise_for_status()
+
+    def create_user(self):
+        self.username = str(uuid.uuid4())
+        self.password = os.urandom(64).encode('base-64')
+        self.auth     = (self.username, self.password)
+
         try:
-            submit_result(path)
+            self.register(self.username, self.password)
+            with open(config.login_file, "w") as login_fh:
+                login_details = {'username': self.username,
+                                 'password': self.password}
+                json.dump(login_details, login_fh)
         except Exception, e:
-            logging.error("Unable to send result file %s" % (path))
+            logging.error("Unable to register: %s" % str(e))
 
-    # get all experiment names
-    available_experiments = []
-    for path in glob.glob(os.path.join(config.experiments_dir,'[!_]*.py')):
-        file_name, _ = os.path.splitext(os.path.basename(path))
-        available_experiments.append(file_name)
-    available_experiments = set(available_experiments)
+    def sync(self):
+        logging.info("Starting sync with %s", config.server_url)
 
-    # download new experiments from server
-    try:
-        for experiment in get_experiments():
-            if experiment not in available_experiments:
-                download_experiment(file_name)
-    except Exception, e:
-        logging.error("Unable to download experiment files")
+        # check for login file
+        if os.path.isfile(config.login_file):
+            with open(config.login_file) as login_fh:
+                login_details = json.load(login_fh)
+                self.username = login_details.get('username')
+                self.password = login_details.get('password')
+                self.auth     = (self.username, self.password)
+        else:
+            self.create_user()
 
-    logging.info("Finished sync with %s", config.server_url)
+        # send all results
+        # XXX: delete all files after sync?
+        for path in glob.glob(os.path.join(config.results_dir,'[!_]*.json')):
+            try:
+                submit_result(path)
+            except Exception, e:
+                logging.error("Unable to send result file: %s" % str(e))
+
+        # get all experiment names
+        available_experiments = []
+        for path in glob.glob(os.path.join(config.experiments_dir,'[!_]*.py')):
+            file_name, _ = os.path.splitext(os.path.basename(path))
+            available_experiments.append(file_name)
+        available_experiments = set(available_experiments)
+
+        # download new experiments from server
+        try:
+            map(self.download_experiment,
+                set(self.experiments) - available_experiments)
+        except Exception, e:
+            logging.error("Unable to download experiment files %s", str(e))
+
+        logging.info("Finished sync with %s", config.server_url)

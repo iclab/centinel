@@ -17,19 +17,10 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-
-    #XXX: There's absolutely no need to do all this version checking
-    try:
-        recommended_version = centinel.backend.get_recommended_version()
-        if centinel.__version__ < recommended_version:
-            print "Latest version of centinel is %s. Update now" % (recommended_version)
-    except Exception, e:
-        print "Unable to get latest version: %s" % str(e)
-
     centinel.client.setup_logging()
 
     if args.sync:
-        centinel.backend.sync()
-        sys.exit(0)
-
-    centinel.client.run()
+        User = centinel.backend.User()
+        User.sync()
+    else:
+        centinel.client.run()

@@ -18,6 +18,7 @@ log_format      = '%(levelname)s: %(message)s'
 
 # server
 server_url      = "http://127.0.0.1:5000"
+login_file      = os.path.join(centinel_home, 'login')
 
 # proxy
 proxy_type      = None # "socks" or "http"
