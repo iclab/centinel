@@ -86,13 +86,19 @@ class User:
                 login_details = {'username': self.username,
                                  'password': self.password}
                 json.dump(login_details, login_fh)
-        except Exception, e:
+        except Exception as e:
             logging.error("Unable to register: %s" % str(e))
+            raise e
 
 
 def sync():
     logging.info("Starting sync with %s", config.server_url)
-    user = User()
+
+    try:
+        user = User()
+    except Exception, e:
+        logging.error("Unable to create user: %s" % str(e))
+        return
 
     # send all results
     # XXX: delete all files after sync?
