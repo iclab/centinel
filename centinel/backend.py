@@ -7,7 +7,7 @@ import config
 
 def request(slug):
     url = "%s/%s" % (config.server_url, slug)
-    req = requests.get(url)
+    req = requests.get(url, proxies=config.proxy)
 
     req.raise_for_status()
     return req.json()
@@ -30,7 +30,7 @@ def submit_result(file_name):
     with open(file_name) as result_file:
         file = {'result' : result_file}
         url = "%s/%s" % (config.server_url, "results")
-        req = requests.post(url, files=file)
+        req = requests.post(url, files=file, proxies=config.proxy)
 
     req.raise_for_status()
 
@@ -38,7 +38,7 @@ def download_experiment(name):
     logging.info("Downloading experiment - %s", name)
 
     url = "%s/%s/%s" % (config.server_url, "experiments", name)
-    req = requests.get(url)
+    req = requests.get(url, proxies=config.proxy)
 
 def sync():
     logging.info("Starting sync with %s", config.server_url)

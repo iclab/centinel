@@ -13,10 +13,13 @@ results_dir     = os.path.join(centinel_home, 'results')
 
 # logging
 log_level       = logging.INFO 
-log_file        = None # or use os.path.join(centinel_home, "centinel.log")
+log_file        = None # os.path.join(centinel_home, "centinel.log")
 log_format      = '%(levelname)s: %(message)s'
 
 # server
 server_url      = "http://127.0.0.1:5000"
-server_username = "foo"
-server_password = "bar"
+
+# proxy
+proxy_type      = None # "socks" or "http"
+proxy_url       = None # "http://127.0.0.1:9050"
+proxy           = {proxy_type : proxy_url} if proxy_type else None
