@@ -58,6 +58,11 @@ class User:
 
         url = "%s/%s/%s" % (config.server_url, "experiments", name)
         req = requests.get(url, proxies=config.proxy, auth=self.auth)
+        req.raise_for_status()
+
+        name = "%s.py" % name
+        with open(os.path.join(config.experiments_dir, name), "w") as exp_fh:
+            exp_fh.write(req.content)
 
     def register(self, username, password):
         logging.info("Registering new user %s" % (username))
