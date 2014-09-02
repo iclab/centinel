@@ -34,18 +34,23 @@ def load_experiments():
     # return dict of experiment names and classes
     return ExperimentList.experiments
 
-def run(experiments=None):
+def run(data_dir=None):
+    # XXX: android build needs this. refactor
+    if data_dir:
+        centinel_home = data_dir
+        config.results_dir = os.path.join(centinel_home, 'results')
+
     logging.info('Started centinel')
 
     if not os.path.exists(config.results_dir):
-        logging.warn("Creating results directory in %s" % (results_dir))
-        os.makedirs(results_dir)
+        logging.warn("Creating results directory in %s" % (config.results_dir))
+        os.makedirs(config.results_dir)
 
     result_file = get_result_file()
     result_file = open(result_file, "w")
     results = {}
 
-    experiments = experiments or load_experiments()
+    experiments = load_experiments()
 
     for name, Exp in experiments.items():
         input_file = get_input_file(name)
