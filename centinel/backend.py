@@ -104,7 +104,7 @@ def sync():
     # XXX: delete all files after sync?
     for path in glob.glob(os.path.join(config.results_dir,'[!_]*.json')):
         try:
-            submit_result(path)
+            user.submit_result(path)
         except Exception, e:
             logging.error("Unable to send result file: %s" % str(e))
 
