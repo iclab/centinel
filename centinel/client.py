@@ -16,21 +16,21 @@ class Client():
         self.config = config
 
     def setup_logging(self):
-        logging.basicConfig(filename=self.config.log_file,
-                            format=self.config.log_format,
-                            level=self.config.log_level)
+        logging.basicConfig(filename=self.config['log']['log_file'],
+                            format=self.config['log']['log_format'],
+                            level=self.config['log']['log_level'])
 
     def get_result_file(self):
         result_file = "result-%s.json" % (datetime.now().isoformat())
-        return os.path.join(self.config.results_dir, result_file)
+        return os.path.join(self.config['dirs']['results_dir'], result_file)
 
     def get_input_file(self, experiment_name):
         input_file = "%s.txt" % (experiment_name)
-        return os.path.join(self.config.data_dir, input_file)
+        return os.path.join(self.config['dirs']['data_dir'], input_file)
 
     def load_experiments(self):
         # look for experiments in experiments directory
-        for path in glob.glob(os.path.join(self.config.experiments_dir,
+        for path in glob.glob(os.path.join(self.config['dirs']['experiments_dir'],
                                            '[!_]*.py')):
             # get name of file and path
             name, ext = os.path.splitext(os.path.basename(path))
@@ -44,14 +44,15 @@ class Client():
         # XXX: android build needs this. refactor
         if data_dir:
             centinel_home = data_dir
-            self.config.results_dir = os.path.join(centinel_home, 'results')
+            self.config['dirs']['results_dir'] = os.path.join(centinel_home,
+                                                              'results')
 
         logging.info('Started centinel')
 
-        if not os.path.exists(self.config.results_dir):
+        if not os.path.exists(self.config['dirs']['results_dir']):
             logging.warn("Creating results directory in "
-                         "%s" % (self.config.results_dir))
-            os.makedirs(self.config.results_dir)
+                         "%s" % (self.config['dirs']['results_dir']))
+            os.makedirs(self.config['dirs']['results_dir'])
 
         result_file = self.get_result_file()
         result_file = open(result_file, "w")
