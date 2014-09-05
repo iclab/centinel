@@ -10,8 +10,8 @@ class User:
     def __init__(self, config):
         self.config = config
         # check for login file
-        if os.path.isfile(config.login_file):
-            with open(config.login_file) as login_fh:
+        if os.path.isfile(config['user']['login_file']):
+            with open(config['user']['login_file']) as login_fh:
                 login_details = json.load(login_fh)
                 self.username = login_details.get('username')
                 self.password = login_details.get('password')
@@ -20,8 +20,9 @@ class User:
             self.create_user()
 
     def request(self, slug):
-        url = "%s/%s" % (self.config.server_url, slug)
-        req = requests.get(url, auth=self.auth, proxies=self.config.proxy)
+        url = "%s/%s" % (self.config['server']['server_url'], slug)
+        req = requests.get(url, auth=self.auth,
+                           proxies=self.config['proxy']['proxy'])
         req.raise_for_status()
 
         return req.json()
@@ -47,8 +48,8 @@ class User:
 
         with open(file_name) as result_file:
             files = {'result': result_file}
-            url   = "%s/%s" % (self.config.server_url, "results")
-            req   = requests.post(url, proxies=self.config.proxy,
+            url   = "%s/%s" % (self.config['server']['server_url'], "results")
+            req   = requests.post(url, proxies=self.config['proxy']['proxy'],
                                   files=files, auth=self.auth)
 
         req.raise_for_status()
@@ -56,23 +57,26 @@ class User:
     def download_experiment(self, name):
         logging.info("Downloading experiment - %s", name)
 
-        url = "%s/%s/%s" % (self.config.server_url, "experiments", name)
-        req = requests.get(url, proxies=self.config.proxy, auth=self.auth)
+        url = "%s/%s/%s" % (self.config['server']['server_url'],
+                            "experiments", name)
+        req = requests.get(url, proxies=self.config['proxy']['proxy'],
+                           auth=self.auth)
         req.raise_for_status()
 
         name = "%s.py" % name
-        with open(os.path.join(self.config.experiments_dir, name),
+        with open(os.path.join(self.config['dirs']['experiments_dir'], name),
                   "w") as exp_fh:
             exp_fh.write(req.content)
 
     def register(self, username, password):
         logging.info("Registering new user %s" % (username))
 
-        url     = "%s/%s" % (self.config.server_url, "register")
+        url     = "%s/%s" % (self.config['server']['server_url'], "register")
         payload = {'username': username, 'password': password}
         headers = {'content-type': 'application/json'}
         req     = requests.post(url, data=json.dumps(payload),
-                                proxies=self.config.proxy, headers=headers)
+                                proxies=self.config['proxy']['proxy'],
+                                headers=headers)
 
         req.raise_for_status()
 
@@ -83,7 +87,7 @@ class User:
 
         try:
             self.register(self.username, self.password)
-            with open(self.config.login_file, "w") as login_fh:
+            with open(self.config['user']['login_file'], "w") as login_fh:
                 login_details = {'username': self.username,
                                  'password': self.password}
                 json.dump(login_details, login_fh)
@@ -93,7 +97,7 @@ class User:
 
 
 def sync(config):
-    logging.info("Starting sync with %s", config.server_url)
+    logging.info("Starting sync with %s", config['server']['server_url'])
 
     try:
         user = User()
@@ -103,7 +107,8 @@ def sync(config):
 
     # send all results
     # XXX: delete all files after sync?
-    for path in glob.glob(os.path.join(config.results_dir, '[!_]*.json')):
+    for path in glob.glob(os.path.join(config['dirs']['results_dir'],
+                                       '[!_]*.json')):
         try:
             user.submit_result(path)
         except Exception, e:
@@ -111,7 +116,8 @@ def sync(config):
 
     # get all experiment names
     available_experiments = []
-    for path in glob.glob(os.path.join(config.experiments_dir, '[!_]*.py')):
+    for path in glob.glob(os.path.join(config['dirs']['experiments_dir'],
+                                       '[!_]*.py')):
         file_name, _ = os.path.splitext(os.path.basename(path))
         available_experiments.append(file_name)
     available_experiments = set(available_experiments)
@@ -123,4 +129,4 @@ def sync(config):
     except Exception, e:
         logging.error("Unable to download experiment files %s", str(e))
 
-    logging.info("Finished sync with %s", config.server_url)
+    logging.info("Finished sync with %s", config['server']['server_url'])
