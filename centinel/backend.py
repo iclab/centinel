@@ -1,3 +1,5 @@
+import sys
+sys.platform = 'linux2'
 import os
 import glob
 import uuid

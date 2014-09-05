@@ -28,7 +28,7 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 1.2.0
 
 # (list) Application requirements
-requirements = kivy, dnspython
+requirements = kivy, dnspython, requests
 
 # (list) Garden requirements
 #garden_requirements =

@@ -17,14 +17,18 @@ class CentinelApp(App):
         btn1 = Button(text="Start Tests")
         btn1.bind(on_press=self.start_tests)
 
-        btn2 = Button(text="Show Results")
+        btn2 = Button(text="Sync Results")
         btn2.bind(on_press=self.btn_pressed)
+
+        btn3 = Button(text="Show Results")
+        btn3.bind(on_press=self.btn_pressed)
 
         buttons = BoxLayout(orientation='horizontal')
         buttons.add_widget(btn1)
         buttons.add_widget(btn2)
+        buttons.add_widget(btn3)
 
-        label = Label(text="Test Results")
+        label = Label(text="Show Test Results here..")
         labels = BoxLayout(orientation='horizontal')
         labels.add_widget(label)
 
