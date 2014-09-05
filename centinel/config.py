@@ -13,7 +13,7 @@ class Configuration():
         # centinel user
         user_info = {}
         user_info['current_user']  = getpass.getuser()
-        user_home          = os.path.expanduser('~' + self.current_user)
+        user_home          = os.path.expanduser('~' + user_info['current_user'])
         user_info['centinel_home'] = os.path.join(user_home, '.centinel')
         self.params['user'] = user_info
 
@@ -23,7 +23,7 @@ class Configuration():
                                                "experiments")
         dirs['data_dir']        = os.path.join(os.path.dirname(__file__),
                                                "data")
-        dirs['results_dir']     = os.path.join(dirs['centinel_home'],
+        dirs['results_dir']     = os.path.join(self.params['user']['centinel_home'],
                                                'results')
         self.params['dirs'] = dirs
 
