@@ -29,10 +29,10 @@ if __name__ == "__main__":
     if args.config:
         configuration.parse_config(args.config)
 
-    client = centinel.client.Client(configuration)
+    client = centinel.client.Client(configuration.params)
     client.setup_logging()
 
     if args.sync:
-        centinel.backend.sync(configuration)
+        centinel.backend.sync(configuration.params)
     else:
         client.run()
