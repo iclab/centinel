@@ -57,9 +57,9 @@ class Configuration():
         with open(config_file, 'r') as f:
             config = json.load(f)
         self.params = config
-        if self.params['proxy_type']:
-            self.params['proxy']  = {self.params['proxy_type']:
-                                     self.params['proxy_url']}
+        if self.params['proxy']['proxy_type']:
+            self.params['proxy']  = {self.params['proxy']['proxy_type']:
+                                     self.params['proxy']['proxy_url']}
 
     def write_out_config(self, config_file):
         """Write out the configuration file
