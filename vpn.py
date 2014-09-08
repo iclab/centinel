@@ -16,16 +16,16 @@ import centinel.openvpn
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--directory", "-d", nargs=1, dest='directory',
-                        help="Directory with experiments, config files, etc.",
-                        required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--directory", "-d", dest='directory',
+                       help="Directory with experiments, config files, etc.")
     createConfHelp = ("Create configuration files for the given "
                       "openvpn config files so that we can treat each "
                       "one as a client. The argument should be a "
                       "directory with a subdirectory called openvpn "
                       "that contains the openvpn config files")
-    parser.add_argument('--create-config', '-c', help=createConfHelp,
-                        nargs=1, dest='createConf')
+    group.add_argument('--create-config', '-c', help=createConfHelp,
+                       dest='createConfDir')
     return parser.parse_args()
 
 
@@ -76,13 +76,15 @@ def create_config_files(directory):
     """
     vpnDir  = os.path.join(os.path.expanduser(directory), "vpns")
     confDir = os.path.join(os.path.expanduser(directory), "configs")
+    os.mkdir(confDir)
     homeDirs = os.path.join(os.path.expanduser(directory), "home")
+    os.mkdir(homeDirs)
     for filename in os.listdir(vpnDir):
         configuration = centinel.config.Configuration()
         # setup the directories
         homeDir = os.path.join(homeDirs, filename)
         os.mkdir(homeDir)
-        configuration.params['dirs']['centinel_home'] = homeDir
+        configuration.params['user']['centinel_home'] = homeDir
         expDir = os.path.join(homeDir, "experiments")
         os.mkdir(expDir)
         configuration.params['dirs']['experiments_dir'] = expDir
@@ -105,8 +107,8 @@ def create_config_files(directory):
 if __name__ == "__main__":
     args = parse_args()
 
-    if args.createConf:
+    if args.createConfDir:
         # create the config files for the openvpn config files
-        create_config_files(args.createConf)
-
-    scan_vpns(args.directory)
+        create_config_files(args.createConfDir)
+    else:
+        scan_vpns(args.directory)
