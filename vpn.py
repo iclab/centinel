@@ -10,6 +10,8 @@ import argparse
 import os
 import os.path
 
+import centinel.backend
+import centinel.client
 import centinel.config
 import centinel.openvpn
 
@@ -29,7 +31,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def scan_vpns(config):
+def scan_vpns(directory):
     """For each VPN, check if there are experiments and scan with it if
     necessary
 
@@ -42,24 +44,24 @@ def scan_vpns(config):
     """
 
     # iterate over each VPN
-    vpnDir  = os.path.join(os.path.expanduser(args.directory), "vpns")
-    confDir = os.path.join(os.path.expanduser(args.directory), "configs")
+    vpnDir  = os.path.join(os.path.expanduser(directory), "vpns")
+    confDir = os.path.join(os.path.expanduser(directory), "configs")
     vpn = centinel.openvpn.OpenVPN()
     for filename in os.listdir(confDir):
         vpnConfig = os.path.join(vpnDir, filename)
-        centinelConfig = os.path.join(confDir, filename)
+        centConfig = os.path.join(confDir, filename)
         vpn.start(vpnConfig)
         if not vpn.started():
             vpn.stop()
             continue
         # now that the VPN is started, get centinel to process the VPN
         # stuff and sync the results
-        configuration = centinel.config.Configuration()
-        configuration.parse_config(centinelConfig)
-        client = centinel.client.Client(configuration.params)
+        config = centinel.config.Configuration()
+        config.parse_config(centConfig)
+        client = centinel.client.Client(config.params)
         client.setup_logging()
         client.run()
-        centinel.backend.sync(configuration.params)
+        centinel.backend.sync(config.params)
 
 
 def create_config_files(directory):
