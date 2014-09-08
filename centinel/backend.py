@@ -100,7 +100,7 @@ def sync(config):
     logging.info("Starting sync with %s", config['server']['server_url'])
 
     try:
-        user = User()
+        user = User(config)
     except Exception, e:
         logging.error("Unable to create user: %s" % str(e))
         return
