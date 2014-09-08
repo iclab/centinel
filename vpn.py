@@ -51,7 +51,7 @@ def scan_vpns(directory):
         vpnConfig = os.path.join(vpnDir, filename)
         centConfig = os.path.join(confDir, filename)
         vpn.start(vpnConfig)
-        if not vpn.started():
+        if not vpn.started:
             vpn.stop()
             continue
         # now that the VPN is started, get centinel to process the VPN
@@ -62,6 +62,7 @@ def scan_vpns(directory):
         client.setup_logging()
         client.run()
         centinel.backend.sync(config.params)
+        vpn.stop()
 
 
 def create_config_files(directory):
