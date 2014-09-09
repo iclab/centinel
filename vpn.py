@@ -44,8 +44,8 @@ def scan_vpns(directory):
     """
 
     # iterate over each VPN
-    vpnDir  = os.path.join(os.path.expanduser(directory), "vpns")
-    confDir = os.path.join(os.path.expanduser(directory), "configs")
+    vpnDir  = return_abs_path(directory, "vpns")
+    confDir = return_abs_path(directory, "configs")
     vpn = centinel.openvpn.OpenVPN()
     for filename in os.listdir(confDir):
         vpnConfig = os.path.join(vpnDir, filename)
@@ -65,7 +65,17 @@ def scan_vpns(directory):
         vpn.stop()
 
 
+def return_abs_path(directory, path):
+    """Unfortunately, Python is not smart enough to return an absolute
+    path with tilde expansion, so I writing functionality to do this
+
+    """
+    directory = os.path.expanduser(directory)
+    return os.path.abspath(os.path.join(directory, path))
+
+
 def create_config_files(directory):
+
     """For each VPN file in directory/vpns, create a new configuration
     file and all the associated directories
 
@@ -77,10 +87,10 @@ def create_config_files(directory):
     -----results (contains the results)
 
     """
-    vpnDir  = os.path.join(os.path.expanduser(directory), "vpns")
-    confDir = os.path.join(os.path.expanduser(directory), "configs")
+    vpnDir  = return_abs_path(directory, "vpns")
+    confDir = return_abs_path(directory, "configs")
     os.mkdir(confDir)
-    homeDirs = os.path.join(os.path.expanduser(directory), "home")
+    homeDirs = return_abs_path(directory, "home")
     os.mkdir(homeDirs)
     for filename in os.listdir(vpnDir):
         configuration = centinel.config.Configuration()
