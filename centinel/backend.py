@@ -10,8 +10,8 @@ class User:
     def __init__(self, config):
         self.config = config
         # check for login file
-        if os.path.isfile(config['user']['login_file']):
-            with open(config['user']['login_file']) as login_fh:
+        if os.path.isfile(config['server']['login_file']):
+            with open(config['server']['login_file']) as login_fh:
                 login_details = json.load(login_fh)
                 self.username = login_details.get('username')
                 self.password = login_details.get('password')
@@ -87,7 +87,7 @@ class User:
 
         try:
             self.register(self.username, self.password)
-            with open(self.config['user']['login_file'], "w") as login_fh:
+            with open(self.config['server']['login_file'], "w") as login_fh:
                 login_details = {'username': self.username,
                                  'password': self.password}
                 json.dump(login_details, login_fh)
