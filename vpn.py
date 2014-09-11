@@ -14,10 +14,16 @@ import centinel.backend
 import centinel.client
 import centinel.config
 import centinel.openvpn
-
+import centinel.hma
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--auth-file', '-u', dest='authFile',
+                        help=("File with HMA username on first line, \n"
+                              "HMA password on second line"))
+    parser.add_argument('--create-hma-configs', dest='createHMA',
+                        action="store_true",
+                        help='Create the openvpn config files for HMA')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--directory", "-d", dest='directory',
                        help="Directory with experiments, config files, etc.")
@@ -31,7 +37,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def scan_vpns(directory):
+def scan_vpns(directory, authFile):
     """For each VPN, check if there are experiments and scan with it if
     necessary
 
@@ -46,11 +52,12 @@ def scan_vpns(directory):
     # iterate over each VPN
     vpnDir  = return_abs_path(directory, "vpns")
     confDir = return_abs_path(directory, "configs")
+    authFile = return_abs_path(".", authFile)
     vpn = centinel.openvpn.OpenVPN()
     for filename in os.listdir(confDir):
         vpnConfig = os.path.join(vpnDir, filename)
         centConfig = os.path.join(confDir, filename)
-        vpn.start(vpnConfig)
+        vpn.start(vpnConfig, timeout=30, authFile=authFile)
         if not vpn.started:
             vpn.stop()
             continue
@@ -121,7 +128,10 @@ if __name__ == "__main__":
     args = parse_args()
 
     if args.createConfDir:
+        if args.createHMA:
+            hmaDir = return_abs_path(args.createConfDir, "vpns")
+            centinel.hma.create_config_files(hmaDir)
         # create the config files for the openvpn config files
         create_config_files(args.createConfDir)
     else:
-        scan_vpns(args.directory)
+        scan_vpns(args.directory, args.authfile)
