@@ -16,9 +16,15 @@ class OpenVPN():
         self.notifications = ""
 
     def _invoke_openvpn(self):
-        self.process = subprocess.Popen(['sudo', 'openvpn',
-                                         '--script-security', '2', '--config',
-                                         self.configFile],
+        if self.authFile is None:
+            cmd = ['sudo', 'openvpn', '--script-security', '2',
+                   '--config', self.configFile]
+        else:
+            cmd = ['sudo', 'openvpn', '--script-security', '2',
+                   '--config', self.configFile,
+                   '--auth-user-pass', self.authFile]
+        self.process = subprocess.Popen(cmd,
+                                        stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT)
         self.killswitch = self.process.terminate
@@ -42,11 +48,12 @@ class OpenVPN():
             self.stopped = True
         return
 
-    def start(self, configFile, timeout=10):
+    def start(self, configFile, timeout=10, authFile=None):
         """Start openvpn and block until the connection is opened or there is
         an error
 
         """
+        self.authFile = authFile
         self.configFile = configFile
         self.thread = threading.Thread(target=self._invoke_openvpn)
         self.thread.setDaemon(1)
