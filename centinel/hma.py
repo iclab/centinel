@@ -7,7 +7,6 @@
 # Hide My Ass VPN service
 
 import os
-import os.path
 import re
 import requests
 import sys
@@ -21,16 +20,18 @@ def create_config_files(directory):
 
     """
     # get the config file template
-    r = requests.get("https://securenetconnection.com/vpnconfig/"
-                     "openvpn-template.ovpn")
-    r.raise_for_status()
-    template = r.content
+    template_url = ("https://securenetconnection.com/vpnconfig/",
+                  "openvpn-template.ovpn")
+    resp = requests.get(template_url)
+    resp.raise_for_status()
+    template = resp.content
 
     # get the available servers and create a config file for each server
-    r = requests.get("https://securenetconnection.com/vpnconfig/"
-                     "servers-cli.php")
-    r.raise_for_status()
-    servers = r.content.split("\n")
+    server_url = ("https://securenetconnection.com/vpnconfig/",
+                  "servers-cli.php")
+    resp = requests.get(server_url)
+    resp.raise_for_status()
+    servers = resp.content.split("\n")
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -41,19 +42,21 @@ def create_config_files(directory):
         if server_line.strip() == "":
             continue
         server_line = server_line.split("|")
-        if len(server_line) == 5:
+        try:
             ip, desc, country, udp_sup, tcp_sup = server_line
-        else:
+        except ValueError:
             ip, desc, country, udp_sup, tcp_sup, no_rand = server_line
-        with open(os.path.join(directory, ip + ".ovpn"), 'w') as f:
-            f.write(template)
+        with open(os.path.join(directory, ip + ".ovpn"), 'w') as file_o:
+            file_o.write(template)
             # create tcp if available, else udp
-            if tcp_sup.strip() != "":
+            tcp_sup = tcp_sup.strip()
+            if tcp_sup:
                 port, proto = 443, "tcp"
             else:
                 port, proto = 53, "udp"
-            f.write("remote {0} {1}\n".format(ip, port))
-            f.write("proto {0}\n".format(proto))
+            file_o.write("remote {0} {1}\n".format(ip, port))
+            file_o.write("proto {0}\n".format(proto))
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
