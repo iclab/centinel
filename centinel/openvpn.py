@@ -9,25 +9,30 @@ import time
 
 
 class OpenVPN():
-    def __init__(self, ):
+    def __init__(self, config_file=None, auth_file=None, timeout=10):
         self.started = False
         self.stopped = False
         self.error = False
         self.notifications = ""
+        self.auth_file = auth_file
+        self.config_file = config_file
+        self.thread = threading.Thread(target=self._invoke_openvpn)
+        self.thread.setDaemon(1)
+        self.timeout = timeout
 
     def _invoke_openvpn(self):
-        if self.authFile is None:
+        if self.auth_file is None:
             cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.configFile]
+                   '--config', self.config_file]
         else:
             cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.configFile,
-                   '--auth-user-pass', self.authFile]
+                   '--config', self.config_file,
+                   '--auth-user-pass', self.auth_file]
         self.process = subprocess.Popen(cmd,
                                         stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT)
-        self.killswitch = self.process.terminate
+        self.kill_switch = self.process.terminate
         self.starting = True
         while True:
             line = self.process.stdout.readline().strip()
@@ -35,7 +40,7 @@ class OpenVPN():
                 break
             self.output_callback(line, self.process.terminate)
 
-    def output_callback(self, line, killswitch):
+    def output_callback(self, line, kill_switch):
         """Set status of openvpn according to what we process"""
 
         self.notifications += line + "\n"
@@ -46,20 +51,17 @@ class OpenVPN():
             self.error = True
         if "process exiting" in line:
             self.stopped = True
-        return
 
-    def start(self, configFile, timeout=10, authFile=None):
+    def start(self, timeout=None):
         """Start openvpn and block until the connection is opened or there is
         an error
 
         """
-        self.authFile = authFile
-        self.configFile = configFile
-        self.thread = threading.Thread(target=self._invoke_openvpn)
-        self.thread.setDaemon(1)
+        if not timeout:
+            timeout = self.timeout
         self.thread.start()
-        startTime = time.time()
-        while startTime + timeout > time.time():
+        start_time = time.time()
+        while start_time + timeout > time.time():
             self.thread.join(1)
             if self.error or self.started:
                 break
@@ -68,15 +70,15 @@ class OpenVPN():
         else:
             print "openvpn not started"
             print self.notifications
-        return
 
-    def stop(self, timeout=10):
+    def stop(self, timeout=None):
         """Stop openvpn"""
-        self.killswitch()
+        if not timeout:
+            timeout = self.timeout
+        self.kill_switch()
         self.thread.join(timeout)
         if self.stopped:
             print "stopped"
         else:
             print "not stopped"
             print self.notifications
-        return
