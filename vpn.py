@@ -12,8 +12,8 @@ import os
 import centinel.backend
 import centinel.client
 import centinel.config
-import centinel.openvpn
-import centinel.hma
+import vpn.openvpn
+import vpn.hma
 
 
 def parse_args():
