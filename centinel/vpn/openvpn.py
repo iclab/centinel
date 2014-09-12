@@ -1,6 +1,4 @@
 #!/usr/bin/python
-# Ben Jones bjones99@gatech.edu
-# Summer 2014
 # openvpn.py: library to handle starting and stopping openvpn instances
 
 import subprocess

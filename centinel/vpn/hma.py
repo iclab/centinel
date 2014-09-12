@@ -1,8 +1,4 @@
 #!/usr/bin/python
-# Ben Jones bjones99@gatech.edu
-# Georgia Tech Fall 2014
-# Centinel project
-#
 # hma.py: collection of functions to create vpn config files from the
 # Hide My Ass VPN service
 
