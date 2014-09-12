@@ -1,7 +1,4 @@
 #!/usr/bin/python
-# Ben Jones bjones99@gatech.edu
-# Georgia Tech Fall 2014
-#
 # vpn.py: a top level interface to commands to run VPNs on a VM as
 # different clients. The use case is allowing us to measure from more
 # places.
@@ -12,8 +9,8 @@ import os
 import centinel.backend
 import centinel.client
 import centinel.config
-import vpn.openvpn
-import vpn.hma
+import centinel.vpn.openvpn
+import centinel.vpn.hma
 
 
 def parse_args():
