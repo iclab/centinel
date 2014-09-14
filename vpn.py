@@ -75,8 +75,8 @@ def scan_vpns(directory, auth_file):
         if not vpn.started:
             vpn.stop()
             continue
-        client.setup_logging()
         client = centinel.client.Client(config.params)
+        client.setup_logging()
         client.run()
         centinel.backend.sync(config.params)
         vpn.stop()
@@ -139,7 +139,8 @@ def create_config_files(directory):
 if __name__ == "__main__":
     args = parse_args()
 
-    logging.basicConfig(filename=args.logFile, format="%(levelname)s: %(message)s",
+    logging.basicConfig(filename=args.logFile,
+                        format="%(levelname)s: %(message)s",
                         level=logging.INFO)
     if args.createConfDir:
         if args.createHMA:
