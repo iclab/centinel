@@ -16,7 +16,7 @@ import centinel.vpn.hma
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--auth-file', '-u', dest='authFile',
+    parser.add_argument('--auth-file', '-u', dest='authFile', default=None,
                         help=("File with HMA username on first line, \n"
                               "HMA password on second line"))
     parser.add_argument('--create-hma-configs', dest='createHMA',
@@ -49,14 +49,14 @@ def scan_vpns(directory, auth_file):
 
     """
 
-    logging.log("Starting to run the experiments for each VPN")
+    logging.info("Starting to run the experiments for each VPN")
 
     # iterate over each VPN
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
     auth_file = return_abs_path(".", auth_file)
     for filename in os.listdir(conf_dir):
-        logging.log("Moving onto {0}".format(filename))
+        logging.info("Moving onto {0}".format(filename))
         vpn_config = os.path.join(vpn_dir, filename)
         cent_config = os.path.join(conf_dir, filename)
 
@@ -65,10 +65,10 @@ def scan_vpns(directory, auth_file):
         config = centinel.config.Configuration()
         config.parse_config(cent_config)
         if not centinel.backend.are_experiments_available(config.params):
-            logging.log("No experiments available for {0}".format(filename))
+            logging.info("No experiments available for {0}".format(filename))
             continue
 
-        logging.log("Starting VPN for {0}".format(filename))
+        logging.info("Starting VPN for {0}".format(filename))
         vpn = centinel.openvpn.OpenVPN(timeout=30, auth_file=auth_file,
                                        config_file=vpn_config)
         vpn.start()
@@ -104,7 +104,7 @@ def create_config_files(directory):
     -----results (contains the results)
 
     """
-    logging.log("Starting to create config files from openvpn files")
+    logging.info("Starting to create config files from openvpn files")
 
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
@@ -139,7 +139,7 @@ def create_config_files(directory):
 if __name__ == "__main__":
     args = parse_args()
 
-    logging.BasicConfig(filename=args.logFile, format="%(levelname)s: %(message)s",
+    logging.basicConfig(filename=args.logFile, format="%(levelname)s: %(message)s",
                         level=logging.INFO)
     if args.createConfDir:
         if args.createHMA:
@@ -148,4 +148,4 @@ if __name__ == "__main__":
         # create the config files for the openvpn config files
         create_config_files(args.createConfDir)
     else:
-        scan_vpns(args.directory, args.authfile)
+        scan_vpns(args.directory, args.authFile)
