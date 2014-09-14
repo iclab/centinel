@@ -130,3 +130,25 @@ def sync(config):
         logging.error("Unable to download experiment files %s", str(e))
 
     logging.info("Finished sync with %s", config['server']['server_url'])
+
+def are_experiments_available(config):
+    logging.info("Starting to check for experiments with %s",
+                 config['server']['server_url'])
+
+    try:
+        user = User(config)
+    except Exception, e:
+        logging.error("Unable to create user: %s" % str(e))
+        return
+
+    try:
+        experiments = user.experiments
+    except Exception, e:
+        logging.error("Unable to download experiment files %s", str(e))
+    if experiments == []:
+        exp_avail = False
+    else:
+        exp_avail = True
+    logging.info("Finished checking for experiments from %s",
+                 config['server']['server_url'])
+    return exp_avail
