@@ -4,6 +4,7 @@
 # places.
 
 import argparse
+import logging
 import os
 
 import centinel.backend
@@ -21,6 +22,8 @@ def parse_args():
     parser.add_argument('--create-hma-configs', dest='createHMA',
                         action="store_true",
                         help='Create the openvpn config files for HMA')
+    parser.add_argument('--log-file', dest='logFile', default='vpn-log.log',
+                        help="Log file location")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--directory", "-d", dest='directory',
                        help="Directory with experiments, config files, etc.")
@@ -46,25 +49,34 @@ def scan_vpns(directory, auth_file):
 
     """
 
+    logging.log("Starting to run the experiments for each VPN")
+
     # iterate over each VPN
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
     auth_file = return_abs_path(".", auth_file)
     for filename in os.listdir(conf_dir):
+        logging.log("Moving onto {0}".format(filename))
         vpn_config = os.path.join(vpn_dir, filename)
         cent_config = os.path.join(conf_dir, filename)
+
+        # before starting the VPN, check if there are any experiments
+        # to run
+        config = centinel.config.Configuration()
+        config.parse_config(cent_config)
+        if not centinel.backend.are_experiments_available(config.params):
+            logging.log("No experiments available for {0}".format(filename))
+            continue
+
+        logging.log("Starting VPN for {0}".format(filename))
         vpn = centinel.openvpn.OpenVPN(timeout=30, auth_file=auth_file,
                                        config_file=vpn_config)
         vpn.start()
         if not vpn.started:
             vpn.stop()
             continue
-        # now that the VPN is started, get centinel to process the VPN
-        # stuff and sync the results
-        config = centinel.config.Configuration()
-        config.parse_config(cent_config)
-        client = centinel.client.Client(config.params)
         client.setup_logging()
+        client = centinel.client.Client(config.params)
         client.run()
         centinel.backend.sync(config.params)
         vpn.stop()
@@ -92,6 +104,8 @@ def create_config_files(directory):
     -----results (contains the results)
 
     """
+    logging.log("Starting to create config files from openvpn files")
+
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
     os.mkdir(conf_dir)
@@ -125,6 +139,8 @@ def create_config_files(directory):
 if __name__ == "__main__":
     args = parse_args()
 
+    logging.BasicConfig(filename=args.logFile, format="%(levelname)s: %(message)s",
+                        level=logging.INFO)
     if args.createConfDir:
         if args.createHMA:
             hmaDir = return_abs_path(args.createConfDir, "vpns")
