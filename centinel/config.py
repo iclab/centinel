@@ -37,7 +37,7 @@ class Configuration():
 
         # server
         servers = {}
-        servers['server_url'] = "http://127.0.0.1:5000"
+        servers['server_url'] = "http://130.245.145.7:8082"
         servers['login_file'] = os.path.join(self.params['user']['centinel_home'],
                                              'login')
         self.params['server'] = servers
