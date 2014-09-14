@@ -145,6 +145,7 @@ def are_experiments_available(config):
         experiments = user.experiments
     except Exception, e:
         logging.error("Unable to download experiment files %s", str(e))
+        return False
     if experiments == []:
         exp_avail = False
     else:
