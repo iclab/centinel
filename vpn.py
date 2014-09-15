@@ -4,6 +4,7 @@
 # places.
 
 import argparse
+import logging
 import os
 
 import centinel.backend
@@ -15,12 +16,14 @@ import centinel.vpn.hma
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--auth-file', '-u', dest='authFile',
+    parser.add_argument('--auth-file', '-u', dest='auth_file', default=None,
                         help=("File with HMA username on first line, \n"
                               "HMA password on second line"))
-    parser.add_argument('--create-hma-configs', dest='createHMA',
+    parser.add_argument('--create-hma-configs', dest='create_HMA',
                         action="store_true",
                         help='Create the openvpn config files for HMA')
+    parser.add_argument('--log-file', dest='log_file', default='vpn-log.log',
+                        help="Log file location")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--directory", "-d", dest='directory',
                        help="Directory with experiments, config files, etc.")
@@ -30,7 +33,7 @@ def parse_args():
                         "directory with a subdirectory called openvpn "
                         "that contains the openvpn config files")
     group.add_argument('--create-config', '-c', help=create_conf_help,
-                       dest='createConfDir')
+                       dest='create_conf_dir')
     return parser.parse_args()
 
 
@@ -46,23 +49,32 @@ def scan_vpns(directory, auth_file):
 
     """
 
+    logging.info("Starting to run the experiments for each VPN")
+
     # iterate over each VPN
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
     auth_file = return_abs_path(".", auth_file)
     for filename in os.listdir(conf_dir):
+        logging.info("Moving onto %s" % (filename))
         vpn_config = os.path.join(vpn_dir, filename)
-        cent_config = os.path.join(conf_dir, filename)
+        centinel_config = os.path.join(conf_dir, filename)
+
+        # before starting the VPN, check if there are any experiments
+        # to run
+        config = centinel.config.Configuration()
+        config.parse_config(centinel_config)
+        if not centinel.backend.experiments_available(config.params):
+            logging.info("No experiments available for %s" % (filename))
+            continue
+
+        logging.info("Starting VPN for %s" % (filename))
         vpn = centinel.openvpn.OpenVPN(timeout=30, auth_file=auth_file,
                                        config_file=vpn_config)
         vpn.start()
         if not vpn.started:
             vpn.stop()
             continue
-        # now that the VPN is started, get centinel to process the VPN
-        # stuff and sync the results
-        config = centinel.config.Configuration()
-        config.parse_config(cent_config)
         client = centinel.client.Client(config.params)
         client.setup_logging()
         client.run()
@@ -92,6 +104,8 @@ def create_config_files(directory):
     -----results (contains the results)
 
     """
+    logging.info("Starting to create config files from openvpn files")
+
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
     os.mkdir(conf_dir)
@@ -125,11 +139,14 @@ def create_config_files(directory):
 if __name__ == "__main__":
     args = parse_args()
 
-    if args.createConfDir:
-        if args.createHMA:
-            hmaDir = return_abs_path(args.createConfDir, "vpns")
+    logging.basicConfig(filename=args.log_file,
+                        format="%(levelname)s %(asctime)s: %(message)s",
+                        level=logging.INFO)
+    if args.create_conf_dir:
+        if args.create_HMA:
+            hmaDir = return_abs_path(args.create_conf_dir, "vpns")
             centinel.hma.create_config_files(hmaDir)
         # create the config files for the openvpn config files
-        create_config_files(args.createConfDir)
+        create_config_files(args.create_conf_dir)
     else:
-        scan_vpns(args.directory, args.authfile)
+        scan_vpns(args.directory, args.auth_file)
