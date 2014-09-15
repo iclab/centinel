@@ -33,7 +33,7 @@ class Configuration():
         self.params['log']['log_file'] = None
         # an alternative is os.path.join(centinel_home,
         # "centinel.log")
-        self.params['log']['log_format'] = '%(levelname)s: %(message)s'
+        self.params['log']['log_format'] = '%(asctime)s: %(levelname)s: %(message)s'
 
         # server
         servers = {}
