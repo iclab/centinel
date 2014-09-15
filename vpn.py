@@ -139,8 +139,8 @@ def create_config_files(directory):
 if __name__ == "__main__":
     args = parse_args()
 
-    logging.basicConfig(filename=args.logFile,
-                        format="%(levelname)s: %(message)s",
+    logging.basicConfig(filename=args.log_file,
+                        format="%(levelname)s %(asctime)s: %(message)s",
                         level=logging.INFO)
     if args.create_conf_dir:
         if args.create_HMA:
