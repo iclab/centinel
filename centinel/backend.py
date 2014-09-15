@@ -131,7 +131,7 @@ def sync(config):
 
     logging.info("Finished sync with %s", config['server']['server_url'])
 
-def are_experiments_available(config):
+def experiments_available(config):
     logging.info("Starting to check for experiments with %s",
                  config['server']['server_url'])
 
@@ -142,14 +142,8 @@ def are_experiments_available(config):
         return
 
     try:
-        experiments = user.experiments
+        if user.experiments:
+            return True
     except Exception, e:
         logging.error("Unable to download experiment files %s", str(e))
-        return False
-    if experiments == []:
-        exp_avail = False
-    else:
-        exp_avail = True
-    logging.info("Finished checking for experiments from %s",
-                 config['server']['server_url'])
-    return exp_avail
+    return False
