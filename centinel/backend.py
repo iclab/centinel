@@ -139,7 +139,7 @@ def experiments_available(config):
         user = User(config)
     except Exception, e:
         logging.error("Unable to create user: %s" % str(e))
-        return
+        return False
 
     try:
         if user.experiments:
