@@ -131,6 +131,7 @@ def create_config_files(directory):
         configuration.params['log']['log_file'] = log_file
         login_file = os.path.join(home_dir, "login")
         configuration.params['server']['login_file'] = login_file
+        configuration.params['user']['is_vpn'] = True
 
         conf_file = os.path.join(conf_dir, filename)
         configuration.write_out_config(conf_file)
