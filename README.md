@@ -24,3 +24,12 @@ censorship.
     * Linux/OS X
     * BISmark Routers
     * Android
+
+### Acknowledgements
+
+* Ben Jones
+* Sathya Gunasekaran
+* Nick Feamster
+* Phillipa Gill
+* Abbas Razzaghpanah
+* Sam Burnett
