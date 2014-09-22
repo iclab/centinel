@@ -10,8 +10,8 @@ import os
 import centinel.backend
 import centinel.client
 import centinel.config
-import centinel.vpn.openvpn
-import centinel.vpn.hma
+import centinel.vpn.openvpn as openvpn
+import centinel.vpn.hma as hma
 
 
 def parse_args():
@@ -69,7 +69,7 @@ def scan_vpns(directory, auth_file):
             continue
 
         logging.info("Starting VPN for %s" % (filename))
-        vpn = centinel.openvpn.OpenVPN(timeout=30, auth_file=auth_file,
+        vpn = openvpn.OpenVPN(timeout=30, auth_file=auth_file,
                                        config_file=vpn_config)
         vpn.start()
         if not vpn.started:
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     if args.create_conf_dir:
         if args.create_HMA:
             hmaDir = return_abs_path(args.create_conf_dir, "vpns")
-            centinel.hma.create_config_files(hmaDir)
+            hma.create_config_files(hmaDir)
         # create the config files for the openvpn config files
         create_config_files(args.create_conf_dir)
     else:
