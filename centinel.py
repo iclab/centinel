@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument('--experiment', '-e', help='Experiment name',
                         nargs="*", dest="experiments")
     parser.add_argument('--config', '-c', help='Configuration file',
-                        nargs=1, dest='config')
+                        dest='config')
     return parser.parse_args()
 
 if __name__ == "__main__":
