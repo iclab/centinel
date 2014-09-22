@@ -1,9 +1,10 @@
-import os
 import glob
-import uuid
 import json
-import requests
 import logging
+import os
+import requests
+import time
+import uuid
 
 
 class User:
@@ -50,7 +51,8 @@ class User:
             files = {'result': result_file}
             url   = "%s/%s" % (self.config['server']['server_url'], "results")
             req   = requests.post(url, proxies=self.config['proxy']['proxy'],
-                                  files=files, auth=self.auth)
+                                  files=files, auth=self.auth,
+                                  timeout=self.config['server']['req_timeout'])
 
         req.raise_for_status()
         os.remove(file_name)
@@ -100,6 +102,7 @@ class User:
 def sync(config):
     logging.info("Starting sync with %s", config['server']['server_url'])
 
+    start = time.time()
     try:
         user = User(config)
     except Exception, e:
@@ -114,6 +117,8 @@ def sync(config):
             user.submit_result(path)
         except Exception, e:
             logging.error("Unable to send result file: %s" % str(e))
+        if time.time() - start > config['server']['total_timeout']:
+            logging.error("Interaction with server took too long. Preempting")
 
     # get all experiment names
     available_experiments = []
@@ -122,13 +127,17 @@ def sync(config):
         file_name, _ = os.path.splitext(os.path.basename(path))
         available_experiments.append(file_name)
     available_experiments = set(available_experiments)
+    if time.time() - start > config['server']['total_timeout']:
+        logging.error("Interaction with server took too long. Preempting")
 
     # download new experiments from server
-    try:
-        map(user.download_experiment,
-            set(user.experiments) - available_experiments)
-    except Exception, e:
-        logging.error("Unable to download experiment files %s", str(e))
+    for experiment in (set(user.experiments) - available_experiments):
+        try:
+            user.download_experiment(experiment)
+        except Exception, e:
+            logging.error("Unable to download experiment files %s", str(e))
+        if time.time() - start > config['server']['total_timeout']:
+            logging.error("Interaction with server took too long. Preempting")
 
     logging.info("Finished sync with %s", config['server']['server_url'])
 
