@@ -53,6 +53,7 @@ class User:
                                   files=files, auth=self.auth)
 
         req.raise_for_status()
+        os.remove(file_name)
 
     def download_experiment(self, name):
         logging.info("Downloading experiment - %s", name)
