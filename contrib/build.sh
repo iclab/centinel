@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 #
-# nightlyBuild.sh: script to build and upload the latest version of the package
+# build.sh: script to build and upload the latest version of the package
 
 # first, test that we can successfully build the repo (since we are using
 # bash's -e flag, this will fail if we cannot build from the repo
