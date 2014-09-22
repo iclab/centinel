@@ -119,6 +119,7 @@ def sync(config):
             logging.error("Unable to send result file: %s" % str(e))
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
+            return
 
     # get all experiment names
     available_experiments = []
@@ -129,6 +130,7 @@ def sync(config):
     available_experiments = set(available_experiments)
     if time.time() - start > config['server']['total_timeout']:
         logging.error("Interaction with server took too long. Preempting")
+        return
 
     # download new experiments from server
     for experiment in (set(user.experiments) - available_experiments):
@@ -138,6 +140,7 @@ def sync(config):
             logging.error("Unable to download experiment files %s", str(e))
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
+            return
 
     logging.info("Finished sync with %s", config['server']['server_url'])
 
