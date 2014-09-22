@@ -37,9 +37,14 @@ class Configuration():
 
         # server
         servers = {}
-        servers['server_url'] = "http://130.245.145.7:8082"
+        servers['server_url'] = "http://server.iclab.org:8082"
         servers['login_file'] = os.path.join(self.params['user']['centinel_home'],
                                              'login')
+        # the entire transaction should take less than 5 min
+        servers['total_timeout'] = 60*5
+        # set a socket timeout of 15 seconds (no way to do per request
+        # platform independently)
+        servers['req_timeout'] = 15
         self.params['server'] = servers
 
         # proxy
