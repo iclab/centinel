@@ -75,7 +75,8 @@ class User:
         logging.info("Registering new user %s" % (username))
 
         url     = "%s/%s" % (self.config['server']['server_url'], "register")
-        payload = {'username': username, 'password': password}
+        payload = {'username': username, 'password': password,
+                   'is_vpn': self.config['user'].get('is_vpn')}
         headers = {'content-type': 'application/json'}
         req     = requests.post(url, data=json.dumps(payload),
                                 proxies=self.config['proxy']['proxy'],
