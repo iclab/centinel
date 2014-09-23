@@ -137,7 +137,9 @@ def create_config_files(directory):
         configuration.write_out_config(conf_file)
 
 
-if __name__ == "__main__":
+def run():
+    """This is the entry point for running centinel"""
+
     args = parse_args()
 
     logging.basicConfig(filename=args.log_file,
@@ -151,3 +153,7 @@ if __name__ == "__main__":
         create_config_files(args.create_conf_dir)
     else:
         scan_vpns(args.directory, args.auth_file)
+
+
+if __name__ == "__main__":
+    run()
