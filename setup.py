@@ -6,7 +6,7 @@ Centinel is a tool used to detect network interference and internet censorship."
 
 setup(
     name = "centinel-dev",
-    version = "0.1.4.4",
+    version = "0.1.4.6",
     author = "Sathyanarayanan Gunasekaran",
     author_email = "gsathya@gatech.edu",
     description = DESCRIPTION,
