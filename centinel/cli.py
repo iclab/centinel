@@ -19,7 +19,10 @@ def parse_args():
                         dest='config')
     return parser.parse_args()
 
-if __name__ == "__main__":
+
+def run():
+    """This is the entry point for running centinel"""
+
     args = parse_args()
 
     # create the configuration at runtime (what we were doing before)
@@ -36,3 +39,7 @@ if __name__ == "__main__":
         centinel.backend.sync(configuration.params)
     else:
         client.run()
+
+
+if __name__ == "__main__":
+    run()
