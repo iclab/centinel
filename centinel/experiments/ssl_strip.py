@@ -22,7 +22,7 @@ class SSLStripExperiment(Experiment):
         }
 
         logging.info("Checking %s for SSL stripping" % (site))
-        req = requests.get('http://' + site, allow_redirects=False)
+        req = requests.get(site, allow_redirects=False)
         result["headers"] = dict(req.headers)
         result["status"] = req.status_code
         # if the status code is not 3xx or the redirect location does

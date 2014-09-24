@@ -1,4 +1,4 @@
-www.facebook.com
-www.wellsfargo.com
-encrypted.google.com
-www.duckduckgo.com
+http://www.facebook.com
+http://www.wellsfargo.com
+http://encrypted.google.com
+http://www.duckduckgo.com
