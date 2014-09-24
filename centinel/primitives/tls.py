@@ -1,6 +1,5 @@
-# Ben Jones bjones99@gatech.edu
-# Summer 2014
-#Dependencies: install M2Crypto with sudo apt-get install python-m2crypto
+# Dependencies: install M2Crypto with sudo apt-get install
+# python-m2crypto
 
 import ssl
 import M2Crypto
