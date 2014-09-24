@@ -3,6 +3,7 @@ import logging
 from centinel.experiment import Experiment
 from centinel.utils import tls
 
+
 class TLSExperiment(Experiment):
     """Check the tls fingerprints of a site"""
     name = "tls"
@@ -15,20 +16,18 @@ class TLSExperiment(Experiment):
         for line in self.input_file:
             line = line.split(',')
             self.host, self.port = line[0].strip(), int(line[1].strip())
-            self.fprs = []
-            for entry in line[2:]:
-                self.fprs.append(entry.strip().lower())
+            self.fingerprints = [entry.strip().lower() for entry in line[2:]]
             self.tls_test()
 
     def tls_test(self):
         result = {"host": self.host}
 
-        logging.info("Getting TLS Certificate from %s on port %s " % 
+        logging.info("Getting TLS Certificate from %s on port %s " %
                      (self.host, self.port))
-        fpr, cert = tls.get_fingerprint(self.host, self.port)
-        result['fpr'] = fpr
+        fingerprint, cert = tls.get_fingerprint(self.host, self.port)
+        result['fingerprint'] = fingerprint
         result['cert'] = cert
-        if fpr in self.fprs:
+        if fingerprint in self.fingerprints:
             result["success"] = 'true'
         else:
             result["success"] = 'false'
