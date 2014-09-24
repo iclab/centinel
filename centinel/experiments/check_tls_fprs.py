@@ -1,7 +1,7 @@
 import logging
 
 from centinel.experiment import Experiment
-from centinel.utils import tls
+from centinel.primitives import tls
 
 
 class TLSExperiment(Experiment):
