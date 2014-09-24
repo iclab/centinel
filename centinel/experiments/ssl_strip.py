@@ -30,7 +30,6 @@ class SSLStripExperiment(Experiment):
         result["success"] = True
         if (req.status_code > 399) or (req.status_code < 300):
             result["success"] = False
-        elif (("location" in req.headers) and
-              ("https" not in req.headers["location"])):
+        if "https" not in req.headers.get("location", ""):
             result["success"] = False
         self.results.append(result)
