@@ -3,14 +3,18 @@
 # installRPi.sh: install centinel on Raspbian
 
 sudo apt-get install python-pip python-m2crypto
+sudo pip uninstall centinel
 sudo pip install --upgrade centinel-dev
 
 # write out a centinel test script to cron.hourly
 sudo rm -f /etc/cron.hourly/centinel
-echo "#!/bin/bash"                         > centinel-hourly-run
-echo "# cron job for centinel"            >> centinel-hourly-run
-echo "/usr/local/bin/centinel-dev"        >> centinel-hourly-run
-echo "/usr/local/bin/centinel-dev --sync" >> centinel-hourly-run
+echo "#!/bin/bash"                                > centinel-hourly-run
+echo "# cron job for centinel"                   >> centinel-hourly-run
+echo 'sleepTime=$(($RANDOM % $(expr 60 \* 15)))' >> centinel-hourly-run
+echo 'sleep $sleepTime'                          >> centinel-hourly-run
+echo "/usr/local/bin/centinel-dev --sync"        >> centinel-hourly-run
+echo "/usr/local/bin/centinel-dev"               >> centinel-hourly-run
+echo "/usr/local/bin/centinel-dev --sync"        >> centinel-hourly-run
 sudo mv centinel-hourly-run /etc/cron.hourly/centinel
 sudo chmod +x /etc/cron.hourly/centinel
 
