@@ -32,10 +32,11 @@ def parse_args():
     group.add_argument('--informed-consent', help=consent_help,
                        dest='consent', default=False, action='store_true')
 
+    subparsers = parser.add_subparsers(help='sub-command help', dest='sub_command')
     daemon_help = ('Create cron jobs to run centinel in the background and '
                    'autoupdate. You must be root to use this functionality')
     daemon_parser = subparsers.add_parser('daemonize', help=daemon_help)
-        binary_help = ('Name or location of the binary to use in the cron job '
+    binary_help = ('Name or location of the binary to use in the cron job '
                    'for centinel')
     daemon_parser.add_argument('--binary', default=None, help=binary_help)
     update_help = ('Create an autoupdate script for the installed package. '
@@ -75,8 +76,7 @@ if __name__ == "__main__":
     # Note: because we have mutually exclusive arguments, we don't
     # have to worry about multiple arguments being called
     if args.sub_command == 'daemonize':
-        print "here"
-        package_info = configs.params.get('package')
+        package_info = configuration.params.get('package')
         package_name = None
         # we don't need to worry about args.binary's value because it
         # defaults to None
