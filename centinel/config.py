@@ -16,6 +16,7 @@ class Configuration():
         user_home          = os.path.expanduser('~' + user_info['current_user'])
         user_info['centinel_home'] = os.path.join(user_home, '.centinel')
         user_info['is_vpn'] = False
+        user_info['given_consent'] = False
         self.params['user'] = user_info
 
         # directory structure
