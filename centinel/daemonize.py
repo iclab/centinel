@@ -3,6 +3,7 @@
 # daemonize.py: functionality to make centinel run in the background
 
 import os
+import stat
 import tempfile
 
 
@@ -23,8 +24,8 @@ def create_script_for_location(content, destination):
     temp.close()
     os.rename(temp.name, destination)
     cur_perms = os.stat(destination).st_mode
-    set_perms = cur_perms | stat.IXOTH | stat.IXGRP | stat.IXUSR
-    os.chmod(destination, cur_perms.st_mode, stat.S_IEXEC)
+    set_perms = cur_perms | stat.S_IXOTH | stat.S_IXGRP | stat.S_IXUSR
+    os.chmod(destination, set_perms)
 
 
 def daemonize(package, bin_loc):
@@ -48,17 +49,17 @@ def daemonize(package, bin_loc):
 
     """
     # create a script to run centinel every hour
-    hourly = ("#!/bin/bash\n"
-              "# cron job for centinel\n"
-              bin_loc + " --sync\n"
-              bin_loc + "\n"
-              bin_loc + " --sync --random-wait\n")
+    hourly = "".join(["#!/bin/bash\n",
+                      "# cron job for centinel\n",
+                      bin_loc, " --sync\n",
+                      bin_loc, "\n",
+                      bin_loc, " --sync --random-wait\n"])
     create_script_for_location(hourly, "/etc/cron.hourly/centinel")
 
     # create a script to get the client to autoupdate every day
     if package is None:
         return
-    updater = ("#!/bin/bash\n"
-               "# autoupdater for centinel\n"
-               "sudo pip install --upgrade " + package + "\n")
+    updater = "".join(["#!/bin/bash\n",
+                      "# autoupdater for centinel\n"
+                      "sudo pip install --upgrade ", package, "\n"])
     create_script_for_location(updater, "/etc/cron.daily/centinel-autoupdate")
