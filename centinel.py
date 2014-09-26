@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 import argparse
 import getpass
 import os
@@ -30,7 +31,21 @@ def parse_args():
                     "results for analysis")
     group.add_argument('--informed-consent', help=consent_help,
                        dest='consent', default=False, action='store_true')
+
+    daemon_help = ('Create cron jobs to run centinel in the background and '
+                   'autoupdate. You must be root to use this functionality')
+    daemon_parser = subparsers.add_parser('daemonize', help=daemon_help)
+        binary_help = ('Name or location of the binary to use in the cron job '
+                   'for centinel')
+    daemon_parser.add_argument('--binary', default=None, help=binary_help)
+    update_help = ('Create an autoupdate script for the installed package. '
+                   'Note that you must have installed from a pip package for '
+                   'this to work correctly')
+    daemon_parser.add_argument('--auto-update', action='store_true',
+                               help=update_help)
+
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -59,6 +74,21 @@ if __name__ == "__main__":
     user = centinel.backend.User(configuration.params)
     # Note: because we have mutually exclusive arguments, we don't
     # have to worry about multiple arguments being called
+    if args.sub_command == 'daemonize':
+        print "here"
+        package_info = configs.params.get('package')
+        package_name = None
+        # we don't need to worry about args.binary's value because it
+        # defaults to None
+        if package_info is not None:
+            args.binary = package_info.get('binary_name')
+            package_name = package_info.get('name')
+        # if we don't have a valid binary location, then exit
+        if args.binary is None:
+            print "Error: no binary found to daemonize"
+            exit(1)
+        centinel.daemonize.daemonize(package_name, args.binary)
+
     if args.sync:
         centinel.backend.sync(configuration.params)
     elif args.consent:
