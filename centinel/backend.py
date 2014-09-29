@@ -1,4 +1,4 @@
-from base64 import b64encode
+from base64 import urlsafe_b64encode
 import glob
 import json
 import logging
@@ -105,9 +105,9 @@ class User:
 
         consent_url = [self.config['server']['server_url'],
                        "/get_initial_consent?username="]
-        consent_url.append(b64encode(self.username))
+        consent_url.append(urlsafe_b64encode(self.username))
         consent_url.append("&password=")
-        consent_url.append(b64encode(self.password))
+        consent_url.append(urlsafe_b64encode(self.password))
         consent_url = "".join(consent_url)
         print "Please go to %s to give your consent" % (consent_url)
         return consent_url
