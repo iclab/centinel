@@ -8,40 +8,25 @@ import centinel
 import centinel.config
 
 # Constants
-DEFAULT_CONFIG_FILE = os.path.expanduser('~' + getpass.getuser())
+DEFAULT_CONFIG_FILE = os.path.expanduser('~' + getpass.getuser() +
+                                         "config.ini")
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sync', help='Sync data with server',
-                        action='store_true')
-    parser.add_argument('--version', '-v', action='version',
-                        version="Centinel %s" % (centinel.__version__),
-                        help='Sync data with server')
-    parser.add_argument('--experiment', '-e', help='Experiment name',
-                        nargs="*", dest="experiments")
     parser.add_argument('--config', '-c', help='Configuration file',
                         dest='config')
-
-    give_consent_help = ('Give informed consent so you can upload results to '
-                         'the researchers at ICLab and download their '
-                         'experiments')
-    parser.add_argument('--give-informed-consent', help=give_consent_help,
-                        dest='given_consent', action='store_true',
-                        default=None)
-    clear_consent_help = ('Choose not to give consent to Centinel and clear '
-                          'the consent flag so that you can run Centinel. '
-                          'Note: This is *not* advised; you are undertaking '
-                          'a lot of risk and you will not be able to upload '
-                          'results to ICLab or download experiments. Even if '
-                          'you are choosing not to upload your results, '
-                          'please visit our site to better understand the '
-                          'risks you face.')
-    parser.add_argument('--do-not-give-informed-consent',
-                        help=clear_consent_help, dest='given_consent',
-                        action='store_true', default=None)
-
-                        
+    group =  parser.add_mutually_exclusive_group()
+    group.add_argument('--version', '-v', action='version',
+                        version="Centinel %s" % (centinel.__version__),
+                        help='Sync data with server')
+    group.add_argument('--sync', help='Sync data with server',
+                        action='store_true')
+    consent_help = ("Give informed consent so that you can download "
+                    "experiments from the researchers at ICLab and upload "
+                    "results for analysis")
+    group.add_argument('--informed-consent', help=consent_help,
+                        dest='consent', default=False, action='store_true')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -58,13 +43,16 @@ if __name__ == "__main__":
         # will be used
         if os.path.exists(DEFAULT_CONFIG_FILE):
             configuration.parse_config(DEFAULT_CONFIG_FILE)
+            configuration.write_out_config(DEFAULT_CONFIG_FILE)
 
     client = centinel.client.Client(configuration.params)
     client.setup_logging()
-
+    user = centinel.backend.User(configuration.params)
+    # Note: because we have mutually exclusive arguments, we don't
+    # have to worry about multiple arguments being called
     if args.sync:
         centinel.backend.sync(configuration.params)
-    elif args.given_consent is not None:
-        client.informed_consent(args.given_consent)
+    elif args.consent:
+        user.informed_consent(give_consent=True)
     else:
         client.run()
