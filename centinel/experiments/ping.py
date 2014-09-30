@@ -1,4 +1,5 @@
 import os
+import logging
 
 from centinel.experiment import Experiment
 
@@ -19,7 +20,7 @@ class PingExperiment(Experiment):
             "host" : self.host,
         }
 
-        print "Running ping to " + self.host      
+        logging.info("Running ping to %s" % self.host)
         response = os.system("ping -c 1 " + self.host + " >/dev/null 2>&1")
         
         if response == 0:

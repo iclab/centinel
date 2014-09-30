@@ -1,5 +1,5 @@
-import centinel.utils.http as http
-import centinel.utils.dnslib as dns
+import centinel.primitives.http as http
+import centinel.primitives.dnslib as dns
 
 from centinel.experiment import Experiment
 

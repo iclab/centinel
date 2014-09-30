@@ -3,74 +3,86 @@ import sys
 import json
 import glob
 import imp
-import getpass
+import logging
 
 from datetime import datetime
 
 from experiment import Experiment, ExperimentList
 
-EXPERIMENTS_DIR = os.path.join(os.path.dirname(__file__), "experiments")
-DATA_DIR        = os.path.join(os.path.dirname(__file__), "data")
 
-def get_results_dir():
-    current_user = getpass.getuser()
-    centinel_home = os.path.join(os.path.expanduser('~'+current_user), '.centinel')
-    return os.path.join(centinel_home, 'results')
+class Client():
 
-def get_result_file(results_dir):
-    result_file = "result-%s.json" % (datetime.now().isoformat())
-    return os.path.join(results_dir, result_file)
+    def __init__(self, config):
+        self.config = config
 
-def get_input_file(experiment_name):
-    input_file = "%s.txt" % (experiment_name)
-    return os.path.join(DATA_DIR, input_file)
+    def setup_logging(self):
+        logging.basicConfig(filename=self.config['log']['log_file'],
+                            format=self.config['log']['log_format'],
+                            level=self.config['log']['log_level'])
 
-def load_experiments():
-    # look for experiments in experiments directory
-    for path in glob.glob(os.path.join(EXPERIMENTS_DIR,'[!_]*.py')):
-        # get name of file and path
-        name, ext = os.path.splitext(os.path.basename(path))
-        # load the experiment
-        imp.load_source(name, path)
+    def get_result_file(self):
+        result_file = "result-%s.json" % (datetime.now().isoformat())
+        return os.path.join(self.config['dirs']['results_dir'], result_file)
 
-    # return dict of experiment names and classes
-    return ExperimentList.experiments
+    def get_input_file(self, experiment_name):
+        input_file = "%s.txt" % (experiment_name)
+        return os.path.join(self.config['dirs']['data_dir'], input_file)
 
-def run():
-    results_dir = get_results_dir()    
+    def load_experiments(self):
+        # look for experiments in experiments directory
+        for path in glob.glob(os.path.join(self.config['dirs']['experiments_dir'],
+                                           '[!_]*.py')):
+            # get name of file and path
+            name, ext = os.path.splitext(os.path.basename(path))
+            # load the experiment
+            imp.load_source(name, path)
 
-    if not os.path.exists(results_dir):
-        print "Creating results directory in %s" % (results_dir)
-        os.makedirs(results_dir)
+        # return dict of experiment names and classes
+        return ExperimentList.experiments
 
-    result_file = get_result_file(results_dir)
-    result_file = open(result_file, "w")
-    results = {}
+    def run(self, data_dir=None):
+        # XXX: android build needs this. refactor
+        if data_dir:
+            centinel_home = data_dir
+            self.config['dirs']['results_dir'] = os.path.join(centinel_home,
+                                                              'results')
 
-    experiments = load_experiments()
+        logging.info('Started centinel')
 
-    for name, Exp in experiments.items():
-        input_file = get_input_file(name)
+        if not os.path.exists(self.config['dirs']['results_dir']):
+            logging.warn("Creating results directory in "
+                         "%s" % (self.config['dirs']['results_dir']))
+            os.makedirs(self.config['dirs']['results_dir'])
 
-        if not os.path.isfile(input_file):
-            print "No input file found for %s. Skipping test." % (name)
-            continue
+        result_file = self.get_result_file()
+        result_file = open(result_file, "w")
+        results = {}
 
-        print "Reading input from %s" % (input_file)
-        input_file = open(input_file)
+        experiments = self.load_experiments()
 
-        try:
-            print "Running %s test." % (name)
-            exp = Exp(input_file)
-            exp.run()
-        except Exception, e:
-            print "Error: %s", str(e)
+        for name, Exp in experiments.items():
+            input_file = self.get_input_file(name)
 
-        input_file.close()
+            if not os.path.isfile(input_file):
+                logging.warn("No input file found for %s. Skipping test."
+                             "" % (name))
+                continue
 
-        results[name] = exp.results
+            logging.info("Reading input from %s" % (input_file))
+            input_file = open(input_file)
 
-    json.dump(results, result_file)
-    result_file.close()
+            try:
+                logging.info("Running %s test." % (name))
+                exp = Exp(input_file)
+                exp.run()
+            except Exception, e:
+                logging.error("Error in %s: %s" % (name, str(e)))
 
-    print "All experiments over. Check results."
+            input_file.close()
+
+            results[name] = exp.results
+
+        json.dump(results, result_file)
+        result_file.close()
+
+        logging.info("All experiments over. Check results.")
