@@ -2,9 +2,13 @@ import glob
 import json
 import logging
 import os
+import os.path
 import requests
 import time
 import uuid
+
+CERT_BUNDLE = os.path.join(os.path.dirname(__file__),
+                           "data/gd_bundle-g2-g1.crt")
 
 
 class User:
@@ -24,7 +28,7 @@ class User:
         url = "%s/%s" % (self.config['server']['server_url'], slug)
         req = requests.get(url, auth=self.auth,
                            proxies=self.config['proxy']['proxy'],
-                           verify="centinel/data/gd_bundle-g2-g1.crt")
+                           verify=CERT_BUNDLE)
         req.raise_for_status()
 
         return req.json()
@@ -54,7 +58,7 @@ class User:
             req   = requests.post(url, proxies=self.config['proxy']['proxy'],
                                   files=files, auth=self.auth,
                                   timeout=self.config['server']['req_timeout'],
-                                  verify="centinel/data/gd_bundle-g2-g1.crt")
+                                  verify=CERT_BUNDLE)
 
         req.raise_for_status()
         os.remove(file_name)
@@ -65,7 +69,7 @@ class User:
         url = "%s/%s/%s" % (self.config['server']['server_url'],
                             "experiments", name)
         req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                           verify="centinel/data/gd_bundle-g2-g1.crt",
+                           verify=CERT_BUNDLE,
                            auth=self.auth)
         req.raise_for_status()
 
@@ -84,7 +88,7 @@ class User:
         req     = requests.post(url, data=json.dumps(payload),
                                 proxies=self.config['proxy']['proxy'],
                                 headers=headers,
-                                verify="centinel/data/gd_bundle-g2-g1.crt")
+                                verify=CERT_BUNDLE)
 
         req.raise_for_status()
 
