@@ -38,7 +38,7 @@ class Configuration():
 
         # server
         servers = {}
-        servers['server_url'] = "http://server.iclab.org:8082"
+        servers['server_url'] = "https://server.iclab.org:8082"
         servers['login_file'] = os.path.join(self.params['user']['centinel_home'],
                                              'login')
         # the entire transaction should take less than 5 min
