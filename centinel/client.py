@@ -86,27 +86,35 @@ class Client():
         json.dump(results, result_file)
         result_file.close()
 
-        logging.info("Compressing and archiving results.")
-        archive_filename = "results-%s.tar.bz2" % datetime.now().strftime("%m-%d-%Y")
-        archive_file_path = os.path.join(self.config['dirs']['results_dir'], archive_filename)
-        temp_dir = os.path.join(self.config['dirs']['results_dir'], "tmp-%s" % datetime.now().isoformat())
+        result_files = [path for path in glob.glob(
+            os.path.join(self.config['dirs']['results_dir'],'*.json'))]
 
-        if os.path.isfile(archive_file_path):
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir)
-            with tarfile.open(archive_file_path, "r:bz2") as tar:
-                tar.extractall(temp_dir)
-            with tarfile.open(archive_file_path, "w:bz2") as tar:
-                tar.add(result_file_path, arcname = os.path.basename(result_file_path))
-                for filename in glob.glob(os.path.join(temp_dir, "*.json")):
-                    tar.add(filename, arcname = os.path.basename(filename))
-                    os.remove(filename)
-            os.remove(result_file_path)
-            os.rmdir(temp_dir)
-        else:
-            logging.info("Creating new archive for today (%s)." % archive_file_path)
-            with tarfile.open(archive_file_path, "w:bz2") as tar:
-                tar.add(result_file_path, arcname = os.path.basename(result_file_path))
-            os.remove(result_file_path)
+        if len(result_files) >= self.config['results']['files_per_archive']:
+            logging.info("Compressing and archiving results.")
+
+            encoding = self.config['results']['archive_encoding']
+            files_archived = 0
+            archive_count = 0
+            tar = ""
+
+            for path in result_files:
+                if files_archived % self.config['results']['files_per_archive'] == 0:
+                    archive_count += 1
+                    archive_filename = "results-%s_%d.tar.%s" % (
+                        datetime.now().isoformat(), archive_count, encoding)
+                    archive_file_path = os.path.join(self.config['dirs']['results_dir'],
+                        archive_filename)
+                    logging.info("Creating new archive (%s)." % archive_file_path)
+                    if tar:
+                        tar.close()
+                    tar = tarfile.open(archive_file_path, "w:%s" % encoding)
+
+                tar.add(path,
+                        arcname = os.path.basename(path))
+                os.remove(path)
+                files_archived += 1
+
+            if tar:
+                tar.close()
 
         logging.info("All experiments over. Check results.")

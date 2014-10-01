@@ -28,6 +28,13 @@ class Configuration():
                                                'results')
         self.params['dirs'] = dirs
 
+        # results
+        results = {}
+        # archive encoding can be either "bz2" or "gz"
+        results['archive_encoding'] = "bz2"
+        results['files_per_archive'] = 10
+        self.params['results'] = results
+
         # logging
         self.params['log'] = {}
         self.params['log']['log_level'] = logging.INFO
