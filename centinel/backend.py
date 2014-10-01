@@ -77,7 +77,7 @@ class User:
         url     = "%s/%s" % (self.config['server']['server_url'], "register")
         payload = {'username': username, 'password': password,
                    'is_vpn': self.config['user'].get('is_vpn')}
-        headers = {'content-type': 'application/json'}
+        headers = {'content-type': 'application/x-tar'}
         req     = requests.post(url, data=json.dumps(payload),
                                 proxies=self.config['proxy']['proxy'],
                                 headers=headers)
@@ -113,9 +113,10 @@ def sync(config):
     # send all results
     # XXX: delete all files after sync?
     for path in glob.glob(os.path.join(config['dirs']['results_dir'],
-                                       '[!_]*.json')):
+                                       '[!_]*.tar.bz2')):
         try:
             user.submit_result(path)
+            os.remove(path)
         except Exception, e:
             logging.error("Unable to send result file: %s" % str(e))
         if time.time() - start > config['server']['total_timeout']:
