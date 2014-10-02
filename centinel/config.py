@@ -41,6 +41,12 @@ class Configuration():
         # "centinel.log")
         self.params['log']['log_format'] = '%(asctime)s: %(levelname)s: %(message)s'
 
+        # experiments
+        experiments = {}
+        experiments['random_subset'] = True
+        experiments['subset_size'] = 2
+        self.params['experiments'] = experiments
+
         # server
         servers = {}
         servers['server_url'] = "https://server.iclab.org:8082"
