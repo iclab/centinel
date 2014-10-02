@@ -113,7 +113,7 @@ def sync(config):
     # send all results
     # XXX: delete all files after sync?
     for path in glob.glob(os.path.join(config['dirs']['results_dir'],
-        '[!_]*.tar.%s' % config['results']['archive_encoding'])):
+        '[!_]*.tar.bz2')):
         try:
             user.submit_result(path)
             os.remove(path)

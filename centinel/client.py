@@ -92,29 +92,28 @@ class Client():
         if len(result_files) >= self.config['results']['files_per_archive']:
             logging.info("Compressing and archiving results.")
 
-            encoding = self.config['results']['archive_encoding']
             files_archived = 0
             archive_count = 0
-            tar = ""
+            tar_file = None
 
             for path in result_files:
                 if files_archived % self.config['results']['files_per_archive'] == 0:
                     archive_count += 1
-                    archive_filename = "results-%s_%d.tar.%s" % (
-                        datetime.now().isoformat(), archive_count, encoding)
+                    archive_filename = "results-%s_%d.tar.bz2" % (
+                        datetime.now().isoformat(), archive_count)
                     archive_file_path = os.path.join(self.config['dirs']['results_dir'],
                         archive_filename)
                     logging.info("Creating new archive (%s)." % archive_file_path)
-                    if tar:
-                        tar.close()
-                    tar = tarfile.open(archive_file_path, "w:%s" % encoding)
+                    if tar_file:
+                        tar_file.close()
+                    tar_file = tarfile.open(archive_file_path, "w:bz2")
 
-                tar.add(path,
-                        arcname = os.path.basename(path))
+                tar_file.add(path,
+                             arcname = os.path.basename(path))
                 os.remove(path)
                 files_archived += 1
 
-            if tar:
-                tar.close()
+            if tar_file:
+                tar_file.close()
 
         logging.info("All experiments over. Check results.")

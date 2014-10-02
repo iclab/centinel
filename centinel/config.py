@@ -30,8 +30,6 @@ class Configuration():
 
         # results
         results = {}
-        # archive encoding can be either "bz2" or "gz"
-        results['archive_encoding'] = "bz2"
         results['files_per_archive'] = 10
         self.params['results'] = results
 
