@@ -63,12 +63,12 @@ class Client():
         experiments = self.load_experiments()
         experiments_subset = experiments.items()
 
-        if self.config['experiments']['random_subset']:
+        if self.config['experiments']['random_subsetting']:
             experiments_subset = [
                 experiments.items()[i] for i in sorted(
                     random.sample(xrange(len(experiments.items())),
                                   self.config['experiments']
-                                             ['subset_size']))
+                                             ['random_subset_size']))
             ]
 
         for name, Exp in experiments_subset:
