@@ -4,6 +4,7 @@ import json
 import glob
 import imp
 import logging
+import tarfile
 
 from datetime import datetime
 
@@ -54,8 +55,8 @@ class Client():
                          "%s" % (self.config['dirs']['results_dir']))
             os.makedirs(self.config['dirs']['results_dir'])
 
-        result_file = self.get_result_file()
-        result_file = open(result_file, "w")
+        result_file_path = self.get_result_file()
+        result_file = open(result_file_path, "w")
         results = {}
 
         experiments = self.load_experiments()
@@ -84,5 +85,35 @@ class Client():
 
         json.dump(results, result_file)
         result_file.close()
+
+        result_files = [path for path in glob.glob(
+            os.path.join(self.config['dirs']['results_dir'],'*.json'))]
+
+        if len(result_files) >= self.config['results']['files_per_archive']:
+            logging.info("Compressing and archiving results.")
+
+            files_archived = 0
+            archive_count = 0
+            tar_file = None
+
+            for path in result_files:
+                if files_archived % self.config['results']['files_per_archive'] == 0:
+                    archive_count += 1
+                    archive_filename = "results-%s_%d.tar.bz2" % (
+                        datetime.now().isoformat(), archive_count)
+                    archive_file_path = os.path.join(self.config['dirs']['results_dir'],
+                        archive_filename)
+                    logging.info("Creating new archive (%s)." % archive_file_path)
+                    if tar_file:
+                        tar_file.close()
+                    tar_file = tarfile.open(archive_file_path, "w:bz2")
+
+                tar_file.add(path,
+                             arcname = os.path.basename(path))
+                os.remove(path)
+                files_archived += 1
+
+            if tar_file:
+                tar_file.close()
 
         logging.info("All experiments over. Check results.")

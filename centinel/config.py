@@ -28,6 +28,11 @@ class Configuration():
                                                'results')
         self.params['dirs'] = dirs
 
+        # results
+        results = {}
+        results['files_per_archive'] = 10
+        self.params['results'] = results
+
         # logging
         self.params['log'] = {}
         self.params['log']['log_level'] = logging.INFO
