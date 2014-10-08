@@ -166,7 +166,6 @@ def sync(config):
         '[!_]*.tar.bz2')):
         try:
             user.submit_result(path)
-            os.remove(path)
         except Exception, e:
             logging.error("Unable to send result file: %s" % str(e))
             break
