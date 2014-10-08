@@ -1,3 +1,4 @@
+from base64 import urlsafe_b64encode
 import glob
 import json
 import logging
@@ -102,6 +103,18 @@ class User:
         except Exception as e:
             logging.error("Unable to register: %s" % str(e))
             raise e
+
+    def informed_consent(self):
+        """Create a URL for the user to give their consent through"""
+
+        consent_url = [self.config['server']['server_url'],
+                       "/get_initial_consent?username="]
+        consent_url.append(urlsafe_b64encode(self.username))
+        consent_url.append("&password=")
+        consent_url.append(urlsafe_b64encode(self.password))
+        consent_url = "".join(consent_url)
+        print "Please go to %s to give your consent" % (consent_url)
+        return consent_url
 
 
 def sync(config):
