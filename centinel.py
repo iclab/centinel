@@ -53,6 +53,6 @@ if __name__ == "__main__":
     if args.sync:
         centinel.backend.sync(configuration.params)
     elif args.consent:
-        user.informed_consent(give_consent=True)
+        user.informed_consent()
     else:
         client.run()

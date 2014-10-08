@@ -100,7 +100,7 @@ class User:
             logging.error("Unable to register: %s" % str(e))
             raise e
 
-    def informed_consent(self, give_consent):
+    def informed_consent(self):
         """Create a URL for the user to give their consent through"""
 
         consent_url = [self.config['server']['server_url'],
