@@ -23,52 +23,82 @@ class User:
 
     def request(self, slug):
         url = "%s/%s" % (self.config['server']['server_url'], slug)
-        req = requests.get(url, auth=self.auth,
-                           proxies=self.config['proxy']['proxy'],
-                           verify=self.config['server']['cert_bundle'])
-        req.raise_for_status()
-
-        return req.json()
+        try:
+            req = requests.get(url, auth=self.auth,
+                               proxies=self.config['proxy']['proxy'],
+                               verify=self.config['server']['cert_bundle'])
+            req.raise_for_status()
+            return req.json()
+        except Exception as exp:
+            logging.error("Exception trying to make request - %s for URL: %s" %
+                          (exp, url))
+            raise exp
 
     @property
     def recommended_version(self):
-        return int(self.request("version")["version"])
+        try:
+            return int(self.request("version")["version"])
+        except Exception as exp:
+            logging.error("Exception trying to get recommended version: %s " %
+                          (exp))
+            raise exp
 
     @property
     def experiments(self):
-        return self.request("experiments")["experiments"]
+        try:
+            return self.request("experiments")["experiments"]
+        except Exception as exp:
+            logging.error("Error trying to get experiments: %s " % (exp))
+            raise exp
 
     @property
     def results(self):
-        return self.request("results")
+        try:
+            return self.request("results")
+        except Exception as exp:
+            logging.error("Error trying to get results: %s " % (exp))
+            raise exp
 
     @property
     def clients(self):
-        return self.request("clients")
+        try:
+            return self.request("clients")
+        except Exception as exp:
+            logging.error("Error trying to get clients: %s " % (exp))
+            raise exp
 
     def submit_result(self, file_name):
         logging.info("Uploading result file - %s", file_name)
 
         with open(file_name) as result_file:
-            files = {'result': result_file}
-            url   = "%s/%s" % (self.config['server']['server_url'], "results")
-            req   = requests.post(url, proxies=self.config['proxy']['proxy'],
-                                  files=files, auth=self.auth,
-                                  timeout=self.config['server']['req_timeout'],
-                                  verify=self.config['server']['cert_bundle'])
-
-        req.raise_for_status()
-        os.remove(file_name)
+            files   = {'result': result_file}
+            url     = "%s/%s" % (self.config['server']['server_url'],
+                                 "results")
+            timeout = self.config['server']['req_timeout']
+            cert_bundle = self.config['server']['cert_bundle']
+            try:
+                req = requests.post(url, files=files, auth=self.auth,
+                                    proxies=self.config['proxy']['proxy'],
+                                    timeout=timeout, verify=cert_bundle)
+                req.raise_for_status()
+                os.remove(file_name)
+            except Exception as exp:
+                logging.error("Error trying to submit result: %s" % exp)
+                raise exp
 
     def download_experiment(self, name):
         logging.info("Downloading experiment - %s", name)
 
         url = "%s/%s/%s" % (self.config['server']['server_url'],
                             "experiments", name)
-        req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                           verify=self.config['server']['cert_bundle'],
-                           auth=self.auth)
-        req.raise_for_status()
+        try:
+            req = requests.get(url, proxies=self.config['proxy']['proxy'],
+                               verify=self.config['server']['cert_bundle'],
+                               auth=self.auth)
+            req.raise_for_status()
+        except Exception as exp:
+            logging.error("Error trying to download experiments: %s" % exp)
+            raise exp
 
         name = "%s.py" % name
         with open(os.path.join(self.config['dirs']['experiments_dir'], name),
@@ -81,13 +111,16 @@ class User:
         url     = "%s/%s" % (self.config['server']['server_url'], "register")
         payload = {'username': username, 'password': password,
                    'is_vpn': self.config['user'].get('is_vpn')}
-        headers = {'content-type': 'application/x-tar'}
-        req     = requests.post(url, data=json.dumps(payload),
+        headers = {'content-type': 'application/json'}
+        try:
+            req = requests.post(url, data=json.dumps(payload),
                                 proxies=self.config['proxy']['proxy'],
                                 headers=headers,
                                 verify=self.config['server']['cert_bundle'])
-
-        req.raise_for_status()
+            req.raise_for_status()
+        except Exception as exp:
+            logging.error("Error trying to submit registration URL: %s " % exp)
+            raise exp
 
     def create_user(self):
         self.username = str(uuid.uuid4())
@@ -100,9 +133,9 @@ class User:
                 login_details = {'username': self.username,
                                  'password': self.password}
                 json.dump(login_details, login_fh)
-        except Exception as e:
-            logging.error("Unable to register: %s" % str(e))
-            raise e
+        except Exception as exp:
+            logging.error("Unable to register: %s" % str(exp))
+            raise exp
 
     def informed_consent(self):
         """Create a URL for the user to give their consent through"""
@@ -123,8 +156,8 @@ def sync(config):
     start = time.time()
     try:
         user = User(config)
-    except Exception, e:
-        logging.error("Unable to create user: %s" % str(e))
+    except Exception, exp:
+        logging.error("Unable to create user: %s" % str(exp))
         return
 
     # send all results
@@ -133,9 +166,9 @@ def sync(config):
         '[!_]*.tar.bz2')):
         try:
             user.submit_result(path)
-            os.remove(path)
-        except Exception, e:
-            logging.error("Unable to send result file: %s" % str(e))
+        except Exception, exp:
+            logging.error("Unable to send result file: %s" % str(exp))
+            break
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
             return
@@ -151,17 +184,25 @@ def sync(config):
         logging.error("Interaction with server took too long. Preempting")
         return
 
-    # download new experiments from server
-    for experiment in (set(user.experiments) - available_experiments):
+    # download new experiments from server with error checking code
+    try:
+        experiments = (set(user.experiments) - available_experiments)
+    except Exception as exp:
+        logging.error("Unable to retrive user experiments due to Exception: "
+                      "%s. Preempting" % exp)
+        return
+    for experiment in experiments:
         try:
             user.download_experiment(experiment)
-        except Exception, e:
-            logging.error("Unable to download experiment files %s", str(e))
+        except Exception, exp:
+            logging.error("Unable to download experiment file: %s", str(exp))
+            break
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
             return
 
     logging.info("Finished sync with %s", config['server']['server_url'])
+
 
 def experiments_available(config):
     logging.info("Starting to check for experiments with %s",
@@ -169,13 +210,13 @@ def experiments_available(config):
 
     try:
         user = User(config)
-    except Exception, e:
-        logging.error("Unable to create user: %s" % str(e))
+    except Exception, exp:
+        logging.error("Unable to create user: %s" % str(exp))
         return False
 
     try:
         if user.experiments:
             return True
-    except Exception, e:
-        logging.error("Unable to download experiment files %s", str(e))
+    except Exception, exp:
+        logging.error("Unable to download experiment files: %s", str(exp))
     return False
