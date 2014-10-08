@@ -156,8 +156,8 @@ def sync(config):
     start = time.time()
     try:
         user = User(config)
-    except Exception, e:
-        logging.error("Unable to create user: %s" % str(e))
+    except Exception, exp:
+        logging.error("Unable to create user: %s" % str(exp))
         return
 
     # send all results
@@ -166,8 +166,8 @@ def sync(config):
         '[!_]*.tar.bz2')):
         try:
             user.submit_result(path)
-        except Exception, e:
-            logging.error("Unable to send result file: %s" % str(e))
+        except Exception, exp:
+            logging.error("Unable to send result file: %s" % str(exp))
             break
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
@@ -194,8 +194,8 @@ def sync(config):
     for experiment in experiments:
         try:
             user.download_experiment(experiment)
-        except Exception, e:
-            logging.error("Unable to download experiment file: %s", str(e))
+        except Exception, exp:
+            logging.error("Unable to download experiment file: %s", str(exp))
             break
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
@@ -210,13 +210,13 @@ def experiments_available(config):
 
     try:
         user = User(config)
-    except Exception, e:
-        logging.error("Unable to create user: %s" % str(e))
+    except Exception, exp:
+        logging.error("Unable to create user: %s" % str(exp))
         return False
 
     try:
         if user.experiments:
             return True
-    except Exception, e:
-        logging.error("Unable to download experiment files: %s", str(e))
+    except Exception, exp:
+        logging.error("Unable to download experiment files: %s", str(exp))
     return False
