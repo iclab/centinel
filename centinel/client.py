@@ -5,6 +5,7 @@ import glob
 import imp
 import logging
 import tarfile
+import random
 
 from datetime import datetime
 
@@ -60,8 +61,17 @@ class Client():
         results = {}
 
         experiments = self.load_experiments()
+        experiments_subset = experiments.items()
 
-        for name, Exp in experiments.items():
+        if self.config['experiments']['random_subsetting']:
+            experiments_subset = [
+                experiments.items()[i] for i in sorted(
+                    random.sample(xrange(len(experiments.items())),
+                                  self.config['experiments']
+                                             ['random_subset_size']))
+            ]
+
+        for name, Exp in experiments_subset:
             input_file = self.get_input_file(name)
 
             if not os.path.isfile(input_file):
