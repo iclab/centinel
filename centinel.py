@@ -8,8 +8,6 @@ import centinel.config
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sync', help='Sync data with server',
-                        action='store_true')
     parser.add_argument('--version', '-v', action='version',
                         version="Centinel %s" % (centinel.__version__),
                         help='Sync data with server')
@@ -17,6 +15,11 @@ def parse_args():
                         nargs="*", dest="experiments")
     parser.add_argument('--config', '-c', help='Configuration file',
                         dest='config')
+    parser.add_argument('--sync', help='Sync data with server',
+                        action='store_true')
+    wait_help = 'Wait a random period of time, up to 15 min, before syncing'
+    parser.add_argument('--random-wait', help=wait_help, dest='randomWait',
+                        action='store_true')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -33,6 +36,7 @@ if __name__ == "__main__":
     client.setup_logging()
 
     if args.sync:
-        centinel.backend.sync(configuration.params)
+        centinel.backend.sync(configuration.params,
+                              random_wait=args.randomWait)
     else:
         client.run()

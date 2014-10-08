@@ -2,6 +2,7 @@ import glob
 import json
 import logging
 import os
+import random
 import requests
 import time
 import uuid
@@ -104,8 +105,14 @@ class User:
             raise e
 
 
-def sync(config):
+def sync(config, random_wait=False):
     logging.info("Starting sync with %s", config['server']['server_url'])
+
+    # if necessary, wait a random time up to 15 minutes
+    if random_wait:
+        wait_time = random.randint(0, 15*60)
+        logging.info("Waiting %s seconds before doing sync" % (wait_time))
+        time.sleep(wait_time)
 
     start = time.time()
     try:
