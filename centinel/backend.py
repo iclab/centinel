@@ -30,7 +30,7 @@ class User:
             req.raise_for_status()
             return req.json()
         except Exception as exp:
-            logging.error("Exception trying to make request - %s for URL %s" %
+            logging.error("Exception trying to make request - %s for URL: %s" %
                           (exp, url))
             raise exp
 
@@ -39,7 +39,7 @@ class User:
         try:
             return int(self.request("version")["version"])
         except Exception as exp:
-            logging.error("Exception trying to get recommended version %s " %
+            logging.error("Exception trying to get recommended version: %s " %
                           (exp))
             raise exp
 
@@ -48,7 +48,7 @@ class User:
         try:
             return self.request("experiments")["experiments"]
         except Exception as exp:
-            logging.error("Error trying to get experiments %s " % (exp))
+            logging.error("Error trying to get experiments: %s " % (exp))
             raise exp
 
     @property
@@ -56,7 +56,7 @@ class User:
         try:
             return self.request("results")
         except Exception as exp:
-            logging.error("Error trying to get results %s " % (exp))
+            logging.error("Error trying to get results: %s " % (exp))
             raise exp
 
     @property
@@ -64,7 +64,7 @@ class User:
         try:
             return self.request("clients")
         except Exception as exp:
-            logging.error("Error trying to get clients %s " % (exp))
+            logging.error("Error trying to get clients: %s " % (exp))
             raise exp
 
     def submit_result(self, file_name):
@@ -83,7 +83,7 @@ class User:
                 req.raise_for_status()
                 os.remove(file_name)
             except Exception as exp:
-                logging.error("Error trying to submit result %s" % exp)
+                logging.error("Error trying to submit result: %s" % exp)
                 raise exp
 
     def download_experiment(self, name):
@@ -97,7 +97,7 @@ class User:
                                auth=self.auth)
             req.raise_for_status()
         except Exception as exp:
-            logging.error("Error trying to download experiments %s" % exp)
+            logging.error("Error trying to download experiments: %s" % exp)
             raise exp
 
         name = "%s.py" % name
@@ -119,7 +119,7 @@ class User:
                                 verify=self.config['server']['cert_bundle'])
             req.raise_for_status()
         except Exception as exp:
-            logging.error("Error trying to submit registration URL %s " % exp)
+            logging.error("Error trying to submit registration URL: %s " % exp)
             raise exp
 
     def create_user(self):
@@ -188,14 +188,14 @@ def sync(config):
     try:
         experiments = (set(user.experiments) - available_experiments)
     except Exception as exp:
-        logging.error("Unable to retrive user experiments due to Exception "
+        logging.error("Unable to retrive user experiments due to Exception: "
                       "%s. Preempting" % exp)
         return
     for experiment in experiments:
         try:
             user.download_experiment(experiment)
         except Exception, e:
-            logging.error("Unable to download experiment file %s", str(e))
+            logging.error("Unable to download experiment file: %s", str(e))
             break
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
@@ -218,5 +218,5 @@ def experiments_available(config):
         if user.experiments:
             return True
     except Exception, e:
-        logging.error("Unable to download experiment files %s", str(e))
+        logging.error("Unable to download experiment files: %s", str(e))
     return False
