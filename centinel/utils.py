@@ -1,3 +1,5 @@
+from base64 import urlsafe_b64encode
+import glob
 import hashlib
 import os.path
 
@@ -19,7 +21,7 @@ def hash_folder(folder, regex='[!_]*.*'):
             md5_hash = hashlib.md5(fileP.read()).digest()
 
         file_name, _ = os.path.splitext(os.path.basename(path))
-        file_hashes[file_name] = md5_hash
+        file_hashes[file_name] = urlsafe_b64encode(md5_hash)
     return file_hashes
 
 
@@ -53,7 +55,7 @@ def compute_files_to_download(client_hashes, server_hashes):
             to_dload.append(filename)
 
     for filename in client_hashes:
-        if filename is not in server_hashes:
+        if filename not in server_hashes:
             to_delete.append(filename)
 
     return [to_dload, to_delete]
