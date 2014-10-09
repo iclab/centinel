@@ -127,7 +127,7 @@ class User:
             logging.error("Error trying to download experiments: %s" % exp)
             raise exp
 
-        name = "%s.py" % name
+        name = "%s" % name
         with open(os.path.join(self.config['dirs']['data_dir'], name),
                   "w") as exp_fh:
             exp_fh.write(req.content)
