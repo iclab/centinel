@@ -57,7 +57,7 @@ class User:
     @property
     def input_files(self):
         try:
-            return self.request("input_files")["input_files"]
+            return self.request("input_files")["inputs"]
         except Exception as exp:
             logging.error("Error trying to get input files: %s " % (exp))
             raise exp
@@ -238,7 +238,7 @@ def sync(config):
             return
 
     # determine how to sync the input files
-    client_inputs = utils.hash_folder(config['dirs']['data_dir'], '[!_]*.*'):
+    client_inputs = utils.hash_folder(config['dirs']['data_dir'], '[!_]*')
     try:
         server_inputs = user.input_files
     except Exception as exp:
