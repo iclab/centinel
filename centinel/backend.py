@@ -3,9 +3,12 @@ import glob
 import json
 import logging
 import os
+import re
 import requests
 import time
 import uuid
+
+import utils
 
 
 class User:
@@ -200,13 +203,18 @@ def sync(config):
             return
 
     # determine how to sync the experiment files
-    client_exps = utils.hash_folder(config['dirs']['experiments_dir'], '[!_]*.*'):
+    client_exps = utils.hash_folder(config['dirs']['experiments_dir'],
+                                    '[!_]*.*')
     try:
         server_exps = user.experiments
     except Exception as exp:
-        logging.error("Unable to retrive user experiments due to Exception: "
-                      "%s. Preempting" % exp)
-        return
+        if re.search("418", str(exp)) is not None:
+            logging.error("You have not completed the informed consent and "
+                          "will be unable to submit results or get new "
+                          "experiments until you do")
+        else:
+            logging.error("Error collecting experiments: %s" % exp)
+        raise exp
     if time.time() - start > config['server']['total_timeout']:
         logging.error("Interaction with server took too long. Preempting")
         return
@@ -215,12 +223,14 @@ def sync(config):
                                                            server_exps)
 
     # delete the files that aren't on the server
-    for input_file in del_exps
-        os.remove(os.path.join(config['dirs']['experiments_dir'], input_file))
+    for exp_file in del_exps:
+        for filename in glob.glob(os.path.join(config['dirs']['experiments_dir'],
+                                               exp_file + ".*")):
+            os.remove(filename)
     # get the files that have changed or we don't have
-    for input_file in dload_exps:
+    for exp_file in dload_exps:
         try:
-            user.download_experiment(input_file)
+            user.download_experiment(exp_file)
         except Exception, e:
             logging.error("Unable to download experiment file %s", str(e))
         if time.time() - start > config['server']['total_timeout']:
@@ -240,12 +250,14 @@ def sync(config):
         logging.error("Interaction with server took too long. Preempting")
         return
 
-    dload_inputs, del_inputs = utils.compute_files_to_download(client_hashes,
-                                                               server_hashes)
+    dload_inputs, del_inputs = utils.compute_files_to_download(client_inputs,
+                                                               server_inputs)
 
     # delete the files that aren't on the server
     for input_file in del_inputs:
-        os.remove(os.path.join(config['dirs']['data_dir'], input_file))
+        for filename in glob.glob(os.path.join(config['dirs']['data_dir'],
+                                               input_file + "*")):
+            os.remove(filename)
     # get the files that have changed or we don't have
     for input_file in dload_inputs:
         try:
