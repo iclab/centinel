@@ -203,8 +203,9 @@ def sync(config):
             return
 
     # determine how to sync the experiment files
+    # Note: we are not checking anything that starts with _
     client_exps = utils.hash_folder(config['dirs']['experiments_dir'],
-                                    '[!_]*.*')
+                                    '[!_]*')
     try:
         server_exps = user.experiments
     except Exception as exp:
@@ -224,8 +225,8 @@ def sync(config):
 
     # delete the files that aren't on the server
     for exp_file in del_exps:
-        for filename in glob.glob(os.path.join(config['dirs']['experiments_dir'],
-                                               exp_file + ".*")):
+        for filename in glob.glob(os.path.join(config['dirs']['data_dir'],
+                                               exp_file + "*")):
             os.remove(filename)
     # get the files that have changed or we don't have
     for exp_file in dload_exps:

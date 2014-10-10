@@ -4,7 +4,7 @@ import hashlib
 import os.path
 
 
-def hash_folder(folder, regex='[!_]*.*'):
+def hash_folder(folder, regex='[!_]*'):
     """Get the md5 sum of each file in the folder and return to the user
 
     Params:
@@ -13,14 +13,15 @@ def hash_folder(folder, regex='[!_]*.*'):
 
     Note: by default we will hash every file in the folder
 
-    """
+    Note: we will not match anything that starts with an underscore
 
+    """
     file_hashes = {}
     for path in glob.glob(os.path.join(folder, regex)):
         with open(path, 'r') as fileP:
             md5_hash = hashlib.md5(fileP.read()).digest()
 
-        file_name, _ = os.path.splitext(os.path.basename(path))
+        file_name, _ = os.path.splitext(path)
         file_hashes[file_name] = urlsafe_b64encode(md5_hash)
     return file_hashes
 
