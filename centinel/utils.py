@@ -21,7 +21,7 @@ def hash_folder(folder, regex='[!_]*'):
         with open(path, 'r') as fileP:
             md5_hash = hashlib.md5(fileP.read()).digest()
 
-        file_name, _ = os.path.splitext(path)
+        file_name = os.path.basename(path)
         file_hashes[file_name] = urlsafe_b64encode(md5_hash)
     return file_hashes
 

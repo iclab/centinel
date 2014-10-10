@@ -111,7 +111,7 @@ class User:
             logging.error("Error trying to download experiments: %s" % exp)
             raise exp
 
-        name = "%s.py" % name
+        name = "%s" % name
         with open(os.path.join(self.config['dirs']['experiments_dir'], name),
                   "w") as exp_fh:
             exp_fh.write(req.content)
@@ -220,14 +220,15 @@ def sync(config):
         logging.error("Interaction with server took too long. Preempting")
         return
 
+    print client_exps, server_exps
     dload_exps, del_exps = utils.compute_files_to_download(client_exps,
                                                            server_exps)
+    print dload_exps, del_exps
 
     # delete the files that aren't on the server
     for exp_file in del_exps:
-        for filename in glob.glob(os.path.join(config['dirs']['data_dir'],
-                                               exp_file + "*")):
-            os.remove(filename)
+        filename = os.path.join(config['dirs']['experiments_dir'], exp_file)
+        os.remove(filename)
     # get the files that have changed or we don't have
     for exp_file in dload_exps:
         try:
@@ -256,9 +257,8 @@ def sync(config):
 
     # delete the files that aren't on the server
     for input_file in del_inputs:
-        for filename in glob.glob(os.path.join(config['dirs']['data_dir'],
-                                               input_file + "*")):
-            os.remove(filename)
+        filename = os.path.join(config['dirs']['data_dir'], input_file)
+        os.remove(filename)
     # get the files that have changed or we don't have
     for input_file in dload_inputs:
         try:
