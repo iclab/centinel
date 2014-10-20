@@ -177,8 +177,6 @@ class User:
             consent_url = [self.config['server']['server_url'],
                            "/get_initial_consent?username="]
             consent_url.append(urlsafe_b64encode(self.username))
-            consent_url.append("&password=")
-            consent_url.append(urlsafe_b64encode(self.password))
         else:
             consent_url = [self.config['server']['server_url'],
                            "/consent?u="]
