@@ -20,6 +20,7 @@ class User:
                 login_details = json.load(login_fh)
                 self.username = login_details.get('username')
                 self.password = login_details.get('password')
+                self.typeable_handle = login_details.get('typeable_handle')
                 self.auth     = (self.username, self.password)
         else:
             self.create_user()
@@ -148,6 +149,7 @@ class User:
                                 headers=headers,
                                 verify=self.config['server']['cert_bundle'])
             req.raise_for_status()
+            return req.json()
         except Exception as exp:
             logging.error("Error trying to submit registration URL: %s " % exp)
             raise exp
@@ -158,10 +160,12 @@ class User:
         self.auth     = (self.username, self.password)
 
         try:
-            self.register(self.username, self.password)
+            register_results = self.register(self.username, self.password)
+            self.typeable_handle = register_results['typeable_handle']
             with open(self.config['server']['login_file'], "w") as login_fh:
                 login_details = {'username': self.username,
-                                 'password': self.password}
+                                 'password': self.password,
+                                 'typeable_handle' : self.typeable_handle}
                 json.dump(login_details, login_fh)
         except Exception as exp:
             logging.error("Unable to register: %s" % str(exp))
@@ -169,12 +173,17 @@ class User:
 
     def informed_consent(self):
         """Create a URL for the user to give their consent through"""
+        if self.typeable_handle is None:
+            consent_url = [self.config['server']['server_url'],
+                           "/get_initial_consent?username="]
+            consent_url.append(urlsafe_b64encode(self.username))
+            consent_url.append("&password=")
+            consent_url.append(urlsafe_b64encode(self.password))
+        else:
+            consent_url = [self.config['server']['server_url'],
+                           "/consent?u="]
+            consent_url.append(self.typeable_handle)
 
-        consent_url = [self.config['server']['server_url'],
-                       "/get_initial_consent?username="]
-        consent_url.append(urlsafe_b64encode(self.username))
-        consent_url.append("&password=")
-        consent_url.append(urlsafe_b64encode(self.password))
         consent_url = "".join(consent_url)
         print "Please go to %s to give your consent" % (consent_url)
         return consent_url
