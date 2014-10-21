@@ -163,7 +163,7 @@ class User:
         try:
             register_results = self.register(self.username, self.password)
             if 'typeable_handle' in register_results.keys():
-                self.typeable_handle = register_results['typeable1_handle']
+                self.typeable_handle = register_results['typeable_handle']
             with open(self.config['server']['login_file'], "w") as login_fh:
                 login_details = {'username': self.username,
                                  'password': self.password}
