@@ -15,6 +15,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', help='Configuration file',
                         dest='config')
+    no_verify_help = ("Disable certificate verification (NOT RECOMMENDED! "
+                      "Use only when debugging.)")
+    parser.add_argument('--no_verify', '-nv', help=no_verify_help,
+                        action='store_true')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--version', '-v', action='version',
                        version="Centinel %s" % (centinel.__version__),
@@ -47,6 +51,11 @@ if __name__ == "__main__":
 
     client = centinel.client.Client(configuration.params)
     client.setup_logging()
+
+    # disable cert verification if the flag is set
+    if args.no_verify:
+        configuration.params['server']['cert_bundle'] = False
+
     user = centinel.backend.User(configuration.params)
     # Note: because we have mutually exclusive arguments, we don't
     # have to worry about multiple arguments being called
