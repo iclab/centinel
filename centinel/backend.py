@@ -179,7 +179,7 @@ class User:
             consent_url.append(urlsafe_b64encode(self.username))
         else:
             consent_url = [self.config['server']['server_url'],
-                           "/consent?u="]
+                           "/consent/"]
             consent_url.append(self.typeable_handle)
 
         consent_url = "".join(consent_url)
