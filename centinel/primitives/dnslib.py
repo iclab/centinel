@@ -12,7 +12,7 @@ def get_ips(host, nameserver=None, record="A"):
     nameservers = []
     if nameserver is not None:
         nameservers = [nameserver]
-    return lookup_domain(host, nameservers=nameservers, record=record)
+    return lookup_domain(host, nameservers=nameservers, rtype=record)
 
 
 def lookup_domain(domain, nameservers=[], rtype="A", timeout=10):
@@ -74,7 +74,7 @@ class DNSQuery():
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.settimeout(self.timeout)
-                query = dns.message.make_query("HOSTNAME.BIND",
+                query = dns.message.make_query(name,
                                                dns.rdatatype.from_text("TXT"),
                                                dns.rdataclass.from_text("CH"))
                 sock.sendto(query.to_wire(), (nameserver, 53))
