@@ -28,8 +28,8 @@ censorship.
 ### Acknowledgements
 
 * Ben Jones
+* Abbas Razaghpanah
 * Sathya Gunasekaran
 * Nick Feamster
 * Phillipa Gill
-* Abbas Razzaghpanah
 * Sam Burnett
