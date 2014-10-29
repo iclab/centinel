@@ -28,6 +28,11 @@ class Configuration():
                                                'results')
         self.params['dirs'] = dirs
 
+        # results
+        results = {}
+        results['files_per_archive'] = 10
+        self.params['results'] = results
+
         # logging
         self.params['log'] = {}
         self.params['log']['log_level'] = logging.INFO
@@ -35,6 +40,12 @@ class Configuration():
         # an alternative is os.path.join(centinel_home,
         # "centinel.log")
         self.params['log']['log_format'] = '%(asctime)s: %(levelname)s: %(message)s'
+
+        # experiments
+        experiments = {}
+        experiments['random_subsetting'] = True
+        experiments['random_subset_size'] = 2
+        self.params['experiments'] = experiments
 
         # server
         servers = {}
