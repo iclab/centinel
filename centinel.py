@@ -22,7 +22,7 @@ def parse_args():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--version', '-v', action='version',
                        version="Centinel %s" % (centinel.__version__),
-                       help='Sync data with server')
+                       help='Print the installed version number')
     group.add_argument('--sync', help='Sync data with server',
                        action='store_true')
     consent_help = ("Give informed consent so that you can download "
