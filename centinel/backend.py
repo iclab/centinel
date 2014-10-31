@@ -232,10 +232,8 @@ def sync(config):
         logging.error("Interaction with server took too long. Preempting")
         return
 
-    print client_exps, server_exps
     dload_exps, del_exps = utils.compute_files_to_download(client_exps,
                                                            server_exps)
-    print dload_exps, del_exps
 
     # delete the files that aren't on the server
     for exp_file in del_exps:
