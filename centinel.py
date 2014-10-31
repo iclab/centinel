@@ -18,7 +18,7 @@ def parse_args():
                         dest='config')
     no_verify_help = ("Disable certificate verification (NOT RECOMMENDED! "
                       "Use only when debugging.)")
-    parser.add_argument('--no_verify', '-nv', help=no_verify_help,
+    parser.add_argument('--no-verify', '-nv', help=no_verify_help,
                         action='store_true')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--version', '-v', action='version',
@@ -32,20 +32,29 @@ def parse_args():
     group.add_argument('--informed-consent', help=consent_help,
                        dest='consent', default=False, action='store_true')
 
-    subparsers = parser.add_subparsers(help='sub-command help', dest='sub_command')
     daemon_help = ('Create cron jobs to run centinel in the background and '
-                   'autoupdate. You must be root to use this functionality')
-    daemon_parser = subparsers.add_parser('daemonize', help=daemon_help)
+                   'autoupdate. You must be root to use this functionality'
+                   'By default, this will use /usr/local/bin/centinel-dev'
+                   'for the binary location and will create an autoupdate script')
+    parser.add_argument('--daemonize', help=daemon_help, action='store_true',
+                        dest='daemonize')
     binary_help = ('Name or location of the binary to use in the cron job '
                    'for centinel')
-    daemon_parser.add_argument('--binary', default=None, help=binary_help)
+    parser.add_argument('--binary', help=binary_help,
+                        default='/usr/local/bin/centinel-dev')
     update_help = ('Create an autoupdate script for the installed package. '
                    'Note that you must have installed from a pip package for '
-                   'this to work correctly')
-    daemon_parser.add_argument('--auto-update', action='store_true',
-                               help=update_help)
+                   'this to work correctly and you must also set the '
+                   'daemonize option')
+    parser.add_argument('--auto-update', action='store_false',
+                        help=update_help, default="centinel-dev")
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.daemonize and (args.auto_update != 'centinel-dev' or
+                               args.binary != '/usr/local/bin/centinel-dev'):
+        parser.error("--auto-update and --binary must be used with "
+                     "--daemonize")
+    return args
 
 
 if __name__ == "__main__":
@@ -75,23 +84,15 @@ if __name__ == "__main__":
     user = centinel.backend.User(configuration.params)
     # Note: because we have mutually exclusive arguments, we don't
     # have to worry about multiple arguments being called
-    if args.sub_command == 'daemonize':
-        package_info = configuration.params.get('package')
-        package_name = None
-        # we don't need to worry about args.binary's value because it
-        # defaults to None
-        if package_info is not None:
-            args.binary = package_info.get('binary_name')
-            package_name = package_info.get('name')
-        # if we don't have a valid binary location, then exit
-        if args.binary is None:
-            print "Error: no binary found to daemonize"
-            exit(1)
-        centinel.daemonize.daemonize(package_name, args.binary)
-
     if args.sync:
         centinel.backend.sync(configuration.params)
     elif args.consent:
         user.informed_consent()
+    elif args.daemonize:
+        # if we don't have a valid binary location, then exit
+        if not os.path.exists(args.binary):
+            print "Error: no binary found to daemonize"
+            exit(1)
+        centinel.daemonize.daemonize(args.autoupdate, args.binary)
     else:
         client.run()
