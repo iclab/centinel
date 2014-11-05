@@ -28,6 +28,10 @@ class User:
     def request(self, slug):
         url = "%s/%s" % (self.config['server']['server_url'], slug)
         try:
+            if self.config['server']['cert_bundle'] is not False:
+                self.config['server']['cert_bundle'] = \
+                    self.config['server']['cert_bundle'].encode(
+                        'ascii', 'replace')
             req = requests.get(url, auth=self.auth,
                                proxies=self.config['proxy']['proxy'],
                                verify=self.config['server']['cert_bundle'])
@@ -204,7 +208,7 @@ def sync(config):
 
     # send all results
     for path in glob.glob(os.path.join(config['dirs']['results_dir'],
-        '[!_]*.tar.bz2')):
+                                       '[!_]*.tar.bz2')):
         try:
             user.submit_result(path)
         except Exception, exp:
