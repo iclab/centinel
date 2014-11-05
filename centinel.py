@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import sys
 import argparse
 import getpass
 import os
@@ -35,7 +34,8 @@ def parse_args():
     daemon_help = ('Create cron jobs to run centinel in the background and '
                    'autoupdate. You must be root to use this functionality'
                    'By default, this will use /usr/local/bin/centinel-dev'
-                   'for the binary location and will create an autoupdate script')
+                   'for the binary location and will create an autoupdate '
+                   'script')
     parser.add_argument('--daemonize', help=daemon_help, action='store_true',
                         dest='daemonize')
     binary_help = ('Name or location of the binary to use in the cron job '
