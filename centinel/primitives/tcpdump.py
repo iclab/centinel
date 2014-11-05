@@ -9,7 +9,7 @@ import os
 import tempfile
 
 
-#local imports
+# local imports
 from centinel import command
 
 
