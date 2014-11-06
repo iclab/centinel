@@ -4,8 +4,9 @@ import json
 import glob
 import imp
 import logging
-import tarfile
 import random
+import tarfile
+import time
 
 from datetime import datetime
 
@@ -31,13 +32,48 @@ class Client():
         return os.path.join(self.config['dirs']['data_dir'], input_file)
 
     def load_experiments(self):
+        """This function will return the list of experiments to run and manage
+        our scheduling
+
+        Note: this function will check the experiments directory for a
+        special file, scheduler.info, that details how often each
+        experiment should be run and the last time the experiment was
+        run. If the time since the experiment was run is shorter than
+        the scheduled interval in seconds, then the experiment will
+        not be returned
+
+        """
+
+        sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
+                                      'scheduler.info')
+        if os.path.exists(sched_filename):
+            with open(sched_filename, 'r') as file_p:
+                sched_info = json.load(file_p)
+
         # look for experiments in experiments directory
         for path in glob.glob(os.path.join(self.config['dirs']['experiments_dir'],
                                            '[!_]*.py')):
             # get name of file and path
             name, ext = os.path.splitext(os.path.basename(path))
+            # check if we should preempt on the experiment (if the
+            # time to run next is greater than the current time) and
+            # store the last run time as now
+            #
+            # Note: if the experiment is not in the scheduler, then it
+            # will be run every time the client runs
+            if (name in sched_info):
+                run_next = sched_info[name]['last_run']
+                run_next += sched_info[name]['frequency']
+                if run_next > time.time():
+                    continue
+                sched_info[name]['last_run'] = time.time()
+
             # load the experiment
             imp.load_source(name, path)
+
+        # write out the updated last run times
+        with open(sched_filename, 'w') as file_p:
+            json.dump(sched_info, file_p)
 
         # return dict of experiment names and classes
         return ExperimentList.experiments

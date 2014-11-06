@@ -93,6 +93,6 @@ if __name__ == "__main__":
         if not os.path.exists(args.binary):
             print "Error: no binary found to daemonize"
             exit(1)
-        centinel.daemonize.daemonize(args.autoupdate, args.binary)
+        centinel.daemonize.daemonize(args.auto_update, args.binary)
     else:
         client.run()
