@@ -28,6 +28,10 @@ class User:
     def request(self, slug):
         url = "%s/%s" % (self.config['server']['server_url'], slug)
         try:
+            if self.config['server']['cert_bundle'] is not False:
+                self.config['server']['cert_bundle'] = \
+                    self.config['server']['cert_bundle'].encode(
+                        'ascii', 'replace')
             req = requests.get(url, auth=self.auth,
                                proxies=self.config['proxy']['proxy'],
                                verify=self.config['server']['cert_bundle'])
@@ -97,6 +101,56 @@ class User:
             except Exception as exp:
                 logging.error("Error trying to submit result: %s" % exp)
                 raise exp
+
+    def sync_scheduler(self):
+        """Download the scheduler.info file and perform a smart comparison
+        with what we currently have so that we don't overwrite the
+        last_run timestamp
+
+        To do a smart comparison, we go over each entry in the
+        server's scheduler file. If a scheduler entry is not present
+        in the server copy, we delete it in the client copy and if the
+        scheduler entry is present in the server copy, then we
+        overwrite the frequency count in the client copy
+
+        """
+        # get the server scheduler.info file
+        url = "%s/%s/%s" % (self.config['server']['server_url'],
+                            "experiments", "scheduler.info")
+        try:
+            req = requests.get(url, proxies=self.config['proxy']['proxy'],
+                               verify=self.config['server']['cert_bundle'],
+                               auth=self.auth)
+            req.raise_for_status()
+        except Exception as exp:
+            logging.error("Error trying to download scheduler.info: %s" % exp)
+            raise exp
+
+        server_sched = json.loads(req.content)
+        sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
+                                      'scheduler.info')
+        if not os.path.exists(sched_filename):
+            with open(sched_filename, 'w') as file_p:
+                json.dump(server_sched, file_p)
+            return
+
+        with open(sched_filename, 'r') as file_p:
+            client_sched = json.load(file_p)
+
+        # delete any scheduled tasks as necessary
+        for exp in client_sched:
+            if exp not in server_sched:
+                del client_sched[exp]
+        # and update all the other frequencies
+        for exp in server_sched:
+            if exp in client_sched:
+                client_sched[exp]['frequency'] = server_sched[exp]['frequency']
+            else:
+                client_sched[exp] = server_sched[exp]
+
+        # write out the results
+        with open(sched_filename, 'w') as file_p:
+            json.dump(client_sched, file_p)
 
     def download_experiment(self, name):
         logging.info("Downloading experiment - %s", name)
@@ -204,7 +258,7 @@ def sync(config):
 
     # send all results
     for path in glob.glob(os.path.join(config['dirs']['results_dir'],
-        '[!_]*.tar.bz2')):
+                                       '[!_]*.tar.bz2')):
         try:
             user.submit_result(path)
         except Exception, exp:
@@ -232,10 +286,8 @@ def sync(config):
         logging.error("Interaction with server took too long. Preempting")
         return
 
-    print client_exps, server_exps
     dload_exps, del_exps = utils.compute_files_to_download(client_exps,
                                                            server_exps)
-    print dload_exps, del_exps
 
     # delete the files that aren't on the server
     for exp_file in del_exps:
@@ -244,7 +296,10 @@ def sync(config):
     # get the files that have changed or we don't have
     for exp_file in dload_exps:
         try:
-            user.download_experiment(exp_file)
+            if exp_file != "scheduler.info":
+                user.download_experiment(exp_file)
+            else:
+                user.sync_scheduler()
         except Exception, e:
             logging.error("Unable to download experiment file %s", str(e))
         if time.time() - start > config['server']['total_timeout']:

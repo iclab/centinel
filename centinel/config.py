@@ -20,13 +20,22 @@ class Configuration():
 
         # directory structure
         dirs = {}
-        dirs['experiments_dir'] = os.path.join(os.path.dirname(__file__),
+        # by default, *ALWAYS* use the directories in the home directory
+        dirs['experiments_dir'] = os.path.join(self.params['user']['centinel_home'],
                                                "experiments")
-        dirs['data_dir']        = os.path.join(os.path.dirname(__file__),
+        dirs['data_dir']        = os.path.join(self.params['user']['centinel_home'],
                                                "data")
         dirs['results_dir']     = os.path.join(self.params['user']['centinel_home'],
                                                'results')
         self.params['dirs'] = dirs
+
+        # if we creating a new config file, then we can expect to be
+        # setting up the the home directory, so we should create all
+        # of these directories if they don't exist
+        for dir_key in self.params['dirs']:
+            directory = self.params['dirs'][dir_key]
+            if not os.path.exists(directory):
+                os.makedirs(directory)
 
         # results
         results = {}
@@ -57,6 +66,10 @@ class Configuration():
         # set a socket timeout of 15 seconds (no way to do per request
         # platform independently)
         servers['req_timeout'] = 15
+        # Note: this will likely be different from the input folder->
+        # the input folder will be synced, whereas this likely will be
+        # shipped with the distribution (hence the os.path.dirname
+        # file stuff)
         servers['cert_bundle'] = os.path.join(os.path.dirname(__file__),
                                               "data/gd_bundle-g2-g1.crt")
         self.params['server'] = servers
