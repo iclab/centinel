@@ -46,6 +46,7 @@ class Client():
 
         sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
                                       'scheduler.info')
+        sched_info = {}
         if os.path.exists(sched_filename):
             with open(sched_filename, 'r') as file_p:
                 sched_info = json.load(file_p)
@@ -99,7 +100,9 @@ class Client():
         experiments = self.load_experiments()
         experiments_subset = experiments.items()
 
-        if self.config['experiments']['random_subsetting']:
+        if self.config['experiments']['random_subsetting'] and \
+               self.config['experiments']['random_subset_size'] < \
+                   len(experiments.items()):
             experiments_subset = [
                 experiments.items()[i] for i in sorted(
                     random.sample(xrange(len(experiments.items())),
