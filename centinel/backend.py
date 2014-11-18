@@ -24,14 +24,14 @@ class User:
                 self.auth     = (self.username, self.password)
         else:
             self.create_user()
+        if self.config['server']['cert_bundle'] is not False:
+            self.config['server']['cert_bundle'] = \
+                self.config['server']['cert_bundle'].encode(
+                    'ascii', 'replace')
 
     def request(self, slug):
         url = "%s/%s" % (self.config['server']['server_url'], slug)
         try:
-            if self.config['server']['cert_bundle'] is not False:
-                self.config['server']['cert_bundle'] = \
-                    self.config['server']['cert_bundle'].encode(
-                        'ascii', 'replace')
             req = requests.get(url, auth=self.auth,
                                proxies=self.config['proxy']['proxy'],
                                verify=self.config['server']['cert_bundle'])
