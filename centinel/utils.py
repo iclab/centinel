@@ -18,6 +18,10 @@ def hash_folder(folder, regex='[!_]*'):
     """
     file_hashes = {}
     for path in glob.glob(os.path.join(folder, regex)):
+        # exclude folders
+        if not os.path.isfile(path):
+            continue
+
         with open(path, 'r') as fileP:
             md5_hash = hashlib.md5(fileP.read()).digest()
 
