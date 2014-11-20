@@ -1,14 +1,20 @@
-import os
 import getpass
-import logging
 import json
+import logging
+import os
 
+import centinel
 
 class Configuration():
 
     def __init__(self,):
 
         self.params = {}
+
+        # version info
+        version_info = {}
+        version_info['version'] = centinel.__version__
+        self.params['version'] = version_info
 
         # centinel user
         user_info = {}
