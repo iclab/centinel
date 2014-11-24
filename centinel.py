@@ -72,7 +72,15 @@ if __name__ == "__main__":
         if os.path.exists(DEFAULT_CONFIG_FILE):
             configuration.parse_config(DEFAULT_CONFIG_FILE)
         else:
-            configuration.write_out_config(DEFAULT_CONFIG_FILE)
+            print 'Configuration file does not exist.'
+
+        if not ('version' in configuration.params and \
+            configuration.params['version']['version'] == centinel.__version__):
+            print ('Configuration file is from a different version of '
+                   'Centinel.')
+            configuration = centinel.config.Configuration()
+
+        configuration.write_out_config(DEFAULT_CONFIG_FILE)
 
     client = centinel.client.Client(configuration.params)
     client.setup_logging()
