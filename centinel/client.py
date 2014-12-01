@@ -132,7 +132,7 @@ class Client():
 
             results[name] = exp.results
 
-        json.dump(results, result_file)
+        json.dump(results, result_file, encoding="ISO-8859-1")
         result_file.close()
 
         result_files = [path for path in glob.glob(
