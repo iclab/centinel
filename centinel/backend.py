@@ -97,7 +97,8 @@ class User:
                                     proxies=self.config['proxy']['proxy'],
                                     timeout=timeout, verify=cert_bundle)
                 req.raise_for_status()
-                os.remove(file_name)
+                if config['results']['delete_after_sync']:
+                    os.remove(file_name)
             except Exception as exp:
                 logging.error("Error trying to submit result: %s" % exp)
                 raise exp
