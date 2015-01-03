@@ -5,6 +5,7 @@ import os
 
 import centinel
 import centinel.config
+import centinel.daemonize
 
 # Constants
 DEFAULT_CONFIG_FILE = os.path.expanduser('~' + getpass.getuser() +
