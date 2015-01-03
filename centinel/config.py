@@ -45,6 +45,7 @@ class Configuration():
 
         # results
         results = {}
+        results['delete_after_sync'] = True
         results['files_per_archive'] = 10
         self.params['results'] = results
 
