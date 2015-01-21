@@ -51,9 +51,9 @@ def daemonize(package, bin_loc):
     # create a script to run centinel every hour
     hourly = "".join(["#!/bin/bash\n",
                       "# cron job for centinel\n",
-                      bin_loc, " run --sync\n",
-                      bin_loc, " run \n",
-                      bin_loc, " run --sync --random-wait\n"])
+                      bin_loc, " --sync\n",
+                      bin_loc, "\n",
+                      bin_loc, " --sync\n"])
     create_script_for_location(hourly, "/etc/cron.hourly/centinel")
 
     # create a script to get the client to autoupdate every day
