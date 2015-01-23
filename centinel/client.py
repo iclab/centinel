@@ -135,7 +135,7 @@ class Client():
                 td = Tcpdump()
                 tcpdump_started = False
                 try:
-                    if root:
+                    if root and self.config['results']['record_pcaps']:
                         td.start()
                         tcpdump_started = True
                         logging.info("tcpdump started...")
@@ -144,6 +144,7 @@ class Client():
                 except Exception as e:
                     logging.warning("Failed to run tcpdump: %s" %(e))
 
+                # run the experiment
                 exp = Exp(input_file)
                 exp.run()
 
