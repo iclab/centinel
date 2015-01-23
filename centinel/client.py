@@ -1,3 +1,4 @@
+import bz2
 import glob
 import imp
 import json
@@ -12,6 +13,7 @@ from datetime import datetime
 
 from experiment import Experiment, ExperimentList
 
+from centinel.primitives.tcpdump import Tcpdump
 
 class Client():
 
@@ -123,8 +125,46 @@ class Client():
 
             try:
                 logging.info("Running %s test." % (name))
+
+                root = True
+                if os.geteuid() != 0:
+                    logging.info("Centinel is not running as root, "
+                                 "tcpdump will not start.")
+                    root = False
+
+                td = Tcpdump()
+                tcpdump_started = False
+                try:
+                    if root:
+                        td.start()
+                        tcpdump_started = True
+                        logging.info("tcpdump started...")
+                except Exception as e:
+                    logging.warning("Failed to run tcpdump: %s" %(e))
+
                 exp = Exp(input_file)
                 exp.run()
+
+                if tcpdump_started:
+                    logging.info("Waiting for tcpdump to process packets...")
+                    # 5 seconds should be enough. this hasn't been tested on
+                    # a RaspberryPi or a Hummingboard i2
+                    time.sleep(5)
+                    td.stop()
+                    logging.info("tcpdump stopped.")
+
+                    pcap_file_name = "pcap_%s-%s.pcap.bz2" % (name, 
+                        datetime.now().isoformat())
+
+                    pcap_file_path = os.path.join(
+                        self.config['dirs']['results_dir'], pcap_file_name)
+
+                    with open(pcap_file_path, 'w:bz2') as file_p:
+                        data = bz2.compress(td.pcap())
+                        file_p.write(data)
+                        logging.info("Saved pcap to %s."
+                                     % (pcap_file_path))
+
             except Exception, e:
                 logging.error("Error in %s: %s" % (name, str(e)))
 
