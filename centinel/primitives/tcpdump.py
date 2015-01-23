@@ -45,6 +45,10 @@ class Tcpdump():
         with open(self.filename, 'r') as file_p:
             return b64encode(file_p.read())
 
+    def pcap(self):
+        with open(self.filename, 'r') as file_p:
+            return file_p.read()
+
     def delete(self):
         os.remove(self.filename)
 
