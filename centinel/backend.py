@@ -258,9 +258,15 @@ def sync(config):
         logging.error("Unable to create user: %s" % str(exp))
         return
 
-    # send all results
-    for path in glob.glob(os.path.join(config['dirs']['results_dir'],
-                                       '[!_]*.tar.bz2')):
+    # send all results (.tar.bz2 + .json + .pcap.bz2)
+    result_files = (glob.glob(os.path.join(config['dirs']['results_dir'],
+                                                 '[!_]*.tar.bz2')) +
+                    glob.glob(os.path.join(config['dirs']['results_dir'],
+                                                      '[!_]*.json')) +
+                    glob.glob(os.path.join(config['dirs']['results_dir'],
+                                                      '[!_]*.pcap.bz2')))
+
+    for path in result_files:
         try:
             user.submit_result(path)
         except Exception, exp:
