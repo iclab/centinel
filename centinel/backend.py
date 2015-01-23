@@ -97,7 +97,8 @@ class User:
                                     proxies=self.config['proxy']['proxy'],
                                     timeout=timeout, verify=cert_bundle)
                 req.raise_for_status()
-                if config['results']['delete_after_sync']:
+                if ('delete_after_sync' in self.config['results'].keys()
+                   and self.config['results']['delete_after_sync']):
                     os.remove(file_name)
             except Exception as exp:
                 logging.error("Error trying to submit result: %s" % exp)
@@ -257,9 +258,15 @@ def sync(config):
         logging.error("Unable to create user: %s" % str(exp))
         return
 
-    # send all results
-    for path in glob.glob(os.path.join(config['dirs']['results_dir'],
-                                       '[!_]*.tar.bz2')):
+    # send all results (.tar.bz2 + .json + .pcap.bz2)
+    result_files = (glob.glob(os.path.join(config['dirs']['results_dir'],
+                                                 '[!_]*.tar.bz2')) +
+                    glob.glob(os.path.join(config['dirs']['results_dir'],
+                                                      '[!_]*.json')) +
+                    glob.glob(os.path.join(config['dirs']['results_dir'],
+                                                      '[!_]*.pcap.bz2')))
+
+    for path in result_files:
         try:
             user.submit_result(path)
         except Exception, exp:
@@ -300,9 +307,13 @@ def sync(config):
             if exp_file != "scheduler.info":
                 user.download_experiment(exp_file)
             else:
-                user.sync_scheduler()
-        except Exception, e:
-            logging.error("Unable to download experiment file %s", str(e))
+                try:
+                    user.sync_scheduler()
+                except Exception as e:
+                    logging.error("Scheduler sync failed: %s", str(e))
+        except Exception as e:
+            logging.error("Unable to download experiment file: %s", str(e))
+
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
             return
