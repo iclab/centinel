@@ -134,6 +134,7 @@ class Client():
 
                 td = Tcpdump()
                 tcpdump_started = False
+
                 try:
                     if root and self.config['results']['record_pcaps']:
                         td.start()
@@ -155,18 +156,20 @@ class Client():
                     time.sleep(5)
                     td.stop()
                     logging.info("tcpdump stopped.")
+                    try:
+                        pcap_file_name = "pcap_%s-%s.pcap.bz2" % (name, 
+                            datetime.now().isoformat())
 
-                    pcap_file_name = "pcap_%s-%s.pcap.bz2" % (name, 
-                        datetime.now().isoformat())
+                        pcap_file_path = os.path.join(
+                            self.config['dirs']['results_dir'], pcap_file_name)
 
-                    pcap_file_path = os.path.join(
-                        self.config['dirs']['results_dir'], pcap_file_name)
-
-                    with open(pcap_file_path, 'w:bz2') as file_p:
-                        data = bz2.compress(td.pcap())
-                        file_p.write(data)
-                        logging.info("Saved pcap to %s."
-                                     % (pcap_file_path))
+                        with open(pcap_file_path, 'w:bz2') as file_p:
+                            data = bz2.compress(td.pcap())
+                            file_p.write(data)
+                            logging.info("Saved pcap to %s."
+                                         % (pcap_file_path))
+                    except Exception as e:
+                        logging.warning("Failed to write pcap file: %s" %(e))
 
             except Exception, e:
                 logging.error("Error in %s: %s" % (name, str(e)))
