@@ -307,9 +307,13 @@ def sync(config):
             if exp_file != "scheduler.info":
                 user.download_experiment(exp_file)
             else:
-                user.sync_scheduler()
-        except Exception, e:
-            logging.error("Unable to download experiment file %s", str(e))
+                try:
+                    user.sync_scheduler()
+                except Exception as e:
+                    logging.error("Scheduler sync failed: %s", str(e))
+        except Exception as e:
+            logging.error("Unable to download experiment file: %s", str(e))
+
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
             return
