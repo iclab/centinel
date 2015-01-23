@@ -260,11 +260,15 @@ def sync(config):
 
     # send all results (.tar.bz2 + .json + .pcap.bz2)
     result_files = (glob.glob(os.path.join(config['dirs']['results_dir'],
-                                                 '[!_]*.tar.bz2')) +
+                                           '[!_]*.tar.bz2')) +
                     glob.glob(os.path.join(config['dirs']['results_dir'],
-                                                      '[!_]*.json')) +
-                    glob.glob(os.path.join(config['dirs']['results_dir'],
-                                                      '[!_]*.pcap.bz2')))
+                                           '[!_]*.json')))
+
+    # only upload pcaps if it is allowed
+    if config['results']['upload_pcaps']:
+        result_files = (result_files +
+                        glob.glob(os.path.join(config['dirs']['results_dir'],
+                                               '[!_]*.pcap.bz2')))
 
     for path in result_files:
         try:

@@ -47,6 +47,7 @@ class Configuration():
         results = {}
         results['delete_after_sync'] = True
         results['files_per_archive'] = 10
+        results['upload_pcaps'] = True
         self.params['results'] = results
 
         # logging
