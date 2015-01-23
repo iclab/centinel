@@ -1,10 +1,10 @@
-import os
-import sys
-import json
 import glob
 import imp
+import json
 import logging
+import os
 import random
+import sys
 import tarfile
 import time
 
