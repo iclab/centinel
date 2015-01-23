@@ -139,6 +139,8 @@ class Client():
                         td.start()
                         tcpdump_started = True
                         logging.info("tcpdump started...")
+                        # wait for tcpdump to initialize
+                        time.sleep(2)
                 except Exception as e:
                     logging.warning("Failed to run tcpdump: %s" %(e))
 
