@@ -113,19 +113,24 @@ class Client():
             ]
 
         for name, Exp in experiments_subset:
-            input_file = self.get_input_file(name)
 
-            if not os.path.isfile(input_file):
-                logging.warn("No input file found for %s. Skipping test."
-                             "" % (name))
-                continue
+            logging.info("Running %s test." % (name))
 
-            logging.info("Reading input from %s" % (input_file))
-            input_file = open(input_file)
+            # if the experiment specifies a list of input file names,
+            # load them.
+            if Exp.input_files is not None:
+                input_files = {}
+                for filename in Exp.input_files:
+                    file_handle = self.load_input_file(filename)
+                    if file_handle is not None:
+                        input_files[filename] = file_handle
+            else:
+            # otherwise, fall back on [experiment name].txt
+                input_files = self.load_input_file(name)
+                if input_files is None:
+                    continue
 
             try:
-                logging.info("Running %s test." % (name))
-
                 root = True
                 if os.geteuid() != 0:
                     logging.info("Centinel is not running as root, "
@@ -146,7 +151,7 @@ class Client():
                     logging.warning("Failed to run tcpdump: %s" %(e))
 
                 # run the experiment
-                exp = Exp(input_file)
+                exp = Exp(input_files)
                 exp.run()
 
                 if tcpdump_started:
@@ -174,7 +179,12 @@ class Client():
             except Exception, e:
                 logging.error("Error in %s: %s" % (name, str(e)))
 
-            input_file.close()
+            # close input file handle(s)
+            if type(input_files) is dict:
+                for file_name, file_handle in input_files.items():
+                    file_handle.close()
+            else:
+                input_files.close()
 
             results[name] = exp.results
 
@@ -212,3 +222,18 @@ class Client():
                 tar_file.close()
 
         logging.info("All experiments over. Check results.")
+
+    def load_input_file(self, name):
+        input_file = self.get_input_file(name)
+
+        if not os.path.isfile(input_file):
+            logging.warn("Input file not found %s" % (input_file))
+            return None
+
+        try:
+            input_file_handle = open(input_file)
+        except Exception as e:
+            logging.error("Can not read from %s" % (input_file))
+            return None
+
+        return input_file_handle
