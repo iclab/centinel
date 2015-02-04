@@ -9,7 +9,6 @@
 
 import time
 
-
 from centinel import command
 
 
@@ -81,16 +80,15 @@ def traceroute(url, method="icmp", cmd_arguments=[]):
     total_hops = 0
 
     lines = caller.notifications.split("\n")
-    for line in lines:
-        line = line.split()
-        try:
-            # if the first value is not a number, just pass
-            int(line[0])
-        except:
+    line_number = 0
+    unparseable_lines = {}
+    for original_line in lines:
+        line_number = line_number + 1
+        if original_line == "":
             continue
-
-        total_hops = total_hops + 1
+        line = original_line.split()
         if len(line) == 9:
+            total_hops = total_hops + 1
             number, domain_name, ip, rtt1, ms, rtt2, ms, rtt3, ms = line
             # remove parentheses from around the ip address
             ip = ip[1:-1]
@@ -106,10 +104,14 @@ def traceroute(url, method="icmp", cmd_arguments=[]):
                              "rtt3"        : rtt3
                            }
             meaningful_hops = meaningful_hops + 1
-        elif len(line) == 4:
-            number, asterisk, asterisk, asterisk = line
-            number = int(number)
-            hops[number] = {}
+        else:
+            number = line[0]
+            try:
+                number = int(number)
+                total_hops = total_hops + 1
+                hops[number] = { "raw" : original_line }
+            except ValueError:
+                unparseable_lines[line_number] = original_line
 
     results = {}
     results["url"] = url
@@ -117,6 +119,7 @@ def traceroute(url, method="icmp", cmd_arguments=[]):
     results["total_hops"] = total_hops
     results["meaningful_hops"] = meaningful_hops
     results["hops"] = hops
+    results["unparseable_lines"] = unparseable_lines
     results["forcefully_terminated"] = forcefully_terminated
     results["time_elapsed"] = time_elapsed
     return results
