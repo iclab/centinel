@@ -17,12 +17,13 @@ class TracerouteExperiment(Experiment):
         for line in self.input_file:
             url = line.strip()
             result = {}
-            for m in self.methods:
+            for method in self.methods:
                 try:
                     logging.info("Running traceroute on" + 
-                                 " %s using %s probes..." % (url, m.upper()))
-                    result = traceroute.traceroute(url, method=m)
+                                 " %s using %s probes..."
+                                 % (url, method.upper()))
+                    result = traceroute.traceroute(url, method=method)
                     self.results.append(result)
-                except Exception as e:
+                except Exception as exp:
                     logging.warning("%s traceroute failed: %s" %
-                                    (m.upper(), str(e)))
+                                    (method.upper(), str(exp)))

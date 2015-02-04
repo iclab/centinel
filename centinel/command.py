@@ -81,8 +81,8 @@ class Command():
                                             stdin=subprocess.PIPE,
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.STDOUT)
-        except Exception as e:
-            self.exception = e
+        except Exception as exp:
+            self.exception = exp
             self.started = False
             self.error = False
             return
