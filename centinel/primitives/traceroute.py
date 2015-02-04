@@ -12,7 +12,7 @@ import time
 from centinel import command
 
 
-def traceroute(url, method="icmp", cmd_arguments=[]):
+def traceroute(url, method="udp", cmd_arguments=[]):
     """This function uses centinel.command to issue
     a traceroute command, wait for it to finish execution and
     parse the results out to a dictionary.
