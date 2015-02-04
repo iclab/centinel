@@ -55,10 +55,19 @@ def traceroute(url, method="icmp", cmd_arguments=[]):
         if "service not known" in caller.notifications:
             message = ": name or service not known"
         raise Exception("traceroute failed to start" + message)
-
-    # check every 5 seconds to see if the execution has stopped
+    forcefully_terminated = False
+    timeout = 60
+    start_time = time.time()
+    # check every second to see if the execution has stopped
     while caller.thread.isAlive():
-        time.sleep(5)
+        if (time.time() - start_time) > timeout:
+            caller.stop()
+            forcefully_terminated = True
+            break
+        time.sleep(1)
+    # we are only accurate down to seconds, so we have
+    # to round up
+    time_elapsed = int(time.time() - start_time)
 
     # parse the output
     # a healthy line should looks like this:
@@ -108,6 +117,8 @@ def traceroute(url, method="icmp", cmd_arguments=[]):
     results["total_hops"] = total_hops
     results["meaningful_hops"] = meaningful_hops
     results["hops"] = hops
+    results["forcefully_terminated"] = forcefully_terminated
+    results["time_elapsed"] = time_elapsed
     return results
 
 
