@@ -37,6 +37,7 @@ class Command():
         self.timeout = timeout
         self.started = False
         self.stopped = False
+        self.exception = None
         self.error = False
         self.notifications = ""
 
@@ -73,10 +74,19 @@ class Command():
             return False
 
     def _invoke_cmd(self):
-        self.process = subprocess.Popen(self.command,
-                                        stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.STDOUT)
+        # if the command execution throws an exception,
+        # it should be caught and stored in a variable.
+        try:
+            self.process = subprocess.Popen(self.command,
+                                            stdin=subprocess.PIPE,
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.STDOUT)
+        except Exception as exp:
+            self.exception = exp
+            self.started = False
+            self.error = False
+            return
+
         self.kill_switch = self.process.terminate
         self.starting = True
         while True:
@@ -84,4 +94,4 @@ class Command():
             if not line:
                 break
             self.output_callback(self, line, self.process.terminate)
-            self.notifications += line
+            self.notifications += line + "\n"
