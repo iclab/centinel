@@ -119,7 +119,7 @@ def _traceroute_callback(self, line, kill_switch):
     if "traceroute to" in line:
         self.started = True
     # need to run as root but not running as root.
-    # usually happens when doing TCP traceroute.
+    # usually happens when doing TCP and ICMP traceroute.
     if "enough privileges" in line:
         self.error = True
         self.kill_switch()
