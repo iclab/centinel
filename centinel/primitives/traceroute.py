@@ -104,6 +104,7 @@ def traceroute(url, method="icmp", cmd_arguments=[]):
 
     results = {}
     results["url"] = url
+    results["method"] = method
     results["total_hops"] = total_hops
     results["meaningful_hops"] = meaningful_hops
     results["hops"] = hops
