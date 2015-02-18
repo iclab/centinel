@@ -2,7 +2,7 @@
 # date : 02-15-2015
 # note: This is a note.
 https://facebook.com/facebook
-"yahoo.com:80" ,metadata
+"yahoo.com:80" ,US,search engine
 google.com,metadata1,metadata2,metadata3
 # these
 # are

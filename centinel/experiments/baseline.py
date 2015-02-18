@@ -154,6 +154,19 @@ class BaselineExperiment(Experiment):
                     traceroute_results[domain_name] = { "exception" : str(exp) }
 
             # Meta-data
+
+            # if meta is a pair of comma-separated values,
+            # they should be treated as country and category
+            if len(meta.strip().split(',')) == 2:
+                country, category = meta.split(',')
+
+                country = country.strip()
+                category = category.strip()
+
+                meta = { "country" : country,
+                         "category" : category
+                       }
+
             url_metadata_results[url] = meta
 
         result["http"] = http_results
