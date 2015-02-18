@@ -56,11 +56,28 @@ class BaselineExperiment(Experiment):
         http_results = {}
         dns_results = {}
         traceroute_results = {}
-        metadata_results = {}
-
+        url_metadata_results = {}
+        file_metadata = {}
+        file_comments = []
+        comments = ""
         # we may want to make this threaded and concurrent
         for line in file_contents:
             line = line.strip()
+
+            # parse file comments, if it looks like "key : value",
+            # parse it as a key-value pair. otherwise, just
+            # store it as a raw comment.
+            if line[0] == '#':
+                line = line[1:].strip()
+                if len(line.split(':')) > 1:
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    file_metadata[key] = value
+                else:
+                    file_comments.append(line)
+                continue
+
             url = line
             meta = ''
 
@@ -137,10 +154,13 @@ class BaselineExperiment(Experiment):
                     traceroute_results[domain_name] = { "exception" : str(exp) }
 
             # Meta-data
-            metadata_results[url] = meta
+            url_metadata_results[url] = meta
 
         result["http"] = http_results
         result["dns"] = dns_results
         result["traceroute"] = traceroute_results
-        result["metadata"] = metadata_results
+        result["url_metadata"] = url_metadata_results
+        result["file_metadata"] = file_metadata
+        result["file_comments"] = file_comments
+
         return result
