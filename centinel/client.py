@@ -188,7 +188,9 @@ class Client():
 
             results[name] = exp.results
 
-        json.dump(results, result_file)
+        # Pretty printing results will increase file size, but files are
+        # compressed before sending.
+        json.dump(results, result_file, indent = 2, separators=(',', ': '))
         result_file.close()
 
         result_files = [path for path in glob.glob(
