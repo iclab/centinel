@@ -130,22 +130,33 @@ class Client():
                 if input_files is None:
                     continue
 
+            # instantiate the experiment
+            exp = Exp(input_files)
+
             try:
                 run_tcpdump = True
 
-                if Exp.overrides_tcpdump:
+                if self.config['results']['record_pcaps'] is False:
+                    logging.info("Your configuration has disabled pcap "
+                                 "recording, tcpdump will not start.")
+                    run_tcpdump = False
+                    # disable this on the experiment too
+                    exp.record_pcaps = False
+
+                if run_tcpdump and os.geteuid() != 0:
+                    logging.info("Centinel is not running as root, "
+                                 "tcpdump will not start.")
+                    run_tcpdump = False
+
+                if run_tcpdump and Exp.overrides_tcpdump:
                     logging.info("Experiment overrides tcpdump recording.")
                     run_tcpdump = False
-                elif os.geteuid() != 0:
-                        logging.info("Centinel is not running as root, "
-                                     "tcpdump will not start.")
-                        run_tcpdump = False
 
                 td = Tcpdump()
                 tcpdump_started = False
 
                 try:
-                    if run_tcpdump and self.config['results']['record_pcaps']:
+                    if run_tcpdump:
                         td.start()
                         tcpdump_started = True
                         logging.info("tcpdump started...")
@@ -155,7 +166,6 @@ class Client():
                     logging.warning("Failed to run tcpdump: %s" %(e))
 
                 # run the experiment
-                exp = Exp(input_files)
                 exp.run()
 
                 if tcpdump_started:
