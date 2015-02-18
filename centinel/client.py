@@ -131,17 +131,21 @@ class Client():
                     continue
 
             try:
-                root = True
-                if os.geteuid() != 0:
-                    logging.info("Centinel is not running as root, "
-                                 "tcpdump will not start.")
-                    root = False
+                run_tcpdump = True
+
+                if Exp.overrides_tcpdump:
+                    logging.info("Experiment overrides tcpdump recording.")
+                    run_tcpdump = False
+                elif os.geteuid() != 0:
+                        logging.info("Centinel is not running as root, "
+                                     "tcpdump will not start.")
+                        run_tcpdump = False
 
                 td = Tcpdump()
                 tcpdump_started = False
 
                 try:
-                    if root and self.config['results']['record_pcaps']:
+                    if run_tcpdump and self.config['results']['record_pcaps']:
                         td.start()
                         tcpdump_started = True
                         logging.info("tcpdump started...")

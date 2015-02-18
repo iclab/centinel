@@ -13,5 +13,9 @@ class Experiment:
     # [experiment name].txt will be used instead.
     input_files = None
 
+    # this should be set to True if the experiment
+    # does its own tcpdump recording.
+    overrides_tcpdump = False
+
     def run(self):
         raise NotImplementedError
