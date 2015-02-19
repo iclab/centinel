@@ -203,8 +203,8 @@ class BaselineExperiment(Experiment):
             if len(meta.strip().split(',')) == 2:
                 country, category = meta.split(',')
 
-                country = country.strip()
-                category = category.strip()
+                country = country.strip().upper()
+                category = category.strip().upper()
 
                 meta = { "country" : country,
                          "category" : category
