@@ -32,7 +32,7 @@ def get_request(host, path="/", headers=None, ssl=False):
         try:
             body.encode('utf8')
             response["body"] = body
-         except UnicodeDecodeError as err:
+        except UnicodeDecodeError as err:
             # if utf-8 fails to encode, just use base64
             response["body.b64"] = body.encode('base64')
 
