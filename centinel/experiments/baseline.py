@@ -154,7 +154,7 @@ class BaselineExperiment(Experiment):
                     tcpdump_started = True
                     logging.info("%s: tcpdump started..." % (url))
                     # wait for tcpdump to initialize
-                    time.sleep(2)
+                    time.sleep(1)
             except Exception as exp:
                 logging.warning("%s: tcpdump failed: %s" %(url, str(exp)))
 
