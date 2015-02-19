@@ -94,17 +94,23 @@ class BaselineExperiment(Experiment):
             url = line
             meta = ''
 
-            # if the list entry has comma separated meta-data
-            if len(line.split(',')) > 1:
+            # handle cases where URL is enclosed in quotes
+            if line[0] == '"':
+                next_quote = line[1:].find('"')
+                url = line[1:next_quote + 1]
+                # try to separate metadata, if any
+                try:
+                    meta = ','.join(line[next_quote + 2:].split(',')[1:])
+                except:
+                    pass
+
+            # if the line doesn't start with a quote
+            # but the list entry has comma separated meta-data
+            elif len(line.split(',')) > 1:
                 url, meta = line.split(',', 1)
                 # remove trailing spaces
                 url = url.strip()
 
-            # remove quotes, if any
-            # this may not be the best way to do this.
-            # therefore, clean input files are preferred.
-            if url[0] == '"' or url[0] == "'":
-                url = url[1:-1]
 
             # parse the URL to extract netlocation, HTTP path, domain name,
             # and HTTP method (SSL or plain)
