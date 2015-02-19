@@ -14,10 +14,12 @@
 
 import os
 import logging
+import time
 import urlparse
 
 from centinel.experiment import Experiment
 from centinel.primitives import dnslib
+from centinel.primitives.tcpdump import Tcpdump
 import centinel.primitives.http as http
 import centinel.primitives.traceroute as traceroute
 
@@ -28,9 +30,18 @@ class BaselineExperiment(Experiment):
     # this can be overridden by the main thread
     input_files = ['country', 'world']
 
+    # we do our own tcpdump recording here
+    overrides_tcpdump = True
+
     def __init__(self, input_files):
         self.input_files = input_files
         self.results = []
+
+        # should we do tcpdump?
+        if os.geteuid() != 0:
+            self.record_pcaps = False
+        else:
+            self.record_pcaps = True
 
         if os.geteuid() != 0:
             logging.info("Centinel is not running as root, "
@@ -53,12 +64,14 @@ class BaselineExperiment(Experiment):
         result = {}
         result["file_name"] = file_name
 
+
         http_results = {}
         dns_results = {}
         traceroute_results = {}
         url_metadata_results = {}
         file_metadata = {}
         file_comments = []
+        pcap_results = {}
         comments = ""
         # we may want to make this threaded and concurrent
         for line in file_contents:
@@ -122,6 +135,20 @@ class BaselineExperiment(Experiment):
 
             domain_name = http_netloc.split(':')[0]
 
+            # start tcpdump
+            td = Tcpdump()
+            tcpdump_started = False
+
+            try:
+                if self.record_pcaps:
+                    td.start()
+                    tcpdump_started = True
+                    logging.info("%s: tcpdump started..." % (url))
+                    # wait for tcpdump to initialize
+                    time.sleep(2)
+            except Exception as exp:
+                logging.warning("%s: tcpdump failed: %s" %(url, str(exp)))
+
             # HTTP GET
             logging.info("%s: HTTP" % (url))
             try:
@@ -153,6 +180,16 @@ class BaselineExperiment(Experiment):
                                     (domain_name, method.upper(), str(exp)))
                     traceroute_results[domain_name] = { "exception" : str(exp) }
 
+            # end tcpdump
+            if tcpdump_started:
+                logging.info("%s: waiting for tcpdump..." %(url))
+                # 2 seconds should be enough.
+                time.sleep(2)
+                td.stop()
+                logging.info("%s: tcpdump stopped." %(url))
+
+                pcap_results[url] = td.b64_output()
+
             # Meta-data
 
             # if meta is a pair of comma-separated values,
@@ -175,5 +212,7 @@ class BaselineExperiment(Experiment):
         result["url_metadata"] = url_metadata_results
         result["file_metadata"] = file_metadata
         result["file_comments"] = file_comments
+        if self.record_pcaps:
+            result['pcap_results'] = pcap_results
 
         return result
