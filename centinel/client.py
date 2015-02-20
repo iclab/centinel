@@ -168,6 +168,27 @@ class Client():
                 # run the experiment
                 exp.run()
 
+                # save any external results that the experiment has generated
+                # they could be anything that doesn't belong in the json file
+                # (e.g. pcap files)
+                # these should all be compress with bzip2
+                # the experiment is responsible for giving these a name and
+                # keeping a list of files in the json results
+                if exp.external_results is not None:
+                    for fname, fcontents in exp.external_results.items():
+                        external_file_name = "external_%s-%s-%s.bz2" % (name,
+                            datetime.now().isoformat(),fname)
+                        external_file_path = os.path.join(
+                            self.config['dirs']['results_dir'],
+                            external_file_name)
+                        try:
+                            with open(external_file_path, 'w:bz2') as file_p:
+                                data = bz2.compress(fcontents)
+                                file_p.write(data)
+                        except Exception as exp:
+                            logging.warning("Failed to write external file:"
+                                "%s" %(exp))
+
                 if tcpdump_started:
                     logging.info("Waiting for tcpdump to process packets...")
                     # 5 seconds should be enough. this hasn't been tested on
@@ -187,8 +208,8 @@ class Client():
                             file_p.write(data)
                             logging.info("Saved pcap to %s."
                                          % (pcap_file_path))
-                    except Exception as e:
-                        logging.warning("Failed to write pcap file: %s" %(e))
+                    except Exception as exp:
+                        logging.warning("Failed to write pcap file: %s" %(exp))
 
             except Exception, e:
                 logging.error("Error in %s: %s" % (name, str(e)))

@@ -17,5 +17,14 @@ class Experiment:
     # does its own tcpdump recording.
     overrides_tcpdump = False
 
+    # if the experiment produces files that are not
+    # to be included in the json file, it should
+    # keep them in this dictionary.
+    # { "file1_name.extention" : "[file1_contents]",
+    #   "file2_name.extention" : "[file2_contents]",
+    #   ... }
+    # these files will be compressed when being stored
+    external_results = None
+
     def run(self):
         raise NotImplementedError
