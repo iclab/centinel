@@ -54,6 +54,9 @@ class BaselineExperiment(Experiment):
             self.traceroute_methods = ["tcp"]
 
     def run(self):
+        if self.record_pcaps:
+            self.external_results = {}
+
         for input_file in self.input_files.items():
             logging.info("Testing input file %s..." % (input_file[0]))
             self.results.append(self.run_file(input_file))
@@ -74,8 +77,16 @@ class BaselineExperiment(Experiment):
         url_metadata_results = {}
         file_metadata = {}
         file_comments = []
+
+        # each pcap file is stored in a separate file
+        # designated by a number. the indexes are stored
+        # in the json file and the pcap files are stored
+        # with their indexes as file names.
         pcap_results = {}
+        pcap_indexes = {}
+        url_index = 0
         comments = ""
+
         # we may want to make this threaded and concurrent
         for line in file_contents:
             line = line.strip()
@@ -96,6 +107,7 @@ class BaselineExperiment(Experiment):
 
             url = line
             meta = ''
+            url_index = url_index + 1
 
             # handle cases where URL is enclosed in quotes
             if line[0] == '"':
@@ -183,11 +195,13 @@ class BaselineExperiment(Experiment):
                 try:
                     logging.info("%s: Traceroute (%s)"
                                  % (domain_name, method.upper()))
-                    traceroute_results[domain_name] = traceroute.traceroute(domain_name, method=method)
+                    traceroute_results[domain_name] = traceroute.traceroute(
+                        domain_name, method=method)
                 except Exception as exp:
                     logging.info("%s: Traceroute (%s) failed: %s" %
                                     (domain_name, method.upper(), str(exp)))
-                    traceroute_results[domain_name] = { "exception" : str(exp) }
+                    traceroute_results[domain_name] = {
+                        "exception" : str(exp) }
 
             # end tcpdump
             if tcpdump_started:
@@ -196,8 +210,9 @@ class BaselineExperiment(Experiment):
                 time.sleep(2)
                 td.stop()
                 logging.info("%s: tcpdump stopped." %(url))
-
-                pcap_results[url] = td.b64_output()
+                pcap_indexes[url] = '%s-%s.pcap' % (file_name,
+                    format(url_index, '04'))
+                pcap_results[pcap_indexes[url]] = td.pcap()
 
             # Meta-data
 
@@ -222,6 +237,8 @@ class BaselineExperiment(Experiment):
         result["file_metadata"] = file_metadata
         result["file_comments"] = file_comments
         if self.record_pcaps:
-            result['pcap_results'] = pcap_results
+            result['pcap_indexes'] = pcap_indexes
+            self.external_results = dict(self.external_results.items() +
+                                         pcap_results.items())
 
         return result
