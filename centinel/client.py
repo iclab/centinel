@@ -25,8 +25,8 @@ class Client():
                             format=self.config['log']['log_format'],
                             level=self.config['log']['log_level'])
 
-    def get_result_file(self):
-        result_file = "result-%s.json" % (datetime.now().isoformat())
+    def get_result_file(self, name, start_time):
+        result_file = "%s-%s.json" % (name, start_time)
         return os.path.join(self.config['dirs']['results_dir'], result_file)
 
     def get_input_file(self, experiment_name):
@@ -95,10 +95,6 @@ class Client():
                          "%s" % (self.config['dirs']['results_dir']))
             os.makedirs(self.config['dirs']['results_dir'])
 
-        result_file_path = self.get_result_file()
-        result_file = open(result_file_path, "w")
-        results = {}
-
         experiments = self.load_experiments()
         experiments_subset = experiments.items()
 
@@ -115,6 +111,11 @@ class Client():
         for name, Exp in experiments_subset:
 
             logging.info("Running %s test." % (name))
+            exp_start_time = datetime.now().isoformat()
+
+            result_file_path = self.get_result_file(name, exp_start_time)
+            result_file = open(result_file_path, "w")
+            results = {}
 
             # if the experiment specifies a list of input file names,
             # load them.
@@ -177,7 +178,7 @@ class Client():
                 if exp.external_results is not None:
                     for fname, fcontents in exp.external_results.items():
                         external_file_name = "external_%s-%s-%s.bz2" % (name,
-                            datetime.now().isoformat(),fname)
+                            exp_start_time,fname)
                         external_file_path = os.path.join(
                             self.config['dirs']['results_dir'],
                             external_file_name)
@@ -198,7 +199,7 @@ class Client():
                     logging.info("tcpdump stopped.")
                     try:
                         pcap_file_name = "pcap_%s-%s.pcap.bz2" % (name, 
-                            datetime.now().isoformat())
+                            exp_start_time)
 
                         pcap_file_path = os.path.join(
                             self.config['dirs']['results_dir'], pcap_file_name)
@@ -223,10 +224,10 @@ class Client():
 
             results[name] = exp.results
 
-        # Pretty printing results will increase file size, but files are
-        # compressed before sending.
-        json.dump(results, result_file, indent = 2, separators=(',', ': '))
-        result_file.close()
+            # Pretty printing results will increase file size, but files are
+            # compressed before sending.
+            json.dump(results, result_file, indent = 2, separators=(',', ': '))
+            result_file.close()
 
         result_files = [path for path in glob.glob(
             os.path.join(self.config['dirs']['results_dir'],'*.json'))]
