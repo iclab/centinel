@@ -24,17 +24,12 @@ class User:
                 self.auth     = (self.username, self.password)
         else:
             self.create_user()
-        if self.config['server']['cert_bundle'] is not False:
-            self.config['server']['cert_bundle'] = \
-                self.config['server']['cert_bundle'].encode(
-                    'ascii', 'replace')
 
     def request(self, slug):
         url = "%s/%s" % (self.config['server']['server_url'], slug)
         try:
             req = requests.get(url, auth=self.auth,
-                               proxies=self.config['proxy']['proxy'],
-                               verify=self.config['server']['cert_bundle'])
+                               proxies=self.config['proxy']['proxy'])
             req.raise_for_status()
             return req.json()
         except Exception as exp:
@@ -91,11 +86,10 @@ class User:
             url     = "%s/%s" % (self.config['server']['server_url'],
                                  "results")
             timeout = self.config['server']['req_timeout']
-            cert_bundle = self.config['server']['cert_bundle']
             try:
                 req = requests.post(url, files=files, auth=self.auth,
                                     proxies=self.config['proxy']['proxy'],
-                                    timeout=timeout, verify=cert_bundle)
+                                    timeout=timeout)
                 req.raise_for_status()
                 if ('delete_after_sync' in self.config['results'].keys()
                    and self.config['results']['delete_after_sync']):
@@ -121,7 +115,6 @@ class User:
                             "experiments", "scheduler.info")
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               verify=self.config['server']['cert_bundle'],
                                auth=self.auth)
             req.raise_for_status()
         except Exception as exp:
@@ -161,7 +154,6 @@ class User:
                             "experiments", name)
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               verify=self.config['server']['cert_bundle'],
                                auth=self.auth)
             req.raise_for_status()
         except Exception as exp:
@@ -180,7 +172,6 @@ class User:
                             "input_files", name)
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               verify=self.config['server']['cert_bundle'],
                                auth=self.auth)
             req.raise_for_status()
         except Exception as exp:
@@ -202,8 +193,7 @@ class User:
         try:
             req = requests.post(url, data=json.dumps(payload),
                                 proxies=self.config['proxy']['proxy'],
-                                headers=headers,
-                                verify=self.config['server']['cert_bundle'])
+                                headers=headers)
             req.raise_for_status()
             return req.json()
         except Exception as exp:
