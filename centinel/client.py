@@ -26,7 +26,7 @@ class Client():
                             level=self.config['log']['log_level'])
 
     def get_result_file(self, name, start_time):
-        result_file = "%s-%s.json" % (name, start_time)
+        result_file = "%s-%s.json.bz2" % (name, start_time)
         return os.path.join(self.config['dirs']['results_dir'], result_file)
 
     def get_input_file(self, experiment_name):
@@ -114,7 +114,7 @@ class Client():
             exp_start_time = datetime.now().isoformat()
 
             result_file_path = self.get_result_file(name, exp_start_time)
-            result_file = open(result_file_path, "w")
+            result_file = bz2.BZ2File(result_file_path, "w")
             results = {}
 
             # if the experiment specifies a list of input file names,
@@ -230,7 +230,7 @@ class Client():
             result_file.close()
 
         result_files = [path for path in glob.glob(
-            os.path.join(self.config['dirs']['results_dir'],'*.json'))]
+            os.path.join(self.config['dirs']['results_dir'],'*.json.bz2'))]
 
         if len(result_files) >= self.config['results']['files_per_archive']:
             logging.info("Compressing and archiving results.")

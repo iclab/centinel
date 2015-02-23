@@ -248,11 +248,9 @@ def sync(config):
         logging.error("Unable to create user: %s" % str(exp))
         return
 
-    # send all results (.json + .bz2)
-    result_files = (glob.glob(os.path.join(config['dirs']['results_dir'],
-                                           '[!_]*.bz2')) +
-                    glob.glob(os.path.join(config['dirs']['results_dir'],
-                                           '[!_]*.json')))
+    # send all results (.bz2)
+    result_files = glob.glob(os.path.join(config['dirs']['results_dir'],
+                                          '[!_]*.bz2'))
 
     # only upload pcaps if it is allowed
     if config['results']['upload_pcaps'] is False:
