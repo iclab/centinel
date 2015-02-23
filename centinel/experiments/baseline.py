@@ -20,6 +20,7 @@ import urlparse
 from centinel.experiment import Experiment
 from centinel.primitives import dnslib
 from centinel.primitives.tcpdump import Tcpdump
+from centinel.primitives import tls
 import centinel.primitives.http as http
 import centinel.primitives.traceroute as traceroute
 
@@ -72,6 +73,7 @@ class BaselineExperiment(Experiment):
 
 
         http_results = {}
+        tls_results = {}
         dns_results = {}
         traceroute_results = {}
         url_metadata_results = {}
@@ -126,6 +128,9 @@ class BaselineExperiment(Experiment):
                 # remove trailing spaces
                 url = url.strip()
 
+            http_ssl = False
+            ssl_port = 443
+            http_path = '/'
 
             # parse the URL to extract netlocation, HTTP path, domain name,
             # and HTTP method (SSL or plain)
@@ -145,13 +150,16 @@ class BaselineExperiment(Experiment):
                 # we assume scheme is either empty, or "http", or "https"
                 # other schemes (e.g. "ftp") are out of the scope of this
                 # measuremnt
-                http_ssl = False
                 if urlparse.urlparse(url).scheme == "https":
                     http_ssl = True
+                    if len(http_netloc.split(':')) == 2:
+                        ssl_port = http_netloc.split(':')[1]
+
             except Exception as exp:
                 logging.warning("%s: failed to parse URL: %s" %(url, str(exp)))
                 http_netloc = url
                 http_ssl    = False
+                ssl_port = 443
                 http_path   = '/'
 
             domain_name = http_netloc.split(':')[0]
@@ -180,6 +188,24 @@ class BaselineExperiment(Experiment):
                 logging.info("%s: HTTP test failed: %s" %
                              (url, str(exp)))
                 http_results[url] = { "exception" : str(exp) }
+
+            # TLS certificate
+            # this will only work if the URL starts with https://
+            if http_ssl:
+                try:
+                    tls_result = {}
+                    logging.info("%s: TLS certificate" %
+                                 (domain_name))
+                    fingerprint, cert = tls.get_fingerprint(domain_name, ssl_port)
+                    tls_result['port'] = ssl_port
+                    tls_result['fingerprint'] = fingerprint
+                    tls_result['cert'] = cert
+
+                    tls_results[domain_name] = tls_result
+                except Exception as exp:
+                    logging.info("%s: TLS certfiticate download failed: %s" %
+                                 (domain_name, str(exp)))
+                    tls_results[domain_name] = { "exception" : str(exp) }
 
             # DNS Lookup
             logging.info("%s: DNS" % (domain_name))
@@ -231,6 +257,7 @@ class BaselineExperiment(Experiment):
             url_metadata_results[url] = meta
 
         result["http"] = http_results
+        result["tls"] = tls_results
         result["dns"] = dns_results
         result["traceroute"] = traceroute_results
         result["url_metadata"] = url_metadata_results
