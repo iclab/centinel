@@ -75,12 +75,6 @@ class Configuration():
         # set a socket timeout of 15 seconds (no way to do per request
         # platform independently)
         servers['req_timeout'] = 15
-        # Note: this will likely be different from the input folder->
-        # the input folder will be synced, whereas this likely will be
-        # shipped with the distribution (hence the os.path.dirname
-        # file stuff)
-        servers['cert_bundle'] = os.path.join(os.path.dirname(__file__),
-                                              "data/gd_bundle-g2-g1.crt")
         self.params['server'] = servers
 
         # proxy
