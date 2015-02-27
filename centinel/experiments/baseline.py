@@ -49,10 +49,10 @@ class BaselineExperiment(Experiment):
                          "traceroute will be limited to UDP.")
             self.traceroute_methods = ["udp"]
         else:
-            # if running as root, just do TCP traceroute
+            # if running as root, TCP and UDP traceroute
             # doing all 3 methods takes a lot of time
             # self.traceroute_methods = ["icmp", "udp", "tcp"]
-            self.traceroute_methods = ["tcp"]
+            self.traceroute_methods = ["tcp", "udp"]
 
     def run(self):
         if self.record_pcaps:
