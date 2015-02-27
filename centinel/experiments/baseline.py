@@ -12,8 +12,9 @@
 # are included in the results as metadata.
 
 
-import os
+import csv
 import logging
+import os
 import time
 import urlparse
 
@@ -90,43 +91,26 @@ class BaselineExperiment(Experiment):
         comments = ""
 
         # we may want to make this threaded and concurrent
-        for line in file_contents:
-            line = line.strip()
+        csvreader = csv.reader(file_contents, delimiter=',', quotechar='"')
+        for row in csvreader:
 
             # parse file comments, if it looks like "key : value",
             # parse it as a key-value pair. otherwise, just
             # store it as a raw comment.
-            if line[0] == '#':
-                line = line[1:].strip()
-                if len(line.split(':')) > 1:
-                    key, value = line.split(':', 1)
+            if row[0][0] == '#':
+                row = row[0][1:].strip()
+                if len(row.split(':')) > 1:
+                    key, value = row.split(':', 1)
                     key = key.strip()
                     value = value.strip()
                     file_metadata[key] = value
                 else:
-                    file_comments.append(line)
+                    file_comments.append(row)
                 continue
 
-            url = line
-            meta = ''
+            url = row[0].strip()
+            meta = row[1:]
             url_index = url_index + 1
-
-            # handle cases where URL is enclosed in quotes
-            if line[0] == '"':
-                next_quote = line[1:].find('"')
-                url = line[1:next_quote + 1]
-                # try to separate metadata, if any
-                try:
-                    meta = ','.join(line[next_quote + 2:].split(',')[1:])
-                except:
-                    pass
-
-            # if the line doesn't start with a quote
-            # but the list entry has comma separated meta-data
-            elif len(line.split(',')) > 1:
-                url, meta = line.split(',', 1)
-                # remove trailing spaces
-                url = url.strip()
 
             http_ssl = False
             ssl_port = 443
@@ -156,7 +140,7 @@ class BaselineExperiment(Experiment):
                         ssl_port = http_netloc.split(':')[1]
 
             except Exception as exp:
-                logging.warning("%s: failed to parse URL: %s" % (url, str(exp)))
+                logging.warning("%s: failed to parse URL: %s" % (url, exp))
                 http_netloc = url
                 http_ssl    = False
                 ssl_port = 443
@@ -176,7 +160,7 @@ class BaselineExperiment(Experiment):
                     # wait for tcpdump to initialize
                     time.sleep(1)
             except Exception as exp:
-                logging.warning("%s: tcpdump failed: %s" % (url, str(exp)))
+                logging.warning("%s: tcpdump failed: %s" % (url, exp))
 
             # HTTP GET
             logging.info("%s: HTTP" % (url))
@@ -186,7 +170,7 @@ class BaselineExperiment(Experiment):
                                                      ssl=http_ssl)
             except Exception as exp:
                 logging.info("%s: HTTP test failed: %s" %
-                             (url, str(exp)))
+                             (url, exp))
                 http_results[url] = { "exception" : str(exp) }
 
             # TLS certificate
@@ -204,7 +188,7 @@ class BaselineExperiment(Experiment):
                     tls_results[domain_name] = tls_result
                 except Exception as exp:
                     logging.info("%s: TLS certfiticate download failed: %s" %
-                                 (domain_name, str(exp)))
+                                 (domain_name, exp))
                     tls_results[domain_name] = { "exception" : str(exp) }
 
             # DNS Lookup
@@ -213,7 +197,7 @@ class BaselineExperiment(Experiment):
                 dns_results[domain_name] = dnslib.lookup_domain(domain_name)
             except Exception as exp:
                 logging.info("%s: DNS lookup failed: %s" %
-                             (domain_name, str(exp)))
+                             (domain_name, exp))
                 dns_results[domain_name] = { "exception" : str(exp) }
 
             # Traceroute
@@ -225,7 +209,7 @@ class BaselineExperiment(Experiment):
                         domain_name, method=method)
                 except Exception as exp:
                     logging.info("%s: Traceroute (%s) failed: %s" %
-                                    (domain_name, method.upper(), str(exp)))
+                                    (domain_name, method.upper(), exp))
                     traceroute_results[domain_name] = {
                         "exception" : str(exp) }
 
@@ -244,11 +228,9 @@ class BaselineExperiment(Experiment):
 
             # if meta is a pair of comma-separated values,
             # they should be treated as country and category
-            if len(meta.strip().split(',')) == 2:
-                country, category = meta.split(',')
-
-                country = country.strip().upper()
-                category = category.strip().upper()
+            if len(meta) == 2:
+                country = meta[0].strip().upper()
+                category = meta[1].strip().upper()
 
                 meta = { "country" : country,
                          "category" : category
