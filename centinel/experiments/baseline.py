@@ -156,7 +156,7 @@ class BaselineExperiment(Experiment):
                         ssl_port = http_netloc.split(':')[1]
 
             except Exception as exp:
-                logging.warning("%s: failed to parse URL: %s" %(url, str(exp)))
+                logging.warning("%s: failed to parse URL: %s" % (url, str(exp)))
                 http_netloc = url
                 http_ssl    = False
                 ssl_port = 443
@@ -176,7 +176,7 @@ class BaselineExperiment(Experiment):
                     # wait for tcpdump to initialize
                     time.sleep(1)
             except Exception as exp:
-                logging.warning("%s: tcpdump failed: %s" %(url, str(exp)))
+                logging.warning("%s: tcpdump failed: %s" % (url, str(exp)))
 
             # HTTP GET
             logging.info("%s: HTTP" % (url))
@@ -231,11 +231,11 @@ class BaselineExperiment(Experiment):
 
             # end tcpdump
             if tcpdump_started:
-                logging.info("%s: waiting for tcpdump..." %(url))
+                logging.info("%s: waiting for tcpdump..." % (url))
                 # 2 seconds should be enough.
                 time.sleep(2)
                 td.stop()
-                logging.info("%s: tcpdump stopped." %(url))
+                logging.info("%s: tcpdump stopped." % (url))
                 pcap_indexes[url] = '%s-%s.pcap' % (file_name,
                     format(url_index, '04'))
                 pcap_results[pcap_indexes[url]] = td.pcap()
