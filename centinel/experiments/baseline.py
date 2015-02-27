@@ -119,22 +119,24 @@ class BaselineExperiment(Experiment):
             # parse the URL to extract netlocation, HTTP path, domain name,
             # and HTTP method (SSL or plain)
             try:
-                http_netloc = ''.join(urlparse.urlparse(url).netloc)
+                urlparse_object = urlparse.urlparse(url)
 
                 # if netloc is not urlparse-able, add // to the start
                 # of URL
                 if http_netloc == '':
-                    url = '//' + url
-                    http_netloc = ''.join(urlparse.urlparse(url).netloc)
+                    urlparse_object = urlparse.urlparse('//%s' % (url))
 
-                http_path = urlparse.urlparse(url).path
+                http_netloc = ''.join(urlparse_object.netloc)
+                domain_name = http_netloc.split(':')[0]
+
+                http_path = urlparse_object.path
                 if http_path == '':
                     http_path = '/'
 
                 # we assume scheme is either empty, or "http", or "https"
                 # other schemes (e.g. "ftp") are out of the scope of this
                 # measuremnt
-                if urlparse.urlparse(url).scheme == "https":
+                if urlparse_object.scheme == "https":
                     http_ssl = True
                     if len(http_netloc.split(':')) == 2:
                         ssl_port = http_netloc.split(':')[1]
@@ -145,8 +147,7 @@ class BaselineExperiment(Experiment):
                 http_ssl    = False
                 ssl_port = 443
                 http_path   = '/'
-
-            domain_name = http_netloc.split(':')[0]
+                domain_name = url
 
             # start tcpdump
             td = Tcpdump()
