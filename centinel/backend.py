@@ -234,7 +234,7 @@ class User:
             consent_url.append(self.typeable_handle)
 
         consent_url = "".join(consent_url)
-        print "Please go to %s to give your consent" % (consent_url)
+        print "Please go to %s to give your consent." % (consent_url)
         return consent_url
 
 
@@ -264,8 +264,15 @@ def sync(config):
         try:
             user.submit_result(path)
         except Exception, exp:
-            logging.error("Unable to send result file: %s" % str(exp))
-            break
+            if re.search("418", str(exp)) is not None:
+                logging.error("You have not completed the informed consent and "
+                              "will be unable to submit results or get new "
+                              "experiments until you do.")
+                user.informed_consent()
+                return
+            else:
+                logging.error("Unable to send result file: %s" % str(exp))
+            raise exp
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
             return
@@ -277,12 +284,7 @@ def sync(config):
     try:
         server_exps = user.experiments
     except Exception as exp:
-        if re.search("418", str(exp)) is not None:
-            logging.error("You have not completed the informed consent and "
-                          "will be unable to submit results or get new "
-                          "experiments until you do")
-        else:
-            logging.error("Error collecting experiments: %s" % exp)
+        logging.error("Error collecting experiments: %s" % exp)
         raise exp
     if time.time() - start > config['server']['total_timeout']:
         logging.error("Interaction with server took too long. Preempting")
