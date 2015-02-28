@@ -175,20 +175,22 @@ class Client():
                 # these should all be compress with bzip2
                 # the experiment is responsible for giving these a name and
                 # keeping a list of files in the json results
+                results_dir = self.config['dirs']['results_dir']
                 if exp.external_results is not None:
                     for fname, fcontents in exp.external_results.items():
-                        external_file_name = "external_%s-%s-%s.bz2" % (name,
-                            exp_start_time,fname)
-                        external_file_path = os.path.join(
-                            self.config['dirs']['results_dir'],
-                            external_file_name)
+                        external_file_name = ("external_%s-%s-%s"
+                                              ".bz2" % (name,
+                                                        exp_start_time,
+                                                        fname))
+                        external_file_path = os.path.join(results_dir,
+                                                          external_file_name)
                         try:
                             with open(external_file_path, 'w:bz2') as file_p:
                                 data = bz2.compress(fcontents)
                                 file_p.write(data)
                         except Exception as exp:
                             logging.warning("Failed to write external file:"
-                                "%s" %(exp))
+                                            "%s" %(exp))
 
                 if tcpdump_started:
                     logging.info("Waiting for tcpdump to process packets...")
@@ -198,22 +200,21 @@ class Client():
                     td.stop()
                     logging.info("tcpdump stopped.")
                     try:
-                        pcap_file_name = "pcap_%s-%s.pcap.bz2" % (name, 
-                            exp_start_time)
-
-                        pcap_file_path = os.path.join(
-                            self.config['dirs']['results_dir'], pcap_file_name)
+                        pcap_file_name = ("pcap_%s-%s.pcap"
+                                          ".bz2" % (name, exp_start_time))
+                        pcap_file_path = os.path.join(results_dir,
+                                                      pcap_file_name)
 
                         with open(pcap_file_path, 'w:bz2') as file_p:
                             data = bz2.compress(td.pcap())
                             file_p.write(data)
-                            logging.info("Saved pcap to %s."
-                                         % (pcap_file_path))
+                            logging.info("Saved pcap to "
+                                         "%s." % (pcap_file_path))
                     except Exception as exp:
                         logging.warning("Failed to write pcap file: %s" %(exp))
 
-            except Exception, e:
-                logging.error("Error in %s: %s" % (name, str(e)))
+            except Exception as exp:
+                logging.error("Error in %s: %s" % (name, exp))
 
             # close input file handle(s)
             if type(input_files) is dict:
