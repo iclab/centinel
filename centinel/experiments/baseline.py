@@ -120,13 +120,14 @@ class BaselineExperiment(Experiment):
             # and HTTP method (SSL or plain)
             try:
                 urlparse_object = urlparse.urlparse(url)
+                http_netloc = urlparse_object.netloc
 
                 # if netloc is not urlparse-able, add // to the start
                 # of URL
                 if http_netloc == '':
                     urlparse_object = urlparse.urlparse('//%s' % (url))
+                    http_netloc = urlparse_object.netloc
 
-                http_netloc = ''.join(urlparse_object.netloc)
                 domain_name = http_netloc.split(':')[0]
 
                 http_path = urlparse_object.path
