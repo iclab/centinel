@@ -8,6 +8,9 @@ import time
 
 
 def get_fingerprint(host, port=443, external=None):
+    tls_error = None
+    fingerprint_error = None
+    exception = None
     try:
         cert = ssl.get_server_certificate((host, port))
     # if this fails, there's a possibility that SSLv3 handshake was
@@ -15,13 +18,28 @@ def get_fingerprint(host, port=443, external=None):
     except ssl.SSLError as exp:
         cert = ssl.get_server_certificate((host, port),
                                           ssl_version=ssl.PROTOCOL_TLSv1)
+    except Exception as exp:
+        tls_error = str(exp)
+        exception = exp
 
-    x509 = M2Crypto.X509.load_cert_string(cert, M2Crypto.X509.FORMAT_PEM)
-    fingerprint = x509.get_fingerprint('sha1')
+    if exception is None:
+        try:
+            x509 = M2Crypto.X509.load_cert_string(cert, M2Crypto.X509.FORMAT_PEM)
+            fingerprint = x509.get_fingerprint('sha1')
+        except Exception as exp:
+            fingerprint_error = str(exp)
+            exception = exp
+
     # the external result is used when threading to store
     # the results in the list container provided.
+    row = "%s:%s" % (host, port)
+
+    if exception is not None:
+        external[row] = { "tls_error": tls_error,
+                          "fingerprint_error": fingerprint_error }
+        raise exception
+
     if external is not None and type(external) is dict:
-        row = "%s:%s" % (host, port)
         external[row] = { "cert": cert,
                           "fingerprint": fingerprint.lower() }
 
