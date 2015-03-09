@@ -1,0 +1,2 @@
+"yahoo.fr/this,and,that",xx,yy
+"google.tr/comma,here" , xx , yy, zz

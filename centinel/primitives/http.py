@@ -12,9 +12,10 @@ def get_request(host, path="/", headers=None, ssl=False):
     try:
         if ssl:
             conn = httplib.HTTPSConnection(host)
+            request["ssl"] = True
         else:
             conn = httplib.HTTPConnection(host)
-
+            request["ssl"] = False
         if headers:
             conn.request("GET", path, headers=headers)
         else:
@@ -28,7 +29,12 @@ def get_request(host, path="/", headers=None, ssl=False):
         response["headers"] = headers
 
         body = resp.read()
-        response["body"] = body
+        try:
+            body.encode('utf8')
+            response["body"] = body
+        except UnicodeDecodeError as err:
+            # if utf-8 fails to encode, just use base64
+            response["body.b64"] = body.encode('base64')
 
         conn.close()
     except Exception as err:
