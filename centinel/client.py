@@ -72,7 +72,10 @@ class Client():
                 sched_info[name]['last_run'] = time.time()
 
             # load the experiment
-            imp.load_source(name, path)
+            try:
+                imp.load_source(name, path)
+            except Exception as exception:
+                logging.error("Failed to load experiment %s: %s" % (name, exception))
 
         # write out the updated last run times
         with open(sched_filename, 'w') as file_p:
@@ -131,8 +134,12 @@ class Client():
                 if input_files is None:
                     continue
 
-            # instantiate the experiment
-            exp = Exp(input_files)
+            try:
+                # instantiate the experiment
+                exp = Exp(input_files)
+            except Exception as exception:
+                logging.error("Error initializing %s: %s" % (name, exception))
+                results["init_exception"] = str(exception)
 
             run_tcpdump = True
 
@@ -169,7 +176,8 @@ class Client():
                 # run the experiment
                 exp.run()
             except Exception as exception:
-                logging.error("Error in %s: %s" % (name, exception))
+                logging.error("Error running %s: %s" % (name, exception))
+                results["runtime_exception"] = str(exception)
 
             # save any external results that the experiment has generated
             # they could be anything that doesn't belong in the json file
@@ -223,7 +231,12 @@ class Client():
             else:
                 input_files.close()
 
-            results[name] = exp.results
+            try:
+                results[name] = exp.results
+            except Exception as exception:
+                logging.error("Error saving results for "
+                              "%s: %s" % (name, exception))
+                results["results_exception"] = str(exception)
 
             # Pretty printing results will increase file size, but files are
             # compressed before sending.
