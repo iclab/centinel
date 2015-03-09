@@ -134,87 +134,87 @@ class Client():
             # instantiate the experiment
             exp = Exp(input_files)
 
-            try:
-                run_tcpdump = True
+            run_tcpdump = True
 
-                if self.config['results']['record_pcaps'] is False:
-                    logging.info("Your configuration has disabled pcap "
-                                 "recording, tcpdump will not start.")
-                    run_tcpdump = False
-                    # disable this on the experiment too
-                    exp.record_pcaps = False
+            if self.config['results']['record_pcaps'] is False:
+                logging.info("Your configuration has disabled pcap "
+                             "recording, tcpdump will not start.")
+                run_tcpdump = False
+                # disable this on the experiment too
+                exp.record_pcaps = False
 
-                if run_tcpdump and os.geteuid() != 0:
-                    logging.info("Centinel is not running as root, "
+            if run_tcpdump and os.geteuid() != 0:
+                logging.info("Centinel is not running as root, "
                                  "tcpdump will not start.")
-                    run_tcpdump = False
+                run_tcpdump = False
 
-                if run_tcpdump and Exp.overrides_tcpdump:
-                    logging.info("Experiment overrides tcpdump recording.")
-                    run_tcpdump = False
+            if run_tcpdump and Exp.overrides_tcpdump:
+                logging.info("Experiment overrides tcpdump recording.")
+                run_tcpdump = False
 
-                td = Tcpdump()
-                tcpdump_started = False
+            td = Tcpdump()
+            tcpdump_started = False
 
-                try:
-                    if run_tcpdump:
-                        td.start()
-                        tcpdump_started = True
-                        logging.info("tcpdump started...")
-                        # wait for tcpdump to initialize
-                        time.sleep(2)
-                except Exception as e:
-                    logging.warning("Failed to run tcpdump: %s" %(e))
+            try:
+                if run_tcpdump:
+                    td.start()
+                    tcpdump_started = True
+                    logging.info("tcpdump started...")
+                    # wait for tcpdump to initialize
+                    time.sleep(2)
+            except Exception as e:
+                logging.warning("Failed to run tcpdump: %s" %(e))
 
+            try:
                 # run the experiment
                 exp.run()
+            except Exception as exception:
+                logging.error("Error in %s: %s" % (name, exception))
 
-                # save any external results that the experiment has generated
-                # they could be anything that doesn't belong in the json file
-                # (e.g. pcap files)
-                # these should all be compress with bzip2
-                # the experiment is responsible for giving these a name and
-                # keeping a list of files in the json results
-                results_dir = self.config['dirs']['results_dir']
-                if exp.external_results is not None:
-                    for fname, fcontents in exp.external_results.items():
-                        external_file_name = ("external_%s-%s-%s"
-                                              ".bz2" % (name,
-                                                        exp_start_time,
-                                                        fname))
-                        external_file_path = os.path.join(results_dir,
-                                                          external_file_name)
-                        try:
-                            with open(external_file_path, 'w:bz2') as file_p:
-                                data = bz2.compress(fcontents)
-                                file_p.write(data)
-                        except Exception as exp:
-                            logging.warning("Failed to write external file:"
-                                            "%s" %(exp))
-
-                if tcpdump_started:
-                    logging.info("Waiting for tcpdump to process packets...")
-                    # 5 seconds should be enough. this hasn't been tested on
-                    # a RaspberryPi or a Hummingboard i2
-                    time.sleep(5)
-                    td.stop()
-                    logging.info("tcpdump stopped.")
+            # save any external results that the experiment has generated
+            # they could be anything that doesn't belong in the json file
+            # (e.g. pcap files)
+            # these should all be compress with bzip2
+            # the experiment is responsible for giving these a name and
+            # keeping a list of files in the json results
+            results_dir = self.config['dirs']['results_dir']
+            if exp.external_results is not None:
+                for fname, fcontents in exp.external_results.items():
+                    external_file_name = ("external_%s-%s-%s"
+                                          ".bz2" % (name,
+                                                    exp_start_time,
+                                                    fname))
+                    external_file_path = os.path.join(results_dir,
+                                                      external_file_name)
                     try:
-                        pcap_file_name = ("pcap_%s-%s.pcap"
-                                          ".bz2" % (name, exp_start_time))
-                        pcap_file_path = os.path.join(results_dir,
-                                                      pcap_file_name)
-
-                        with open(pcap_file_path, 'w:bz2') as file_p:
-                            data = bz2.compress(td.pcap())
+                        with open(external_file_path, 'w:bz2') as file_p:
+                            data = bz2.compress(fcontents)
                             file_p.write(data)
-                            logging.info("Saved pcap to "
-                                         "%s." % (pcap_file_path))
                     except Exception as exp:
-                        logging.warning("Failed to write pcap file: %s" %(exp))
+                        logging.warning("Failed to write external file:"
+                                        "%s" %(exp))
 
-            except Exception as exp:
-                logging.error("Error in %s: %s" % (name, exp))
+            if tcpdump_started:
+                logging.info("Waiting for tcpdump to process packets...")
+                # 5 seconds should be enough. this hasn't been tested on
+                # a RaspberryPi or a Hummingboard i2
+                time.sleep(5)
+                td.stop()
+                logging.info("tcpdump stopped.")
+                try:
+                    pcap_file_name = ("pcap_%s-%s.pcap"
+                                      ".bz2" % (name, exp_start_time))
+                    pcap_file_path = os.path.join(results_dir,
+                                                  pcap_file_name)
+
+                    with open(pcap_file_path, 'w:bz2') as file_p:
+                        data = bz2.compress(td.pcap())
+                        file_p.write(data)
+                        logging.info("Saved pcap to "
+                                     "%s." % (pcap_file_path))
+                except Exception as exception:
+                    logging.warning("Failed to write pcap file: %s" %(exception))
+
 
             # close input file handle(s)
             if type(input_files) is dict:
