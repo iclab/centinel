@@ -94,12 +94,8 @@ class DNSQuery():
         """
         for nameserver in self.nameservers:
             for domain in self.domains:
-                escape_count = 0
                 while threading.active_count() > self.max_threads:
                     time.sleep(1)
-                    escape_count += 1
-                    if escape_count > 100:
-                        continue
                 thread = threading.Thread(target=self.lookup_domain,
                                           args=(domain, nameserver))
                 thread.setDaemon(1)
