@@ -91,7 +91,7 @@ class Client():
             self.config['dirs']['results_dir'] = os.path.join(centinel_home,
                                                               'results')
 
-        logging.info('Started centinel')
+        logging.info('Centinel started.')
 
         if not os.path.exists(self.config['dirs']['results_dir']):
             logging.warn("Creating results directory in "
@@ -113,11 +113,9 @@ class Client():
 
         for name, Exp in experiments_subset:
 
-            logging.info("Running %s test." % (name))
+            logging.info("Running %s..." % (name))
             exp_start_time = datetime.now().isoformat()
 
-            result_file_path = self.get_result_file(name, exp_start_time)
-            result_file = bz2.BZ2File(result_file_path, "w")
             results = {}
 
             # if the experiment specifies a list of input file names,
@@ -240,7 +238,10 @@ class Client():
 
             # Pretty printing results will increase file size, but files are
             # compressed before sending.
-            json.dump(results, result_file, indent = 2, separators=(',', ': '))
+            result_file_path = self.get_result_file(name, exp_start_time)
+            result_file = bz2.BZ2File(result_file_path, "w")
+            json.dump(results, result_file, indent = 2,
+                      separators=(',', ': '))
             result_file.close()
 
         result_files = [path for path in glob.glob(
@@ -252,15 +253,17 @@ class Client():
             files_archived = 0
             archive_count = 0
             tar_file = None
-
+            files_per_archive = self.config['results']['files_per_archive']
+            results_dir = self.config['dirs']['results_dir']
             for path in result_files:
-                if files_archived % self.config['results']['files_per_archive'] == 0:
+                if files_archived % files_per_archive  == 0:
                     archive_count += 1
                     archive_filename = "results-%s_%d.tar.bz2" % (
                         datetime.now().isoformat(), archive_count)
-                    archive_file_path = os.path.join(self.config['dirs']['results_dir'],
-                        archive_filename)
-                    logging.info("Creating new archive (%s)." % archive_file_path)
+                    archive_file_path = os.path.join(results_dir,
+                                                     archive_filename)
+                    logging.info("Creating new archive"
+                                 " %s" % archive_file_path)
                     if tar_file:
                         tar_file.close()
                     tar_file = tarfile.open(archive_file_path, "w:bz2")
@@ -273,13 +276,14 @@ class Client():
             if tar_file:
                 tar_file.close()
 
-        logging.info("All experiments over. Check results.")
+        logging.info("Finished running experiments. Look in %s for "
+                     "results." % (self.config['dirs']['results_dir']))
 
     def load_input_file(self, name):
         input_file = self.get_input_file(name)
 
         if not os.path.isfile(input_file):
-            logging.warn("Input file not found %s" % (input_file))
+            logging.error("Input file not found %s" % (input_file))
             return None
 
         try:
