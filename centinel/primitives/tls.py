@@ -60,6 +60,8 @@ def get_fingerprint_batch(input_list, default_port=443,
     """
     results = {}
     threads = []
+    thread_error = False
+    thread_wait_timeout = 200
     for row in input_list:
         if len(row.split(":")) == 2:
             host, port = row.split(":")
@@ -70,8 +72,17 @@ def get_fingerprint_batch(input_list, default_port=443,
             continue
 
         port = int(port)
+        wait_time = 0
         while threading.active_count() > max_threads:
             time.sleep(1)
+            wait_time += 1
+            if wait_time > thread_wait_timeout:
+                thread_error = True
+                break
+
+        if thread_error:
+            results["error"] = "Threads took too long to finish."
+            break
 
         # add just a little bit of delay before starting the thread
         # to avoid overwhelming the connection.
@@ -82,7 +93,7 @@ def get_fingerprint_batch(input_list, default_port=443,
         thread.setDaemon(1)
         thread.start()
         threads.append(thread)
-
-    threads[-1].join(10)
+    if threads:
+        threads[-1].join(10)
 
     return results

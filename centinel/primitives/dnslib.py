@@ -92,16 +92,30 @@ class DNSQuery():
         Note: if you want to lookup multiple domains, you should use
         this function
         """
+        thread_error = False
+        thread_wait_timeout = 200
         for nameserver in self.nameservers:
             for domain in self.domains:
                 while threading.active_count() > self.max_threads:
                     time.sleep(1)
+                    wait_time += 1
+                    if wait_time > thread_wait_timeout:
+                        thread_error = True
+                        break
+
+                if thread_error:
+                    self.results["error"] = "Threads took too long to finish."
+                    break
+
                 thread = threading.Thread(target=self.lookup_domain,
                                           args=(domain, nameserver))
                 thread.setDaemon(1)
                 thread.start()
                 self.threads.append(thread)
-        self.threads[-1].join(self.timeout * 3)
+            if thread_error:
+                break
+        if self.threads:
+            self.threads[-1].join(self.timeout * 3)
         return self.results
 
     def lookup_domain(self, domain, nameserver=None):

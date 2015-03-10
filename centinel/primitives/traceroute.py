@@ -44,8 +44,8 @@ def traceroute(domain, method="udp", cmd_arguments=[], external=None):
             if "No such file or directory" in caller.exception:
                 message = ": traceroute not found or not installed"
             else:
-                message = (", traceroute thread threw an exception: " +
-                       str(caller.exception))
+                message = (", traceroute thread threw an "
+                           "exception: %s" (caller.exception))
         if "enough privileges" in caller.notifications:
             message = ": not enough privileges"
         if "service not known" in caller.notifications:
@@ -54,6 +54,8 @@ def traceroute(domain, method="udp", cmd_arguments=[], external=None):
         results["domain"] = domain
         results["method"] = method
         results["error"] = message
+        if external is not None and type(external) is dict:
+            external[domain] = results
         return results
 
     forcefully_terminated = False
@@ -146,9 +148,20 @@ def traceroute_batch(input_list, method="udp", cmd_arguments=[],
     """
     results = {}
     threads = []
+    thread_error = False
+    thread_wait_timeout = 200
     for domain in input_list:
+        wait_time = 0
         while threading.active_count() > max_threads:
             time.sleep(1)
+            wait_time += 1
+            if wait_time > thread_wait_timeout:
+                thread_error = True
+                break
+
+        if thread_error:
+            results["error"] = "Threads took too long to finish."
+            break
 
         # add just a little bit of delay before starting the thread
         # to avoid overwhelming the connection.
@@ -161,7 +174,8 @@ def traceroute_batch(input_list, method="udp", cmd_arguments=[],
         thread.start()
         threads.append(thread)
 
-    threads[-1].join(200)
+    if threads:
+        threads[-1].join(200)
 
     return results
 
