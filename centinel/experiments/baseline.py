@@ -15,6 +15,7 @@
 import csv
 import logging
 import os
+from random import shuffle
 import time
 import urlparse
 
@@ -176,6 +177,7 @@ class BaselineExperiment(Experiment):
 
         # the actual tests are run concurrently here
 
+        shuffle(http_inputs)
         start = time.time()
         logging.info("Running HTTP GET requests...")
         result["http"] = http.get_requests_batch(http_inputs)
@@ -183,7 +185,7 @@ class BaselineExperiment(Experiment):
         logging.info("HTTP GET requests took "
                      "%d seconds for %d URLs." % (elapsed,
                                                   len(http_inputs)))
-
+        shuffle(tls_inputs)
         start = time.time()
         logging.info("Running TLS certificate requests...")
         result["tls"] = tls.get_fingerprint_batch(tls_inputs)
@@ -191,7 +193,7 @@ class BaselineExperiment(Experiment):
         logging.info("TLS certificate requests took "
                      "%d seconds for %d domains." % (elapsed,
                                                      len(tls_inputs)))
-
+        shuffle(dns_inputs)
         start = time.time()
         logging.info("Running DNS requests...")
         result["dns"] = dnslib.lookup_domains(dns_inputs)
@@ -201,6 +203,7 @@ class BaselineExperiment(Experiment):
                                                      len(dns_inputs)))
 
         for method in self.traceroute_methods:
+            shuffle(traceroute_inputs)
             start = time.time()
             logging.info("Running %s traceroutes..." % (method.upper()) )
             result["traceroute.%s" % (method) ] = (
