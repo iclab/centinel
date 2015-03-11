@@ -93,7 +93,8 @@ def get_fingerprint_batch(input_list, default_port=443,
         thread.setDaemon(1)
         thread.start()
         threads.append(thread)
-    if threads:
-        threads[-1].join(10)
+
+    for thread in threads:
+        thread.join(thread_wait_timeout)
 
     return results

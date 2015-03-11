@@ -114,8 +114,8 @@ class DNSQuery():
                 self.threads.append(thread)
             if thread_error:
                 break
-        if self.threads:
-            self.threads[-1].join(self.timeout * 3)
+        for thread in self.threads:
+            thread.join(self.timeout * 3)
         return self.results
 
     def lookup_domain(self, domain, nameserver=None):

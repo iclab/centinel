@@ -131,7 +131,7 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
         thread.start()
         threads.append(thread)
 
-    if threads:
-        threads[-1].join(10)
+    for thread in threads:
+        thread.join(thread_wait_timeout)
 
     return results

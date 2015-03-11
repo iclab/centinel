@@ -174,8 +174,8 @@ def traceroute_batch(input_list, method="udp", cmd_arguments=[],
         thread.start()
         threads.append(thread)
 
-    if threads:
-        threads[-1].join(200)
+    for thread in threads:
+        thread.join(thread_wait_timeout)
 
     return results
 
