@@ -14,6 +14,7 @@ import utils
 class User:
     def __init__(self, config):
         self.config = config
+        self.verify = self.config['server']['verify']
         # check for login file
         if os.path.isfile(config['server']['login_file']):
             with open(config['server']['login_file']) as login_fh:
@@ -29,7 +30,8 @@ class User:
         url = "%s/%s" % (self.config['server']['server_url'], slug)
         try:
             req = requests.get(url, auth=self.auth,
-                               proxies=self.config['proxy']['proxy'])
+                               proxies=self.config['proxy']['proxy'],
+                               verify=self.verify)
             req.raise_for_status()
             return req.json()
         except Exception as exp:
@@ -89,7 +91,8 @@ class User:
             try:
                 req = requests.post(url, files=files, auth=self.auth,
                                     proxies=self.config['proxy']['proxy'],
-                                    timeout=timeout)
+                                    timeout=timeout,
+                                    verify=self.verify)
                 req.raise_for_status()
                 if ('delete_after_sync' in self.config['results'].keys()
                    and self.config['results']['delete_after_sync']):
@@ -115,7 +118,8 @@ class User:
                             "experiments", "scheduler.info")
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               auth=self.auth)
+                               auth=self.auth,
+                               verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
             logging.error("Error trying to download scheduler.info: %s" % exp)
@@ -154,7 +158,8 @@ class User:
                             "experiments", name)
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               auth=self.auth)
+                               auth=self.auth,
+                               verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
             logging.error("Error trying to download experiments: %s" % exp)
@@ -172,7 +177,8 @@ class User:
                             "input_files", name)
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               auth=self.auth)
+                               auth=self.auth,
+                               verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
             logging.error("Error trying to download experiments: %s" % exp)
@@ -193,7 +199,8 @@ class User:
         try:
             req = requests.post(url, data=json.dumps(payload),
                                 proxies=self.config['proxy']['proxy'],
-                                headers=headers)
+                                headers=headers,
+                                verify=self.verify)
             req.raise_for_status()
             return req.json()
         except Exception as exp:
@@ -349,7 +356,6 @@ def sync(config):
 def experiments_available(config):
     logging.info("Starting to check for experiments with %s",
                  config['server']['server_url'])
-
     try:
         user = User(config)
     except Exception, exp:

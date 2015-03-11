@@ -75,6 +75,7 @@ class Configuration():
         # set a socket timeout of 15 seconds (no way to do per request
         # platform independently)
         servers['req_timeout'] = 15
+        servers['verify'] = True
         self.params['server'] = servers
 
         # proxy

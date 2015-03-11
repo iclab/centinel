@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # disable cert verification if the flag is set
     if args.no_verify:
-        configuration.params['server']['cert_bundle'] = False
+        configuration.params['server']['verify'] = False
 
     user = centinel.backend.User(configuration.params)
     # Note: because we have mutually exclusive arguments, we don't
