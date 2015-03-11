@@ -16,14 +16,14 @@ def create_config_files(directory):
 
     """
     # get the config file template
-    template_url = ("https://securenetconnection.com/vpnconfig/",
-                  "openvpn-template.ovpn")
+    template_url = ("https://securenetconnection.com/vpnconfig/"
+                    "openvpn-template.ovpn")
     resp = requests.get(template_url)
     resp.raise_for_status()
     template = resp.content
 
     # get the available servers and create a config file for each server
-    server_url = ("https://securenetconnection.com/vpnconfig/",
+    server_url = ("https://securenetconnection.com/vpnconfig/"
                   "servers-cli.php")
     resp = requests.get(server_url)
     resp.raise_for_status()
@@ -32,7 +32,7 @@ def create_config_files(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
     with open(os.path.join(directory, "servers.txt"), 'w') as f:
-        f.write(r.content)
+        f.write(resp.content)
 
     for server_line in servers:
         if server_line.strip() == "":
