@@ -207,6 +207,20 @@ class User:
             logging.error("Error trying to submit registration URL: %s " % exp)
             raise exp
 
+    def set_country(self, country):
+        url     = "%s/%s/%s" % (self.config['server']['server_url'],
+                                "set_country", country)
+        try:
+            req = requests.get(url,
+                               auth=self.auth,
+                               proxies=self.config['proxy']['proxy'],
+                               verify=self.verify)
+            req.raise_for_status()
+            return req.json()
+        except Exception as exp:
+            logging.error("Error trying to set country: %s " % exp)
+            raise exp
+
     def create_user(self):
         self.username = str(uuid.uuid4())
         self.password = os.urandom(64).encode('base-64')
@@ -353,7 +367,7 @@ def sync(config):
     logging.info("Finished sync with %s", config['server']['server_url'])
 
 
-def experiments_available(config):
+def experiments_available(config, country=None):
     logging.info("Starting to check for experiments with %s",
                  config['server']['server_url'])
     try:
@@ -362,9 +376,25 @@ def experiments_available(config):
         logging.error("Unable to create user: %s" % str(exp))
         return False
 
+    if country is not None:
+        user.set_country(country)
+
     try:
         if user.experiments:
             return True
     except Exception, exp:
         logging.error("Unable to download experiment files: %s", str(exp))
     return False
+
+def geolocate(config, ip):
+    url     = "%s/%s/%s" % (config['server']['server_url'],
+                            "geolocate", ip)
+    try:
+        req = requests.get(url,
+                           proxies=config['proxy']['proxy'],
+                           verify=config['server']['verify'])
+        req.raise_for_status()
+        return req.json()
+    except Exception as exp:
+        logging.error("Error trying to geolocate: %s " % exp)
+        raise exp
