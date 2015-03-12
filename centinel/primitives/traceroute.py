@@ -6,31 +6,28 @@
 # for this to work, traceroute has to be installed
 # and accessible.
 
-
+import threading
 import time
 
 from centinel import command
 
 
-def traceroute(url, method="udp", cmd_arguments=[]):
+def traceroute(domain, method="udp", cmd_arguments=[], external=None):
     """This function uses centinel.command to issue
     a traceroute command, wait for it to finish execution and
     parse the results out to a dictionary.
 
     Params:
-    url- the URL to be queried
-
-    method- the packet type used for traceroute, ICMP by default
-
+    domain-        the domain to be queried
+    method-        the packet type used for traceroute, ICMP by default
     cmd_arguments- the list of arguments that need to be passed
-    to traceroute.
+                   to traceroute.
 
     """
 
     # the method specified by the function parameter here will
     # over-ride the ones given in cmd_arguments because
     # traceroute will use the last one in the argument list.
-
     if method == "tcp":
         cmd_arguments.append('-T')
     elif method == "udp":
@@ -38,7 +35,7 @@ def traceroute(url, method="udp", cmd_arguments=[]):
     elif method == "icmp":
         cmd_arguments.append('-I')
 
-    cmd = ['traceroute'] + cmd_arguments + [url]
+    cmd = ['traceroute'] + cmd_arguments + [domain]
     caller = command.Command(cmd, _traceroute_callback)
     caller.start()
     if not caller.started:
@@ -47,13 +44,20 @@ def traceroute(url, method="udp", cmd_arguments=[]):
             if "No such file or directory" in caller.exception:
                 message = ": traceroute not found or not installed"
             else:
-                message = (", traceroute thread threw an exception: " +
-                       str(caller.exception))
+                message = (", traceroute thread threw an "
+                           "exception: %s" (caller.exception))
         if "enough privileges" in caller.notifications:
             message = ": not enough privileges"
         if "service not known" in caller.notifications:
             message = ": name or service not known"
-        raise Exception("traceroute failed to start" + message)
+        results = {}
+        results["domain"] = domain
+        results["method"] = method
+        results["error"] = message
+        if external is not None and type(external) is dict:
+            external[domain] = results
+        return results
+
     forcefully_terminated = False
     timeout = 60
     start_time = time.time()
@@ -78,7 +82,6 @@ def traceroute(url, method="udp", cmd_arguments=[]):
     hops = {}
     meaningful_hops = 0
     total_hops = 0
-
     lines = caller.notifications.split("\n")
     line_number = 0
     unparseable_lines = {}
@@ -112,9 +115,8 @@ def traceroute(url, method="udp", cmd_arguments=[]):
                 hops[number] = { "raw" : original_line }
             except ValueError:
                 unparseable_lines[line_number] = original_line
-
     results = {}
-    results["url"] = url
+    results["domain"] = domain
     results["method"] = method
     results["total_hops"] = total_hops
     results["meaningful_hops"] = meaningful_hops
@@ -122,8 +124,60 @@ def traceroute(url, method="udp", cmd_arguments=[]):
     results["unparseable_lines"] = unparseable_lines
     results["forcefully_terminated"] = forcefully_terminated
     results["time_elapsed"] = time_elapsed
+    # the external result is used when threading to store
+    # the results in the list container provided.
+    if external is not None and type(external) is dict:
+        external[domain] = results
+
     return results
 
+
+def traceroute_batch(input_list, method="udp", cmd_arguments=[],
+                     delay_time=0.1, max_threads=100):
+    """
+    This is a parallel version of the traceroute primitive.
+
+    Params:
+    input_list-    the input is a list of domain names
+    method-        the packet type used for traceroute, ICMP by default
+    cmd_arguments- the list of arguments that need to be passed
+                   to traceroute.
+    delay_time-    delay before starting each thread
+    max_threads-   maximum number of concurrent threads
+
+    """
+    results = {}
+    threads = []
+    thread_error = False
+    thread_wait_timeout = 200
+    for domain in input_list:
+        wait_time = 0
+        while threading.active_count() > max_threads:
+            time.sleep(1)
+            wait_time += 1
+            if wait_time > thread_wait_timeout:
+                thread_error = True
+                break
+
+        if thread_error:
+            results["error"] = "Threads took too long to finish."
+            break
+
+        # add just a little bit of delay before starting the thread
+        # to avoid overwhelming the connection.
+        time.sleep(delay_time)
+
+        thread = threading.Thread(target=traceroute,
+                                  args=(domain, method, cmd_arguments,
+                                        results))
+        thread.setDaemon(1)
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join(thread_wait_timeout)
+
+    return results
 
 def _traceroute_callback(self, line, kill_switch):
     """Callback function to handle traceroute.

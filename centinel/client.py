@@ -72,7 +72,10 @@ class Client():
                 sched_info[name]['last_run'] = time.time()
 
             # load the experiment
-            imp.load_source(name, path)
+            try:
+                imp.load_source(name, path)
+            except Exception as exception:
+                logging.error("Failed to load experiment %s: %s" % (name, exception))
 
         # write out the updated last run times
         with open(sched_filename, 'w') as file_p:
@@ -88,7 +91,7 @@ class Client():
             self.config['dirs']['results_dir'] = os.path.join(centinel_home,
                                                               'results')
 
-        logging.info('Started centinel')
+        logging.info('Centinel started.')
 
         if not os.path.exists(self.config['dirs']['results_dir']):
             logging.warn("Creating results directory in "
@@ -110,11 +113,9 @@ class Client():
 
         for name, Exp in experiments_subset:
 
-            logging.info("Running %s test." % (name))
+            logging.info("Running %s..." % (name))
             exp_start_time = datetime.now().isoformat()
 
-            result_file_path = self.get_result_file(name, exp_start_time)
-            result_file = bz2.BZ2File(result_file_path, "w")
             results = {}
 
             # if the experiment specifies a list of input file names,
@@ -131,90 +132,95 @@ class Client():
                 if input_files is None:
                     continue
 
-            # instantiate the experiment
-            exp = Exp(input_files)
+            try:
+                # instantiate the experiment
+                exp = Exp(input_files)
+            except Exception as exception:
+                logging.error("Error initializing %s: %s" % (name, exception))
+                results["init_exception"] = str(exception)
+
+            run_tcpdump = True
+
+            if self.config['results']['record_pcaps'] is False:
+                logging.info("Your configuration has disabled pcap "
+                             "recording, tcpdump will not start.")
+                run_tcpdump = False
+                # disable this on the experiment too
+                exp.record_pcaps = False
+
+            if run_tcpdump and os.geteuid() != 0:
+                logging.info("Centinel is not running as root, "
+                                 "tcpdump will not start.")
+                run_tcpdump = False
+
+            if run_tcpdump and Exp.overrides_tcpdump:
+                logging.info("Experiment overrides tcpdump recording.")
+                run_tcpdump = False
+
+            td = Tcpdump()
+            tcpdump_started = False
 
             try:
-                run_tcpdump = True
+                if run_tcpdump:
+                    td.start()
+                    tcpdump_started = True
+                    logging.info("tcpdump started...")
+                    # wait for tcpdump to initialize
+                    time.sleep(2)
+            except Exception as e:
+                logging.warning("Failed to run tcpdump: %s" %(e))
 
-                if self.config['results']['record_pcaps'] is False:
-                    logging.info("Your configuration has disabled pcap "
-                                 "recording, tcpdump will not start.")
-                    run_tcpdump = False
-                    # disable this on the experiment too
-                    exp.record_pcaps = False
-
-                if run_tcpdump and os.geteuid() != 0:
-                    logging.info("Centinel is not running as root, "
-                                 "tcpdump will not start.")
-                    run_tcpdump = False
-
-                if run_tcpdump and Exp.overrides_tcpdump:
-                    logging.info("Experiment overrides tcpdump recording.")
-                    run_tcpdump = False
-
-                td = Tcpdump()
-                tcpdump_started = False
-
-                try:
-                    if run_tcpdump:
-                        td.start()
-                        tcpdump_started = True
-                        logging.info("tcpdump started...")
-                        # wait for tcpdump to initialize
-                        time.sleep(2)
-                except Exception as e:
-                    logging.warning("Failed to run tcpdump: %s" %(e))
-
+            try:
                 # run the experiment
                 exp.run()
+            except Exception as exception:
+                logging.error("Error running %s: %s" % (name, exception))
+                results["runtime_exception"] = str(exception)
 
-                # save any external results that the experiment has generated
-                # they could be anything that doesn't belong in the json file
-                # (e.g. pcap files)
-                # these should all be compress with bzip2
-                # the experiment is responsible for giving these a name and
-                # keeping a list of files in the json results
-                results_dir = self.config['dirs']['results_dir']
-                if exp.external_results is not None:
-                    for fname, fcontents in exp.external_results.items():
-                        external_file_name = ("external_%s-%s-%s"
-                                              ".bz2" % (name,
-                                                        exp_start_time,
-                                                        fname))
-                        external_file_path = os.path.join(results_dir,
-                                                          external_file_name)
-                        try:
-                            with open(external_file_path, 'w:bz2') as file_p:
-                                data = bz2.compress(fcontents)
-                                file_p.write(data)
-                        except Exception as exp:
-                            logging.warning("Failed to write external file:"
-                                            "%s" %(exp))
-
-                if tcpdump_started:
-                    logging.info("Waiting for tcpdump to process packets...")
-                    # 5 seconds should be enough. this hasn't been tested on
-                    # a RaspberryPi or a Hummingboard i2
-                    time.sleep(5)
-                    td.stop()
-                    logging.info("tcpdump stopped.")
+            # save any external results that the experiment has generated
+            # they could be anything that doesn't belong in the json file
+            # (e.g. pcap files)
+            # these should all be compress with bzip2
+            # the experiment is responsible for giving these a name and
+            # keeping a list of files in the json results
+            results_dir = self.config['dirs']['results_dir']
+            if exp.external_results is not None:
+                for fname, fcontents in exp.external_results.items():
+                    external_file_name = ("external_%s-%s-%s"
+                                          ".bz2" % (name,
+                                                    exp_start_time,
+                                                    fname))
+                    external_file_path = os.path.join(results_dir,
+                                                      external_file_name)
                     try:
-                        pcap_file_name = ("pcap_%s-%s.pcap"
-                                          ".bz2" % (name, exp_start_time))
-                        pcap_file_path = os.path.join(results_dir,
-                                                      pcap_file_name)
-
-                        with open(pcap_file_path, 'w:bz2') as file_p:
-                            data = bz2.compress(td.pcap())
+                        with open(external_file_path, 'w:bz2') as file_p:
+                            data = bz2.compress(fcontents)
                             file_p.write(data)
-                            logging.info("Saved pcap to "
-                                         "%s." % (pcap_file_path))
                     except Exception as exp:
-                        logging.warning("Failed to write pcap file: %s" %(exp))
+                        logging.warning("Failed to write external file:"
+                                        "%s" %(exp))
 
-            except Exception as exp:
-                logging.error("Error in %s: %s" % (name, exp))
+            if tcpdump_started:
+                logging.info("Waiting for tcpdump to process packets...")
+                # 5 seconds should be enough. this hasn't been tested on
+                # a RaspberryPi or a Hummingboard i2
+                time.sleep(5)
+                td.stop()
+                logging.info("tcpdump stopped.")
+                try:
+                    pcap_file_name = ("pcap_%s-%s.pcap"
+                                      ".bz2" % (name, exp_start_time))
+                    pcap_file_path = os.path.join(results_dir,
+                                                  pcap_file_name)
+
+                    with open(pcap_file_path, 'w:bz2') as file_p:
+                        data = bz2.compress(td.pcap())
+                        file_p.write(data)
+                        logging.info("Saved pcap to "
+                                     "%s." % (pcap_file_path))
+                except Exception as exception:
+                    logging.warning("Failed to write pcap file: %s" %(exception))
+
 
             # close input file handle(s)
             if type(input_files) is dict:
@@ -223,11 +229,19 @@ class Client():
             else:
                 input_files.close()
 
-            results[name] = exp.results
+            try:
+                results[name] = exp.results
+            except Exception as exception:
+                logging.error("Error saving results for "
+                              "%s: %s" % (name, exception))
+                results["results_exception"] = str(exception)
 
             # Pretty printing results will increase file size, but files are
             # compressed before sending.
-            json.dump(results, result_file, indent = 2, separators=(',', ': '))
+            result_file_path = self.get_result_file(name, exp_start_time)
+            result_file = bz2.BZ2File(result_file_path, "w")
+            json.dump(results, result_file, indent = 2,
+                      separators=(',', ': '))
             result_file.close()
 
         result_files = [path for path in glob.glob(
@@ -239,15 +253,17 @@ class Client():
             files_archived = 0
             archive_count = 0
             tar_file = None
-
+            files_per_archive = self.config['results']['files_per_archive']
+            results_dir = self.config['dirs']['results_dir']
             for path in result_files:
-                if files_archived % self.config['results']['files_per_archive'] == 0:
+                if files_archived % files_per_archive  == 0:
                     archive_count += 1
                     archive_filename = "results-%s_%d.tar.bz2" % (
                         datetime.now().isoformat(), archive_count)
-                    archive_file_path = os.path.join(self.config['dirs']['results_dir'],
-                        archive_filename)
-                    logging.info("Creating new archive (%s)." % archive_file_path)
+                    archive_file_path = os.path.join(results_dir,
+                                                     archive_filename)
+                    logging.info("Creating new archive"
+                                 " %s" % archive_file_path)
                     if tar_file:
                         tar_file.close()
                     tar_file = tarfile.open(archive_file_path, "w:bz2")
@@ -260,13 +276,14 @@ class Client():
             if tar_file:
                 tar_file.close()
 
-        logging.info("All experiments over. Check results.")
+        logging.info("Finished running experiments. Look in %s for "
+                     "results." % (self.config['dirs']['results_dir']))
 
     def load_input_file(self, name):
         input_file = self.get_input_file(name)
 
         if not os.path.isfile(input_file):
-            logging.warn("Input file not found %s" % (input_file))
+            logging.error("Input file not found %s" % (input_file))
             return None
 
         try:

@@ -15,7 +15,6 @@
 import csv
 import logging
 import os
-from random import shuffle
 import time
 import urlparse
 
@@ -27,15 +26,24 @@ import centinel.primitives.http as http
 import centinel.primitives.traceroute as traceroute
 
 
-class BaselineExperiment(Experiment):
-    name = "baseline"
+class LinearBaselineExperiment(Experiment):
+    name = "baseline_linear"
     # country-specific, world baseline
     # this can be overridden by the main thread
     input_files = ['country', 'world']
 
+    # we do our own tcpdump recording here
+    overrides_tcpdump = True
+
     def __init__(self, input_files):
         self.input_files = input_files
         self.results = []
+
+        # should we do tcpdump?
+        if os.geteuid() != 0:
+            self.record_pcaps = False
+        else:
+            self.record_pcaps = True
 
         if os.geteuid() != 0:
             logging.info("Centinel is not running as root, "
@@ -48,6 +56,9 @@ class BaselineExperiment(Experiment):
             self.traceroute_methods = ["tcp", "udp"]
 
     def run(self):
+        if self.record_pcaps:
+            self.external_results = {}
+
         for input_file in self.input_files.items():
             logging.info("Testing input file %s..." % (input_file[0]))
             self.results.append(self.run_file(input_file))
@@ -60,16 +71,12 @@ class BaselineExperiment(Experiment):
         # to any useful information.
         result = {}
         result["file_name"] = file_name
-        run_start_time = time.time()
+
 
         http_results = {}
-        http_inputs  = []
         tls_results = {}
-        tls_inputs  = []
         dns_results = {}
-        dns_inputs  = []
         traceroute_results = {}
-        traceroute_inputs  = []
         url_metadata_results = {}
         file_metadata = {}
         file_comments = []
@@ -83,7 +90,7 @@ class BaselineExperiment(Experiment):
         url_index = 0
         comments = ""
 
-        # first parse the input and create data structures
+        # we may want to make this threaded and concurrent
         csvreader = csv.reader(file_contents, delimiter=',', quotechar='"')
         for row in csvreader:
 
@@ -143,23 +150,81 @@ class BaselineExperiment(Experiment):
                 http_path   = '/'
                 domain_name = url
 
+            # start tcpdump
+            td = Tcpdump()
+            tcpdump_started = False
+
+            try:
+                if self.record_pcaps:
+                    td.start()
+                    tcpdump_started = True
+                    logging.info("%s: tcpdump started..." % (url))
+                    # wait for tcpdump to initialize
+                    time.sleep(1)
+            except Exception as exp:
+                logging.warning("%s: tcpdump failed: %s" % (url, exp))
+
             # HTTP GET
-            http_inputs.append( { "host": http_netloc,
-                                  "path": http_path,
-                                  "ssl":  http_ssl,
-                                  "url":  url
-                                } )
+            logging.info("%s: HTTP" % (url))
+            try:
+                http_results[url] = http.get_request(http_netloc,
+                                                     http_path,
+                                                     ssl=http_ssl)
+            except Exception as exp:
+                logging.info("%s: HTTP test failed: %s" %
+                             (url, exp))
+                http_results[url] = { "exception" : str(exp) }
 
             # TLS certificate
             # this will only work if the URL starts with https://
             if http_ssl:
-                tls_inputs.append("%s:%s" % (domain_name, ssl_port))
+                try:
+                    tls_result = {}
+                    logging.info("%s: TLS certificate" %
+                                 (domain_name))
+                    fingerprint, cert = tls.get_fingerprint(domain_name, ssl_port)
+                    tls_result['port'] = ssl_port
+                    tls_result['fingerprint'] = fingerprint
+                    tls_result['cert'] = cert
+
+                    tls_results[domain_name] = tls_result
+                except Exception as exp:
+                    logging.info("%s: TLS certfiticate download failed: %s" %
+                                 (domain_name, exp))
+                    tls_results[domain_name] = { "exception" : str(exp) }
 
             # DNS Lookup
-            dns_inputs.append(domain_name)
+            logging.info("%s: DNS" % (domain_name))
+            try:
+                dns_results[domain_name] = dnslib.lookup_domain(domain_name)
+            except Exception as exp:
+                logging.info("%s: DNS lookup failed: %s" %
+                             (domain_name, exp))
+                dns_results[domain_name] = { "exception" : str(exp) }
 
             # Traceroute
-            traceroute_inputs.append(domain_name)
+            for method in self.traceroute_methods:
+                try:
+                    logging.info("%s: Traceroute (%s)"
+                                 % (domain_name, method.upper()))
+                    traceroute_results[domain_name] = traceroute.traceroute(
+                        domain_name, method=method)
+                except Exception as exp:
+                    logging.info("%s: Traceroute (%s) failed: %s" %
+                                    (domain_name, method.upper(), exp))
+                    traceroute_results[domain_name] = {
+                        "exception" : str(exp) }
+
+            # end tcpdump
+            if tcpdump_started:
+                logging.info("%s: waiting for tcpdump..." % (url))
+                # 2 seconds should be enough.
+                time.sleep(2)
+                td.stop()
+                logging.info("%s: tcpdump stopped." % (url))
+                pcap_indexes[url] = '%s-%s.pcap' % (file_name,
+                    format(url_index, '04'))
+                pcap_results[pcap_indexes[url]] = td.pcap()
 
             # Meta-data
 
@@ -175,49 +240,16 @@ class BaselineExperiment(Experiment):
 
             url_metadata_results[url] = meta
 
-        # the actual tests are run concurrently here
-
-        shuffle(http_inputs)
-        start = time.time()
-        logging.info("Running HTTP GET requests...")
-        result["http"] = http.get_requests_batch(http_inputs)
-        elapsed = time.time() - start
-        logging.info("HTTP GET requests took "
-                     "%d seconds for %d URLs." % (elapsed,
-                                                  len(http_inputs)))
-        shuffle(tls_inputs)
-        start = time.time()
-        logging.info("Running TLS certificate requests...")
-        result["tls"] = tls.get_fingerprint_batch(tls_inputs)
-        elapsed = time.time() - start
-        logging.info("TLS certificate requests took "
-                     "%d seconds for %d domains." % (elapsed,
-                                                     len(tls_inputs)))
-        shuffle(dns_inputs)
-        start = time.time()
-        logging.info("Running DNS requests...")
-        result["dns"] = dnslib.lookup_domains(dns_inputs)
-        elapsed = time.time() - start
-        logging.info("DNS requests took "
-                     "%d seconds for %d domains." % (elapsed,
-                                                     len(dns_inputs)))
-
-        for method in self.traceroute_methods:
-            shuffle(traceroute_inputs)
-            start = time.time()
-            logging.info("Running %s traceroutes..." % (method.upper()) )
-            result["traceroute.%s" % (method) ] = (
-                traceroute.traceroute_batch(traceroute_inputs, method))
-            elapsed = time.time() - start
-            logging.info("Traceroutes took %d seconds for %d "
-                         "domains." % (elapsed, len(traceroute_inputs)))
-
+        result["http"] = http_results
+        result["tls"] = tls_results
+        result["dns"] = dns_results
+        result["traceroute"] = traceroute_results
         result["url_metadata"] = url_metadata_results
         result["file_metadata"] = file_metadata
         result["file_comments"] = file_comments
+        if self.record_pcaps:
+            result['pcap_indexes'] = pcap_indexes
+            self.external_results = dict(self.external_results.items() +
+                                         pcap_results.items())
 
-        run_finish_time = time.time()
-        elapsed = run_finish_time - run_start_time
-        result["total_time"] = elapsed
-        logging.info("Testing took a total of %d seconds." % (elapsed) )
         return result
