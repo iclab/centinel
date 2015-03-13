@@ -372,7 +372,7 @@ def experiments_available(config, country=None):
                  config['server']['server_url'])
     try:
         user = User(config)
-    except Exception, exp:
+    except Exception as exp:
         logging.error("Unable to create user: %s" % str(exp))
         return False
 
