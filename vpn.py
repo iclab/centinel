@@ -64,7 +64,22 @@ def scan_vpns(directory, auth_file):
         # to run
         config = centinel.config.Configuration()
         config.parse_config(centinel_config)
-        if not centinel.backend.experiments_available(config.params):
+
+        # assuming that each VPN config file has a name like:
+        # [ip-address].ovpn, we can extract IP address from filename
+        # and use it to geolocate and fetch experiments before connecting
+        # to VPN.
+        vpn_address, extension = os.path.splitext(filename)
+        country = None
+        try:
+            geo = centinel.backend.geolocate(config.params,
+                                             vpn_address)
+            if 'country' in geo:
+                country = geo['country']
+        except Exception as exp:
+            logging.error("Failed to geolocate %s: %s" % (vpn_address, exp))
+
+        if not centinel.backend.experiments_available(config.params, country):
             logging.info("No experiments available for %s" % (filename))
             continue
 
@@ -74,12 +89,14 @@ def scan_vpns(directory, auth_file):
         vpn.start()
         if not vpn.started:
             vpn.stop()
+            logging.error("Failed to start VPN!")
             continue
         client = centinel.client.Client(config.params)
         client.setup_logging()
         client.run()
-        centinel.backend.sync(config.params)
         vpn.stop()
+
+        centinel.backend.sync(config.params)
 
 def return_abs_path(directory, path):
     """Unfortunately, Python is not smart enough to return an absolute
