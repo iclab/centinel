@@ -156,7 +156,7 @@ def create_config_files(directory):
 
 if __name__ == "__main__":
     args = parse_args()
-
+    logging.basicConfig(level=logging.INFO)
     logging.basicConfig(filename=args.log_file,
                         format="%(levelname)s %(asctime)s: %(message)s",
                         level=logging.INFO)
