@@ -83,6 +83,8 @@ def scan_vpns(directory, auth_file):
             logging.info("No experiments available for %s" % (filename))
             continue
 
+        centinel.backend.sync(config.params)
+
         logging.info("Starting VPN for %s" % (filename))
         vpn = openvpn.OpenVPN(timeout=30, auth_file=auth_file,
                                        config_file=vpn_config)
