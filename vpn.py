@@ -77,28 +77,57 @@ def scan_vpns(directory, auth_file):
             if 'country' in geo:
                 country = geo['country']
         except Exception as exp:
-            logging.error("Failed to geolocate %s: %s" % (vpn_address, exp))
+            logging.error("%s: Failed to geolocate %s: %s" % (filename, vpn_address, exp))
 
-        if not centinel.backend.experiments_available(config.params, country):
-            logging.info("No experiments available for %s" % (filename))
+        # try setting the VPN info (IP and country) to get appropriate
+        # experiemnts and input data.
+        try:
+            centinel.backend.set_vpn_info(config.params, vpn_address, country)
+        except Exception as exp:
+            logging.error("%s: Failed to set VPN info: %s" % (filename, exp))
+
+        if not centinel.backend.experiments_available(config.params):
+            logging.info("%s: No experiments available." % (filename))
             continue
 
-        centinel.backend.sync(config.params)
+        logging.info("%s: Synchronizing." % (filename))
+        try:
+            centinel.backend.sync(config.params)
+        except Exception as exp:
+            logging.error("%s: Failed to sync: %s" % (filename, exp))
 
-        logging.info("Starting VPN for %s" % (filename))
+        logging.info("%s: Starting VPN." % (filename))
         vpn = openvpn.OpenVPN(timeout=30, auth_file=auth_file,
                                        config_file=vpn_config)
         vpn.start()
         if not vpn.started:
             vpn.stop()
-            logging.error("Failed to start VPN!")
+            logging.error("%s: Failed to start VPN!" % (filename))
             continue
-        client = centinel.client.Client(config.params)
-        client.setup_logging()
-        client.run()
+
+        logging.info("%s: Running Centinel." % (filename))
+        try:
+            client = centinel.client.Client(config.params)
+            client.setup_logging()
+            client.run()
+        except Exception as exp:
+            logging.error("%s: Error running Centinel: %s" % (filename, exp))
+
+        logging.info("%s: Stopping VPN." % (filename))
         vpn.stop()
 
-        centinel.backend.sync(config.params)
+        logging.info("%s: Synchronizing." % (filename))
+        try:
+            centinel.backend.sync(config.params)
+        except Exception as exp:
+            logging.error("%s: Failed to sync: %s" % (filename, exp))
+
+        # try setting the VPN info (IP and country) to the correct address
+        # after sync is over.
+        try:
+            centinel.backend.set_vpn_info(config.params, vpn_address, country)
+        except Exception as exp:
+            logging.error("Failed to set VPN info: %s" % (exp))
 
 def return_abs_path(directory, path):
     """Unfortunately, Python is not smart enough to return an absolute
@@ -158,7 +187,6 @@ def create_config_files(directory):
 
 if __name__ == "__main__":
     args = parse_args()
-    logging.basicConfig(level=logging.INFO)
     logging.basicConfig(filename=args.log_file,
                         format="%(levelname)s %(asctime)s: %(message)s",
                         level=logging.INFO)
