@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument('--exclude', "-e", dest='exclude_list', default=None,
                         help=('Countries to exclude when scanning (comma '
                               'separated two letter country codes)'))
-    parser.add_argument('--log-file', dest='log_file', default='vpn-log.log',
+    parser.add_argument('--log-file', '-l', dest='log_file', default=None,
                         help="Log file location")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--directory", "-d", dest='directory',
