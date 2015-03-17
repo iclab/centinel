@@ -2,7 +2,7 @@
 # Abbas Razaghpanah (arazaghpanah@cs.stonybrook.edu)
 # February 2015, Stony Brook University
 #
-# baseline.py: baseline experiment that runs through
+# baseline_linear.py: baseline experiment that runs through
 # lists of URLs and does HTTP + DNS + traceroute for
 # every URL in the list.
 #
@@ -88,6 +88,7 @@ class LinearBaselineExperiment(Experiment):
         pcap_results = {}
         pcap_indexes = {}
         url_index = 0
+        index_row = None
         comments = ""
 
         # we may want to make this threaded and concurrent
@@ -106,6 +107,12 @@ class LinearBaselineExperiment(Experiment):
                     file_metadata[key] = value
                 else:
                     file_comments.append(row)
+                continue
+
+            # detect the header row and store it
+            # it is usually the first row and starts with "url,"
+            if row[0].strip().lower() == "url":
+                index_row = row
                 continue
 
             url = row[0].strip()
@@ -227,23 +234,28 @@ class LinearBaselineExperiment(Experiment):
                 pcap_results[pcap_indexes[url]] = td.pcap()
 
             # Meta-data
-
-            # if meta is a pair of comma-separated values,
-            # they should be treated as country and category
-            if len(meta) == 2:
-                country = meta[0].strip().upper()
-                category = meta[1].strip().upper()
-
-                meta = { "country" : country,
-                         "category" : category
-                       }
-
             url_metadata_results[url] = meta
 
         result["http"] = http_results
         result["tls"] = tls_results
         result["dns"] = dns_results
         result["traceroute"] = traceroute_results
+
+        # if we have an index row, we should turn URL metadata
+        # into dictionaries
+        if index_row is not None:
+            indexed_url_metadata = {}
+            for url, meta in url_metadata_results.items():
+                try:
+                    indexed_meta = {}
+                    for i in range(1,len(index_row)):
+                        indexed_meta[index_row[i]] = meta[i - 1]
+                    indexed_url_metadata[url] = indexed_meta
+                except:
+                    indexed_url_metadata[url] = indexed_meta
+                    continue
+            url_metadata_results = indexed_url_metadata
+
         result["url_metadata"] = url_metadata_results
         result["file_metadata"] = file_metadata
         result["file_comments"] = file_comments

@@ -4,7 +4,8 @@
 #
 # baseline.py: baseline experiment that runs through
 # lists of URLs and does HTTP + DNS + traceroute for
-# every URL in the list.
+# every URL in the list. This is done concurrently
+# for each test.
 #
 # Input files can be either simple URL lists or CSV
 # files. In case of CSV input, the first column is
@@ -21,7 +22,6 @@ import urlparse
 
 from centinel.experiment import Experiment
 from centinel.primitives import dnslib
-from centinel.primitives.tcpdump import Tcpdump
 from centinel.primitives import tls
 import centinel.primitives.http as http
 import centinel.primitives.traceroute as traceroute
@@ -73,14 +73,7 @@ class BaselineExperiment(Experiment):
         url_metadata_results = {}
         file_metadata = {}
         file_comments = []
-
-        # each pcap file is stored in a separate file
-        # designated by a number. the indexes are stored
-        # in the json file and the pcap files are stored
-        # with their indexes as file names.
-        pcap_results = {}
-        pcap_indexes = {}
-        url_index = 0
+        index_row = None
         comments = ""
 
         # first parse the input and create data structures
@@ -101,9 +94,14 @@ class BaselineExperiment(Experiment):
                     file_comments.append(row)
                 continue
 
+            # detect the header row and store it
+            # it is usually the first row and starts with "url,"
+            if row[0].strip().lower() == "url":
+                index_row = row
+                continue
+
             url = row[0].strip()
             meta = row[1:]
-            url_index = url_index + 1
 
             http_ssl = False
             ssl_port = 443
@@ -162,17 +160,6 @@ class BaselineExperiment(Experiment):
             traceroute_inputs.append(domain_name)
 
             # Meta-data
-
-            # if meta is a pair of comma-separated values,
-            # they should be treated as country and category
-            if len(meta) == 2:
-                country = meta[0].strip().upper()
-                category = meta[1].strip().upper()
-
-                meta = { "country" : country,
-                         "category" : category
-                       }
-
             url_metadata_results[url] = meta
 
         # the actual tests are run concurrently here
@@ -211,6 +198,21 @@ class BaselineExperiment(Experiment):
             elapsed = time.time() - start
             logging.info("Traceroutes took %d seconds for %d "
                          "domains." % (elapsed, len(traceroute_inputs)))
+
+        # if we have an index row, we should turn URL metadata
+        # into dictionaries
+        if index_row is not None:
+            indexed_url_metadata = {}
+            for url, meta in url_metadata_results.items():
+                try:
+                    indexed_meta = {}
+                    for i in range(1,len(index_row)):
+                        indexed_meta[index_row[i]] = meta[i - 1]
+                    indexed_url_metadata[url] = indexed_meta
+                except:
+                    indexed_url_metadata[url] = indexed_meta
+                    continue
+            url_metadata_results = indexed_url_metadata
 
         result["url_metadata"] = url_metadata_results
         result["file_metadata"] = file_metadata
