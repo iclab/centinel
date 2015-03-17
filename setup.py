@@ -7,7 +7,7 @@ online information controls, and Internet censorship."""
 
 setup(
     name = "centinel",
-    version = "1.5.2",
+    version = "0.1.5.2",
     author = "Sathyanarayanan Gunasekaran",
     author_email = "gsathya@gatech.edu",
     description = DESCRIPTION,
