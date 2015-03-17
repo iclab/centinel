@@ -96,6 +96,7 @@ class DNSQuery():
         thread_wait_timeout = 200
         for nameserver in self.nameservers:
             for domain in self.domains:
+                wait_time = 0
                 while threading.active_count() > self.max_threads:
                     time.sleep(1)
                     wait_time += 1
