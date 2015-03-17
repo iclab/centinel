@@ -116,9 +116,11 @@ class LinearBaselineExperiment(Experiment):
                 continue
 
             url = row[0].strip()
+            if url is None:
+                continue
+
             meta = row[1:]
             url_index = url_index + 1
-
             http_ssl = False
             ssl_port = 443
             http_path = '/'

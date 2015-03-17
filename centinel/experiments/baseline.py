@@ -101,8 +101,10 @@ class BaselineExperiment(Experiment):
                 continue
 
             url = row[0].strip()
-            meta = row[1:]
+            if url is None:
+                continue
 
+            meta = row[1:]
             http_ssl = False
             ssl_port = 443
             http_path = '/'
