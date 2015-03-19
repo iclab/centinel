@@ -14,6 +14,7 @@ import utils
 class User:
     def __init__(self, config):
         self.config = config
+        self.verify = self.config['server']['verify']
         # check for login file
         if os.path.isfile(config['server']['login_file']):
             with open(config['server']['login_file']) as login_fh:
@@ -29,7 +30,8 @@ class User:
         url = "%s/%s" % (self.config['server']['server_url'], slug)
         try:
             req = requests.get(url, auth=self.auth,
-                               proxies=self.config['proxy']['proxy'])
+                               proxies=self.config['proxy']['proxy'],
+                               verify=self.verify)
             req.raise_for_status()
             return req.json()
         except Exception as exp:
@@ -89,7 +91,8 @@ class User:
             try:
                 req = requests.post(url, files=files, auth=self.auth,
                                     proxies=self.config['proxy']['proxy'],
-                                    timeout=timeout)
+                                    timeout=timeout,
+                                    verify=self.verify)
                 req.raise_for_status()
                 if ('delete_after_sync' in self.config['results'].keys()
                    and self.config['results']['delete_after_sync']):
@@ -115,7 +118,8 @@ class User:
                             "experiments", "scheduler.info")
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               auth=self.auth)
+                               auth=self.auth,
+                               verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
             logging.error("Error trying to download scheduler.info: %s" % exp)
@@ -154,7 +158,8 @@ class User:
                             "experiments", name)
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               auth=self.auth)
+                               auth=self.auth,
+                               verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
             logging.error("Error trying to download experiments: %s" % exp)
@@ -172,7 +177,8 @@ class User:
                             "input_files", name)
         try:
             req = requests.get(url, proxies=self.config['proxy']['proxy'],
-                               auth=self.auth)
+                               auth=self.auth,
+                               verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
             logging.error("Error trying to download experiments: %s" % exp)
@@ -193,11 +199,40 @@ class User:
         try:
             req = requests.post(url, data=json.dumps(payload),
                                 proxies=self.config['proxy']['proxy'],
-                                headers=headers)
+                                headers=headers,
+                                verify=self.verify)
             req.raise_for_status()
             return req.json()
         except Exception as exp:
             logging.error("Error trying to submit registration URL: %s " % exp)
+            raise exp
+
+    def set_country(self, country):
+        url     = "%s/%s/%s" % (self.config['server']['server_url'],
+                                "set_country", country)
+        try:
+            req = requests.get(url,
+                               auth=self.auth,
+                               proxies=self.config['proxy']['proxy'],
+                               verify=self.verify)
+            req.raise_for_status()
+            return req.json()
+        except Exception as exp:
+            logging.error("Error trying to set country: %s " % exp)
+            raise exp
+
+    def set_ip(self, ip):
+        url     = "%s/%s/%s" % (self.config['server']['server_url'],
+                                "set_ip", ip)
+        try:
+            req = requests.get(url,
+                               auth=self.auth,
+                               proxies=self.config['proxy']['proxy'],
+                               verify=self.verify)
+            req.raise_for_status()
+            return req.json()
+        except Exception as exp:
+            logging.error("Error trying to set ip: %s " % exp)
             raise exp
 
     def create_user(self):
@@ -345,14 +380,27 @@ def sync(config):
 
     logging.info("Finished sync with %s", config['server']['server_url'])
 
+def set_vpn_info(config, ip=None, country=None):
+    logging.info("Setting country as "
+                 "%s and IP address as %s" % (country, ip))
+    try:
+        user = User(config)
+    except Exception as exp:
+        logging.error("Unable to create user: %s" % str(exp))
+        return False
+
+    if country is not None:
+        user.set_country(country)
+
+    if ip is not None:
+        user.set_ip(ip)
 
 def experiments_available(config):
     logging.info("Starting to check for experiments with %s",
                  config['server']['server_url'])
-
     try:
         user = User(config)
-    except Exception, exp:
+    except Exception as exp:
         logging.error("Unable to create user: %s" % str(exp))
         return False
 
@@ -362,3 +410,16 @@ def experiments_available(config):
     except Exception, exp:
         logging.error("Unable to download experiment files: %s", str(exp))
     return False
+
+def geolocate(config, ip):
+    url     = "%s/%s/%s" % (config['server']['server_url'],
+                            "geolocate", ip)
+    try:
+        req = requests.get(url,
+                           proxies=config['proxy']['proxy'],
+                           verify=config['server']['verify'])
+        req.raise_for_status()
+        return req.json()
+    except Exception as exp:
+        logging.error("Error trying to geolocate: %s " % exp)
+        raise exp
