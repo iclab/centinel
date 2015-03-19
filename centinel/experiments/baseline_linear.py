@@ -94,6 +94,21 @@ class LinearBaselineExperiment(Experiment):
         # we may want to make this threaded and concurrent
         csvreader = csv.reader(file_contents, delimiter=',', quotechar='"')
         for row in csvreader:
+            """
+            First few lines are expected to be comments in key: value
+            format. The first line after that could be our column header
+            row, starting with "url", and the rest are data rows.
+            This is a sample input file we're trying to parse:
+
+            # comment: Global List,,,,,
+            # date: 03-17-2015,,,,,
+            # version: 1,,,,,
+            # description: This is the global list. Last updated in 2012.,,,,
+            url,country,category,description,rationale,provider
+            http://8thstreetlatinas.com,glo,PORN,,,PRIV
+            http://abpr2.railfan.net,glo,MISC,Pictures of trains,,PRIV
+
+            """
 
             # parse file comments, if it looks like "key : value",
             # parse it as a key-value pair. otherwise, just
