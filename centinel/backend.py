@@ -318,7 +318,14 @@ def sync(config):
     try:
         server_exps = user.experiments
     except Exception as exp:
-        logging.error("Error collecting experiments: %s" % exp)
+        if re.search("418", str(exp)) is not None:
+            logging.error("You have not completed the informed consent and "
+                          "will be unable to submit results or get new "
+                          "experiments until you do.")
+            user.informed_consent()
+            return
+        else:
+            logging.error("Error collecting experiments: %s" % exp)
         raise exp
     if time.time() - start > config['server']['total_timeout']:
         logging.error("Interaction with server took too long. Preempting")
