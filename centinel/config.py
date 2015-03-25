@@ -61,8 +61,6 @@ class Configuration():
 
         # experiments
         experiments = {}
-        experiments['random_subsetting'] = True
-        experiments['random_subset_size'] = 2
         self.params['experiments'] = experiments
 
         # server

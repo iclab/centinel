@@ -26,5 +26,9 @@ class Experiment:
     # these files will be compressed when being stored
     external_results = None
 
+    # an experiment can have external parameters
+    # that are usually set by the scheduler.
+    params = {}
+
     def run(self):
         raise NotImplementedError

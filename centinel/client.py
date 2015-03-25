@@ -4,7 +4,6 @@ import imp
 import json
 import logging
 import os
-import random
 import sys
 import tarfile
 import time
@@ -19,6 +18,7 @@ class Client():
 
     def __init__(self, config):
         self.config = config
+        self.experiments = self.load_experiments()
 
     def setup_logging(self):
         logging.basicConfig(filename=self.config['log']['log_file'],
@@ -30,61 +30,53 @@ class Client():
         return os.path.join(self.config['dirs']['results_dir'], result_file)
 
     def get_input_file(self, experiment_name):
-        input_file = "%s.txt" % (experiment_name)
+        input_file = "%s" % (experiment_name)
         return os.path.join(self.config['dirs']['data_dir'], input_file)
 
+    def load_input_file(self, name):
+        input_file = self.get_input_file(name)
+
+        if not os.path.isfile(input_file):
+            logging.error("Input file not found %s" % (input_file))
+            return None
+
+        try:
+            input_file_handle = open(input_file)
+        except Exception as e:
+            logging.error("Can not read from %s" % (input_file))
+            return None
+
+        return input_file_handle
+
     def load_experiments(self):
-        """This function will return the list of experiments to run and manage
-        our scheduling
-
-        Note: this function will check the experiments directory for a
-        special file, scheduler.info, that details how often each
-        experiment should be run and the last time the experiment was
-        run. If the time since the experiment was run is shorter than
-        the scheduled interval in seconds, then the experiment will
-        not be returned
-
+        """This function will return the list of experiments.
         """
 
-        sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
-                                      'scheduler.info')
-        sched_info = {}
-        if os.path.exists(sched_filename):
-            with open(sched_filename, 'r') as file_p:
-                sched_info = json.load(file_p)
 
         # look for experiments in experiments directory
         for path in glob.glob(os.path.join(self.config['dirs']['experiments_dir'],
                                            '[!_]*.py')):
             # get name of file and path
             name, ext = os.path.splitext(os.path.basename(path))
-            # check if we should preempt on the experiment (if the
-            # time to run next is greater than the current time) and
-            # store the last run time as now
-            #
-            # Note: if the experiment is not in the scheduler, then it
-            # will be run every time the client runs
-            if (name in sched_info):
-                run_next = sched_info[name]['last_run']
-                run_next += sched_info[name]['frequency']
-                if run_next > time.time():
-                    continue
-                sched_info[name]['last_run'] = time.time()
-
             # load the experiment
             try:
                 imp.load_source(name, path)
             except Exception as exception:
                 logging.error("Failed to load experiment %s: %s" % (name, exception))
 
-        # write out the updated last run times
-        with open(sched_filename, 'w') as file_p:
-            json.dump(sched_info, file_p)
-
         # return dict of experiment names and classes
         return ExperimentList.experiments
 
     def run(self, data_dir=None):
+        """
+        Note: this function will check the experiments directory for a
+        special file, scheduler.info, that details how often each
+        experiment should be run and the last time the experiment was
+        run. If the time since the experiment was run is shorter than
+        the scheduled interval in seconds, then the experiment will
+        not be run.
+
+        """
         # XXX: android build needs this. refactor
         if data_dir:
             centinel_home = data_dir
@@ -98,39 +90,81 @@ class Client():
                          "%s" % (self.config['dirs']['results_dir']))
             os.makedirs(self.config['dirs']['results_dir'])
 
-        experiments = self.load_experiments()
-        experiments_subset = experiments.items()
+        experiments_set = self.experiments.items()
 
-        if self.config['experiments']['random_subsetting'] and \
-               self.config['experiments']['random_subset_size'] < \
-                   len(experiments.items()):
-            experiments_subset = [
-                experiments.items()[i] for i in sorted(
-                    random.sample(xrange(len(experiments.items())),
-                                  self.config['experiments']
-                                             ['random_subset_size']))
-            ]
+        # load scheduler information
+        sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
+                                      'scheduler.info')
+        sched_info = {}
+        if os.path.exists(sched_filename):
+            with open(sched_filename, 'r') as file_p:
+                sched_info = json.load(file_p)
 
-        for name, Exp in experiments_subset:
+        for name in sched_info:
 
+            # check if we should preempt on the experiment (if the
+            # time to run next is greater than the current time) and
+            # store the last run time as now
+            #
+            # Note: if the experiment is not in the scheduler, then it
+            # will not be run at all.
+            run_next = sched_info[name]['last_run']
+            run_next += sched_info[name]['frequency']
+            if run_next > time.time():
+                continue
+
+            # backward compatibility with older-style scheduler
+            if 'python_exps' not in sched_info[name]:
+                self.run_exp(name)
+            else:
+                for python_exp, exp_config in sched_info[name]['python_exps'].items():
+                    self.run_exp(python_exp, exp_config)
+
+            sched_info[name]['last_run'] = time.time()
+
+        # write out the updated last run times
+        with open(sched_filename, 'w') as file_p:
+            json.dump(sched_info, file_p, indent = 2,
+                      separators=(',', ': '))
+
+        self.consolidate_results()
+
+        logging.info("Finished running experiments. Look in %s for "
+                     "results." % (self.config['dirs']['results_dir']))
+
+    def run_exp(self, name, exp_config=None):
+        if name not in self.experiments:
+            logging.error("Experiment file %s not found! Skipping." % (name))
+        else:
+            Exp = self.experiments[name]
+        #for name, Exp in experiments_subset:
             logging.info("Running %s..." % (name))
             exp_start_time = datetime.now().isoformat()
 
             results = {}
+            input_files = {}
+            if exp_config is not None:
+                if 'input_files' in exp_config and \
+                    exp_config['input_files'] is not None:
+                    for filename in exp_config['input_files']:
+                        file_handle = self.load_input_file(filename)
+                        if file_handle is not None:
+                            input_files[filename] = file_handle
+                if 'params' in exp_config and \
+                    exp_config['params'] is not None:
+                    Exp.params = exp_config['params']
 
             # if the experiment specifies a list of input file names,
-            # load them.
+            # load them. failing to load input files does not stop
+            # experiment from running.
             if Exp.input_files is not None:
-                input_files = {}
                 for filename in Exp.input_files:
                     file_handle = self.load_input_file(filename)
                     if file_handle is not None:
                         input_files[filename] = file_handle
             else:
             # otherwise, fall back on [experiment name].txt
-                input_files = self.load_input_file(name)
-                if input_files is None:
-                    continue
+                input_files = self.load_input_file("%s.txt" % (name))
 
             try:
                 # instantiate the experiment
@@ -138,6 +172,7 @@ class Client():
             except Exception as exception:
                 logging.error("Error initializing %s: %s" % (name, exception))
                 results["init_exception"] = str(exception)
+                return
 
             run_tcpdump = True
 
@@ -244,6 +279,9 @@ class Client():
                       separators=(',', ': '))
             result_file.close()
 
+
+    def consolidate_results(self):
+        # bundle and compress result files
         result_files = [path for path in glob.glob(
             os.path.join(self.config['dirs']['results_dir'],'*.json.bz2'))]
 
@@ -276,20 +314,3 @@ class Client():
             if tar_file:
                 tar_file.close()
 
-        logging.info("Finished running experiments. Look in %s for "
-                     "results." % (self.config['dirs']['results_dir']))
-
-    def load_input_file(self, name):
-        input_file = self.get_input_file(name)
-
-        if not os.path.isfile(input_file):
-            logging.error("Input file not found %s" % (input_file))
-            return None
-
-        try:
-            input_file_handle = open(input_file)
-        except Exception as e:
-            logging.error("Can not read from %s" % (input_file))
-            return None
-
-        return input_file_handle
