@@ -102,4 +102,5 @@ class Configuration():
 
         """
         with open(config_file, 'w') as f:
-            json.dump(self.params, f)
+            json.dump(self.params, f, indent = 2,
+                      separators=(',', ': '))
