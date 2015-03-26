@@ -137,7 +137,6 @@ class Client():
             logging.error("Experiment file %s not found! Skipping." % (name))
         else:
             Exp = self.experiments[name]
-        #for name, Exp in experiments_subset:
             logging.info("Running %s..." % (name))
             exp_start_time = datetime.now().isoformat()
 
