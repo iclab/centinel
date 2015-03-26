@@ -1,0 +1,19 @@
+{
+  "baseline": {
+    "frequency": 3600,
+    "python_exps": {
+      "baseline": {
+        "params": {
+          "traceroute_methods": [
+            "tcp",
+            "udp"
+          ]
+        },
+        "input_files": [
+          "xx.csv"
+        ]
+      }
+    },
+    "last_run": 0
+  }
+}

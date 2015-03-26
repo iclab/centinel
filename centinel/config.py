@@ -61,8 +61,6 @@ class Configuration():
 
         # experiments
         experiments = {}
-        experiments['random_subsetting'] = True
-        experiments['random_subset_size'] = 2
         self.params['experiments'] = experiments
 
         # server
@@ -104,4 +102,5 @@ class Configuration():
 
         """
         with open(config_file, 'w') as f:
-            json.dump(self.params, f)
+            json.dump(self.params, f, indent = 2,
+                      separators=(',', ': '))

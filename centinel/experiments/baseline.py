@@ -31,11 +31,16 @@ class BaselineExperiment(Experiment):
     name = "baseline"
     # country-specific, world baseline
     # this can be overridden by the main thread
-    input_files = ['country', 'world']
+    input_files = ['country.csv', 'world.csv']
 
     def __init__(self, input_files):
         self.input_files = input_files
         self.results = []
+
+        if self.params is not None:
+            # process parameters
+            if "traceroute_methods" in self.params:
+                self.traceroute_methods = self.params['traceroute_methods']
 
         if os.geteuid() != 0:
             logging.info("Centinel is not running as root, "
