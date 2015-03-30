@@ -6,7 +6,7 @@ censorship.
 #### Install and usage
 ##### Debian
     $ sudo apt-get install python-pip libssl-dev swig python-dev
-    $ sudo pip install -U dnspython requests argparse m2crypto
+    $ sudo pip install -U dnspython requests argparse m2crypto pyopenssl ndg-httpsclient pyasn1
     $ sudo pip install centinel
     $ centinel
 
