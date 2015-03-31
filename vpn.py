@@ -5,6 +5,7 @@
 
 import argparse
 import logging
+from random import shuffle
 import os
 
 import centinel.backend
@@ -22,25 +23,28 @@ def parse_args():
     parser.add_argument('--create-hma-configs', dest='create_HMA',
                         action="store_true",
                         help='Create the openvpn config files for HMA')
-    parser.add_argument('--exclude', "-e", dest='exclude_list', default=None,
+    parser.add_argument('--shuffle', '-s', dest='shuffle_lists',
+                        action="store_true",
+                        help='Randomize the order of vantage points')
+    parser.add_argument('--exclude', '-e', dest='exclude_list', default=None,
                         help=('Countries to exclude when scanning (comma '
                               'separated two letter country codes)'))
     parser.add_argument('--log-file', '-l', dest='log_file', default=None,
                         help="Log file location")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--directory", "-d", dest='directory',
-                       help="Directory with experiments, config files, etc.")
-    create_conf_help = ("Create configuration files for the given "
-                        "openvpn config files so that we can treat each "
-                        "one as a client. The argument should be a "
-                        "directory with a subdirectory called openvpn "
-                        "that contains the openvpn config files")
+    group.add_argument('--directory', '-d', dest='directory',
+                       help='Directory with experiments, config files, etc.')
+    create_conf_help = ('Create configuration files for the given '
+                        'openvpn config files so that we can treat each '
+                        'one as a client. The argument should be a '
+                        'directory with a subdirectory called openvpn '
+                        'that contains the openvpn config files')
     group.add_argument('--create-config', '-c', help=create_conf_help,
                        dest='create_conf_dir')
     return parser.parse_args()
 
 
-def scan_vpns(directory, auth_file, exclude_list):
+def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
     """For each VPN, check if there are experiments and scan with it if
     necessary
 
@@ -59,7 +63,12 @@ def scan_vpns(directory, auth_file, exclude_list):
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
     auth_file = return_abs_path(".", auth_file)
-    for filename in os.listdir(conf_dir):
+    conf_list = os.listdir(conf_dir)
+
+    if shuffle_lists:
+        shuffle(conf_list)
+
+    for filename in conf_list:
         logging.info("Moving onto %s" % (filename))
         vpn_config = os.path.join(vpn_dir, filename)
         centinel_config = os.path.join(conf_dir, filename)
@@ -206,4 +215,5 @@ if __name__ == "__main__":
         # create the config files for the openvpn config files
         create_config_files(args.create_conf_dir)
     else:
-        scan_vpns(args.directory, args.auth_file, args.exclude_list)
+        scan_vpns(args.directory, args.auth_file, args.exclude_list,
+                  args.shuffle_lists)
