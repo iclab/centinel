@@ -12,7 +12,7 @@ import time
 from centinel import command
 
 
-def traceroute(domain, method="udp", cmd_arguments=[], external=None):
+def traceroute(domain, method="udp", cmd_arguments=None, external=None):
     """This function uses centinel.command to issue
     a traceroute command, wait for it to finish execution and
     parse the results out to a dictionary.
@@ -28,6 +28,10 @@ def traceroute(domain, method="udp", cmd_arguments=[], external=None):
     # the method specified by the function parameter here will
     # over-ride the ones given in cmd_arguments because
     # traceroute will use the last one in the argument list.
+
+    if cmd_arguments is None:
+        cmd_arguments = []
+
     if method == "tcp":
         cmd_arguments.append('-T')
     elif method == "udp":
