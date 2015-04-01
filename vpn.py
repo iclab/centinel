@@ -68,8 +68,14 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
     if shuffle_lists:
         shuffle(conf_list)
 
+    number = 1
+    total = len(conf_list)
+
     for filename in conf_list:
-        logging.info("Moving onto %s" % (filename))
+        logging.info("Moving onto (%d/%d) %s" % (number, total, filename))
+        print "(%d/%d) %s" % (number, total, filename)
+
+        number = number + 1
         vpn_config = os.path.join(vpn_dir, filename)
         centinel_config = os.path.join(conf_dir, filename)
 
