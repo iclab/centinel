@@ -36,7 +36,7 @@ class Client():
         return os.path.join(self.config['dirs']['data_dir'], input_file)
 
     def load_input_file(self, name):
-        input_file = self.get_input_file("%s.txt" %(name))
+        input_file = self.get_input_file(name)
 
         if not os.path.isfile(input_file):
             logging.error("Input file not found %s" % (input_file))
