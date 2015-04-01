@@ -1,5 +1,6 @@
 *.pyc
 *.pyo
+*.log
 .#*
 results/
 centinel.egg-info/
