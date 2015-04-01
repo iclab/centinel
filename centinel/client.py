@@ -14,6 +14,8 @@ from experiment import Experiment, ExperimentList
 
 from centinel.primitives.tcpdump import Tcpdump
 
+loaded_modules = set()
+
 class Client():
 
     def __init__(self, config):
@@ -52,7 +54,6 @@ class Client():
         """This function will return the list of experiments.
         """
 
-
         # look for experiments in experiments directory
         for path in glob.glob(os.path.join(self.config['dirs']['experiments_dir'],
                                            '[!_]*.py')):
@@ -60,7 +61,11 @@ class Client():
             name, ext = os.path.splitext(os.path.basename(path))
             # load the experiment
             try:
+                # do not load modules that have already been loaded
+                if name in loaded_modules:
+                    continue
                 imp.load_source(name, path)
+                loaded_modules.add(name)
             except Exception as exception:
                 logging.error("Failed to load experiment %s: %s" % (name, exception))
 
