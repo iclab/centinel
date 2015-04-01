@@ -104,15 +104,19 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
         except Exception as exp:
             logging.error("%s: Failed to set VPN info: %s" % (filename, exp))
 
-        if not centinel.backend.experiments_available(config.params):
-            logging.info("%s: No experiments available." % (filename))
-            continue
-
         logging.info("%s: Synchronizing." % (filename))
         try:
             centinel.backend.sync(config.params)
         except Exception as exp:
             logging.error("%s: Failed to sync: %s" % (filename, exp))
+
+        if not centinel.backend.experiments_available(config.params):
+            logging.info("%s: No experiments available." % (filename))
+            try:
+                centinel.backend.set_vpn_info(config.params, vpn_address, country)
+            except Exception as exp:
+                logging.error("Failed to set VPN info: %s" % (exp))
+            continue
 
         logging.info("%s: Starting VPN." % (filename))
         vpn = openvpn.OpenVPN(timeout=30, auth_file=auth_file,

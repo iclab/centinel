@@ -36,7 +36,7 @@ class Client():
         return os.path.join(self.config['dirs']['data_dir'], input_file)
 
     def load_input_file(self, name):
-        input_file = self.get_input_file(name)
+        input_file = self.get_input_file("%s.txt" %(name))
 
         if not os.path.isfile(input_file):
             logging.error("Input file not found %s" % (input_file))
@@ -71,6 +71,22 @@ class Client():
 
         # return dict of experiment names and classes
         return ExperimentList.experiments
+
+    def has_experiments_to_run(self):
+        # load scheduler information
+        sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
+                                      'scheduler.info')
+        sched_info = {}
+        if os.path.exists(sched_filename):
+            with open(sched_filename, 'r') as file_p:
+                sched_info = json.load(file_p)
+
+        for name in sched_info:
+            run_next = sched_info[name]['last_run']
+            run_next += sched_info[name]['frequency']
+            if run_next <= time.time():
+                return True
+        return False
 
     def run(self, data_dir=None):
         """
