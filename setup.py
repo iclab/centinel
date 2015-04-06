@@ -14,7 +14,7 @@ setup(
     license = "MIT",
     keywords = "censorship information controls network interference",
     url = "https://www.github.com/iclab/centinel",
-    packages = ["centinel", "centinel.experiments", "centinel.primitives",
+    packages = ["centinel", "centinel.primitives",
                 "centinel.vpn"],
     install_requires = ["argparse >= 1.2.1",
                         "m2crypto >= 0.22.0",
