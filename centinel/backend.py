@@ -422,9 +422,9 @@ def experiments_available(config):
 
     return False
 
-def geolocate(config, ip):
+def get_meta(config, ip=''):
     url     = "%s/%s/%s" % (config['server']['server_url'],
-                            "geolocate", ip)
+                            "meta", ip)
     try:
         req = requests.get(url,
                            proxies=config['proxy']['proxy'],
@@ -432,5 +432,5 @@ def geolocate(config, ip):
         req.raise_for_status()
         return req.json()
     except Exception as exp:
-        logging.error("Error trying to geolocate: %s " % exp)
+        logging.error("Error trying to get metadata: %s " % exp)
         raise exp

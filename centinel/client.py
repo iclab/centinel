@@ -12,6 +12,7 @@ from datetime import datetime
 
 from experiment import Experiment, ExperimentList
 
+from centinel.backend import get_meta
 from centinel.primitives.tcpdump import Tcpdump
 
 loaded_modules = set()
@@ -158,10 +159,20 @@ class Client():
             logging.error("Experiment file %s not found! Skipping." % (name))
         else:
             Exp = self.experiments[name]
+            results = {}
+
+            try:
+                logging.info("Getting metadata for experiment...")
+                meta = get_meta(self.config)
+                results["meta"] = meta
+            except Exception as exception:
+                logging.error("Error fetching metadata for "
+                              "%s: %s" % (name, exception))
+                results["meta_exception"] = str(exception)
+
             logging.info("Running %s..." % (name))
             exp_start_time = datetime.now().isoformat()
 
-            results = {}
             input_files = {}
             if exp_config is not None:
                 if 'input_files' in exp_config and \
