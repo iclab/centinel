@@ -9,7 +9,9 @@ import time
 import uuid
 
 import utils
+import centinel.client
 
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 class User:
     def __init__(self, config):
@@ -412,10 +414,12 @@ def experiments_available(config):
         return False
 
     try:
-        if user.experiments:
+        client = centinel.client.Client(config)
+        if client.has_experiments_to_run():
             return True
     except Exception, exp:
-        logging.error("Unable to download experiment files: %s", str(exp))
+        logging.error("Unable to check schedule: %s", str(exp))
+
     return False
 
 def geolocate(config, ip):
