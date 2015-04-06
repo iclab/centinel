@@ -140,7 +140,7 @@ class Client():
                 self.run_exp(name)
             else:
                 for python_exp, exp_config in sched_info[name]['python_exps'].items():
-                    self.run_exp(python_exp, exp_config)
+                    self.run_exp(python_exp, exp_config, schedule_name=name)
 
             sched_info[name]['last_run'] = time.time()
 
@@ -154,13 +154,14 @@ class Client():
         logging.info("Finished running experiments. Look in %s for "
                      "results." % (self.config['dirs']['results_dir']))
 
-    def run_exp(self, name, exp_config=None):
+    def run_exp(self, name, exp_config=None, schedule_name=None):
         if name not in self.experiments:
             logging.error("Experiment file %s not found! Skipping." % (name))
         else:
             Exp = self.experiments[name]
             results = {}
 
+            results["meta"] = {}
             try:
                 logging.info("Getting metadata for experiment...")
                 meta = get_meta(self.config)
@@ -170,8 +171,14 @@ class Client():
                               "%s: %s" % (name, exception))
                 results["meta_exception"] = str(exception)
 
+            if schedule_name is not None:
+                results["meta"]["schedule_name"] = schedule_name
+            else:
+                results["meta"]["schedule_name"] = name
+
             logging.info("Running %s..." % (name))
-            exp_start_time = datetime.now().isoformat()
+            start_time = datetime.now()
+            results["meta"]["client_time"] = start_time.isoformat()
 
             input_files = {}
             if exp_config is not None:
@@ -254,7 +261,7 @@ class Client():
                 for fname, fcontents in exp.external_results.items():
                     external_file_name = ("external_%s-%s-%s"
                                           ".bz2" % (name,
-                                                    exp_start_time,
+                                                    start_time.isoformat(),
                                                     fname))
                     external_file_path = os.path.join(results_dir,
                                                       external_file_name)
@@ -275,7 +282,7 @@ class Client():
                 logging.info("tcpdump stopped.")
                 try:
                     pcap_file_name = ("pcap_%s-%s.pcap"
-                                      ".bz2" % (name, exp_start_time))
+                                      ".bz2" % (name, start_time.isoformat()))
                     pcap_file_path = os.path.join(results_dir,
                                                   pcap_file_name)
 
@@ -302,9 +309,15 @@ class Client():
                               "%s: %s" % (name, exception))
                 results["results_exception"] = str(exception)
 
+            end_time = datetime.now()
+            time_taken = (end_time - start_time)
+            results["meta"]["time_taken"] = time_taken.total_seconds()
+
+            logging.info("%s took %s to finish." % (name, time_taken))
             # Pretty printing results will increase file size, but files are
             # compressed before sending.
-            result_file_path = self.get_result_file(name, exp_start_time)
+            result_file_path = self.get_result_file(name,
+                                                    start_time.isoformat())
             result_file = bz2.BZ2File(result_file_path, "w")
             json.dump(results, result_file, indent = 2,
                       separators=(',', ': '))
