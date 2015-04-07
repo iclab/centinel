@@ -91,10 +91,10 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
         vpn_address, extension = os.path.splitext(filename)
         country = None
         try:
-            geo = centinel.backend.geolocate(config.params,
+            meta = centinel.backend.get_meta(config.params,
                                              vpn_address)
-            if 'country' in geo:
-                country = geo['country']
+            if 'country' in meta:
+                country = meta['country']
         except Exception as exp:
             logging.error("%s: Failed to geolocate "
                           "%s: %s" % (filename, vpn_address, exp))
