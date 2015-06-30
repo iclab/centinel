@@ -11,6 +11,7 @@ def get_fingerprint(host, port=443, external=None):
     tls_error = None
     fingerprint_error = None
     exception = None
+    cert = None
     try:
         cert = ssl.get_server_certificate((host, port))
     # if this fails, there's a possibility that SSLv3 handshake was
@@ -21,6 +22,11 @@ def get_fingerprint(host, port=443, external=None):
     except Exception as exp:
         tls_error = str(exp)
         exception = exp
+
+    # this comes out as unicode, but m2crypto breaks if it gets
+    # something other than a string, so convert to ascii
+    if type(cert) == unicode or test:
+        cert = cert.encode('ascii', 'ignore')
 
     if exception is None:
         try:
@@ -35,8 +41,9 @@ def get_fingerprint(host, port=443, external=None):
     row = "%s:%s" % (host, port)
 
     if exception is not None:
-        external[row] = { "tls_error": tls_error,
-                          "fingerprint_error": fingerprint_error }
+        if external is not None:
+            external[row] = { "tls_error": tls_error,
+                              "fingerprint_error": fingerprint_error }
         raise exception
 
     if external is not None and type(external) is dict:
