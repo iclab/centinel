@@ -16,15 +16,22 @@ from centinel import command
 class Tcpdump():
     """Class to interface between tcpdump and Python"""
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, pcap_args=None):
         if filename is None:
             temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
             temp_file.close()
             filename = temp_file.name
         self.filename = filename
+        # don't change this to default value because it is a mutable
+        # type and whatever you change it to will become the new
+        # default value until the interpreter is restarted
+        if pcap_args is None:
+            pcap_args = ["-i", "any"]
+        self.pcap_args = pcap_args
 
     def start(self):
         cmd = ['sudo', 'tcpdump', '-w', self.filename]
+        cmd.extend(self.pcap_args)
         self.caller = command.Command(cmd, _tcpdump_callback)
         self.caller.start()
 
