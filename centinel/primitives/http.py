@@ -1,9 +1,12 @@
 import httplib
 import threading
 import time
+import urlparse
 
-def get_request(host, path="/", headers=None, ssl=False,
+# Actually gets the http. Moved this to it's own private method since it is called several times for following redirects
+def _get_http_request(host, path="/", headers=None, ssl=False,
                 external=None, url=None):
+
     request  = {
         "host"  : host,
         "path"  : path,
@@ -49,9 +52,63 @@ def get_request(host, path="/", headers=None, ssl=False,
     }
     # the external result is used when threading to store
     # the results in the list container provided.
-    if external is not None and type(external) is dict:
-        external[url] = result
+    # if external is not None and type(external) is dict:
+    #    external[url] = result
     return result
+
+
+def get_request(host, path="/", headers=None, ssl=False,
+                external=None, url=None):
+    http_results = {}
+    first_response = _get_http_request(host, path, headers, ssl, external, url)
+    if "failure" in first_response["response"]:  # If there was an error, just ignore redirects and return
+        if external is not None and type(external) is dict:
+            external[url] = first_response
+            return first_response
+    # Checks HTTP Status code and location header to see if the webpage calls for a redirect
+    is_redirecting = str(first_response["response"]["status"]).startswith("3") and "location"\
+                                            in first_response["response"]["headers"]
+    if is_redirecting:
+        http_results["request"] = first_response["request"]
+        http_results["redirects"] = {}
+        http_results["redirects"]["0 (" + host + path + ")"] = first_response["response"]
+        redirect_result = None
+        redirect_number = 1
+        while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") and
+                        "location" in redirect_result["response"]["headers"]) and\
+                        redirect_number < 6:  # While there are more redirects...
+            if redirect_result is None:  # If it is the first redirect, get url from original http response
+                redirect_url = first_response["response"]["headers"]["location"]
+            else:  # Otherwise, get the url from the previous redirect
+                redirect_url = redirect_result["response"]["headers"]["location"]
+            ssl = redirect_url.startswith("https://")  # If redirect url starts with https, use ssl
+
+            # Scheme, query, and fragment aren't used. Urlparse is used here to split the url into the host and path
+            # Useful for httplib since it requires this
+            scheme, netloc, path, query, fragment = urlparse.urlsplit(redirect_url)
+            redirect_result = _get_http_request(netloc, path, ssl=ssl)
+
+            # The request data is basically repeated throughout each redirect and is the same as in the first
+            # request, so it therefore not needed
+            del redirect_result["request"]
+
+            # If this is the final response, put this in the first request and response json
+            if (not str(redirect_result["response"]["status"]).startswith("3") or
+                    "location" not in redirect_result["response"]["headers"]):
+                http_results["response"] = redirect_result["response"]
+            else:  # Otherwise, put this in the redirects section
+                http_results["redirects"][str(redirect_number) + " (" + redirect_url + ")"] = redirect_result["response"]
+            # If there is an error in the redirects, break the loop and stop there
+            if "failure" in redirect_result["response"]:
+                break
+            redirect_number += 1
+    else:
+        return first_response
+    # the external result is used when threading to store
+    # the results in the list container provided.
+    if external is not None and type(external) is dict:
+        external[url] = http_results
+    return http_results
 
 def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
     """
