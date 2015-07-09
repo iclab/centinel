@@ -1,12 +1,23 @@
 import httplib
 import threading
 import time
-import urlparse
+from urlparse import urlparse
 
-# Actually gets the http. Moved this to it's own private method since it is called several times for following redirects
+
 def _get_http_request(host, path="/", headers=None, ssl=False,
                 external=None, url=None):
+    """
+    Actually gets the http. Moved this to it's own private method since
+    it is called several times for following redirects
 
+    :param host:
+    :param path:
+    :param headers:
+    :param ssl:
+    :param external:
+    :param url:
+    :return:
+    """
     request  = {
         "host"  : host,
         "path"  : path,
@@ -50,10 +61,6 @@ def _get_http_request(host, path="/", headers=None, ssl=False,
         "response" : response,
         "request"  : request
     }
-    # the external result is used when threading to store
-    # the results in the list container provided.
-    # if external is not None and type(external) is dict:
-    #    external[url] = result
     return result
 
 
@@ -66,41 +73,57 @@ def get_request(host, path="/", headers=None, ssl=False,
             external[url] = first_response
             return first_response
     # Checks HTTP Status code and location header to see if the webpage calls for a redirect
-    is_redirecting = str(first_response["response"]["status"]).startswith("3") and "location"\
-                                            in first_response["response"]["headers"]
+    stat_starts_with_3 = str(first_response["response"]["status"]).startswith("3")
+    response_headers_contains_location = "location" in first_response["response"]["headers"]
+
+    is_redirecting = stat_starts_with_3 and response_headers_contains_location
+
     if is_redirecting:
         http_results["request"] = first_response["request"]
         http_results["redirects"] = {}
-        http_results["redirects"]["0 (" + host + path + ")"] = first_response["response"]
-        redirect_result = None
+        first_response_information = {}
+        first_response_information["response"] = first_response["response"]
+        first_response_information["host"] = host
+        first_response_information["path"] = path
+        http_results["redirects"]["0"] = first_response_information
+        redirect_http_result = None
         redirect_number = 1
-        while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") and
-                        "location" in redirect_result["response"]["headers"]) and\
-                        redirect_number < 6:  # While there are more redirects...
-            if redirect_result is None:  # If it is the first redirect, get url from original http response
+        while redirect_http_result is None or (stat_starts_with_3 and response_headers_contains_location) and\
+                redirect_number < 6:  # While there are more redirects...
+            # Usually, redirects that redirect more than 5 times are infinite loops
+            if redirect_http_result is None:  # If it is the first redirect, get url from original http response
                 redirect_url = first_response["response"]["headers"]["location"]
             else:  # Otherwise, get the url from the previous redirect
-                redirect_url = redirect_result["response"]["headers"]["location"]
-            ssl = redirect_url.startswith("https://")  # If redirect url starts with https, use ssl
+                redirect_url = redirect_http_result["response"]["headers"]["location"]
+            use_ssl = redirect_url.startswith("https://")  # If redirect url starts with https, use ssl
 
             # Scheme, query, and fragment aren't used. Urlparse is used here to split the url into the host and path
             # Useful for httplib since it requires this
-            scheme, netloc, path, query, fragment = urlparse.urlsplit(redirect_url)
-            redirect_result = _get_http_request(netloc, path, ssl=ssl)
-
+            parsed_url = urlparse(redirect_url)
+            redirect_http_result = _get_http_request(parsed_url.netloc, parsed_url.path, ssl=use_ssl)
             # The request data is basically repeated throughout each redirect and is the same as in the first
-            # request, so it therefore not needed
-            del redirect_result["request"]
+            # request, so it's therefore not needed
+            del redirect_http_result["request"]
+
+            # If there is an error in the redirects, break the loop and stop there
+            if "failure" in redirect_http_result["response"]:
+                http_results["response"] = redirect_http_result["response"]  # This will count as the final response
+                break
+
+            stat_starts_with_3 = str(redirect_http_result["response"]["status"]).startswith("3")
+            response_headers_contains_location = "location" in redirect_http_result["response"]["headers"]
 
             # If this is the final response, put this in the first request and response json
-            if (not str(redirect_result["response"]["status"]).startswith("3") or
-                    "location" not in redirect_result["response"]["headers"]):
-                http_results["response"] = redirect_result["response"]
+            if not stat_starts_with_3 or not response_headers_contains_location:
+                http_results["response"] = redirect_http_result["response"]
             else:  # Otherwise, put this in the redirects section
-                http_results["redirects"][str(redirect_number) + " (" + redirect_url + ")"] = redirect_result["response"]
-            # If there is an error in the redirects, break the loop and stop there
-            if "failure" in redirect_result["response"]:
-                break
+                redirect_information = {}
+                redirect_information["host"] = parsed_url.netloc
+                redirect_information["path"] = parsed_url.path
+                redirect_information["full_url"] = redirect_url
+                redirect_information["response"] = redirect_http_result["response"]
+                http_results["redirects"][str(redirect_number)] = redirect_information
+
             redirect_number += 1
     else:
         return first_response
