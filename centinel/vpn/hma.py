@@ -54,7 +54,7 @@ def create_config_files(directory):
             file_o.write("proto {0}\n".format(proto))
             # add automatic dns server update
             file_o.write("up /etc/openvpn/update-resolv-conf\n")
-            file.o.write("down /etc/openvpn/update-resolv-conf\n")
+            file_o.write("down /etc/openvpn/update-resolv-conf\n")
 
 
 if __name__ == "__main__":
