@@ -139,7 +139,11 @@ class User:
             client_sched = json.load(file_p)
 
         # delete any scheduled tasks as necessary
-        for exp in client_sched:
+        #
+        # Note: this looks ugly, but we can't modify dictionaries
+        # while we iterate over them
+        client_exp_keys = client_sched.keys()
+        for exp in client_exp_keys:
             if exp not in server_sched:
                 del client_sched[exp]
         # and update all the other frequencies

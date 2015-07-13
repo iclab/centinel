@@ -52,6 +52,9 @@ def create_config_files(directory):
                 port, proto = 53, "udp"
             file_o.write("remote {0} {1}\n".format(ip, port))
             file_o.write("proto {0}\n".format(proto))
+            # add automatic dns server update
+            file_o.write("up /etc/openvpn/update-resolv-conf\n")
+            file.o.write("down /etc/openvpn/update-resolv-conf\n")
 
 
 if __name__ == "__main__":
