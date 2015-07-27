@@ -7,12 +7,12 @@ censorship.
 ##### Debian
     $ sudo apt-get install python-pip libssl-dev swig python-dev libffi-dev
     $ sudo pip install -U dnspython requests argparse m2crypto pyopenssl ndg-httpsclient pyasn1 pip
-    $ sudo pip install centinel
-    $ centinel
+    $ sudo pip install centinel-dev
+    $ centinel-dev
 
 ##### OSX
-    $ sudo pip install centinel
-    $ centinel
+    $ sudo pip install centinel-dev
+    $ centinel-dev
 
 ##### Latest development version
     * git clone https://github.com/projectbismark/centinel.git
