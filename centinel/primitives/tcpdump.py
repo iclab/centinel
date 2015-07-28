@@ -5,6 +5,7 @@
 # second passes over existing pcaps
 
 from base64 import b64encode
+import logging
 import os
 import tempfile
 
