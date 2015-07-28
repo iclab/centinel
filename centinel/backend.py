@@ -8,10 +8,11 @@ import requests
 import time
 import uuid
 
-import utils
-import centinel.client
+import centinel.utils as utils
+
 
 logging.getLogger("requests").setLevel(logging.WARNING)
+
 
 class User:
     def __init__(self, config):
@@ -24,7 +25,7 @@ class User:
                 self.username = login_details.get('username')
                 self.password = login_details.get('password')
                 self.typeable_handle = login_details.get('typeable_handle')
-                self.auth     = (self.username, self.password)
+                self.auth = (self.username, self.password)
         else:
             self.create_user()
 
@@ -86,9 +87,8 @@ class User:
         logging.info("Uploading result file - %s", file_name)
 
         with open(file_name) as result_file:
-            files   = {'result': result_file}
-            url     = "%s/%s" % (self.config['server']['server_url'],
-                                 "results")
+            files = {'result': result_file}
+            url = "%s/%s" % (self.config['server']['server_url'], "results")
             timeout = self.config['server']['req_timeout']
             try:
                 req = requests.post(url, files=files, auth=self.auth,
@@ -198,7 +198,7 @@ class User:
     def register(self, username, password):
         logging.info("Registering new user %s" % (username))
 
-        url     = "%s/%s" % (self.config['server']['server_url'], "register")
+        url = "%s/%s" % (self.config['server']['server_url'], "register")
         payload = {'username': username, 'password': password,
                    'is_vpn': self.config['user'].get('is_vpn')}
         headers = {'content-type': 'application/json'}
@@ -214,8 +214,8 @@ class User:
             raise exp
 
     def set_country(self, country):
-        url     = "%s/%s/%s" % (self.config['server']['server_url'],
-                                "set_country", country)
+        url = "%s/%s/%s" % (self.config['server']['server_url'],
+                            "set_country", country)
         try:
             req = requests.get(url,
                                auth=self.auth,
@@ -228,8 +228,8 @@ class User:
             raise exp
 
     def set_ip(self, ip):
-        url     = "%s/%s/%s" % (self.config['server']['server_url'],
-                                "set_ip", ip)
+        url = "%s/%s/%s" % (self.config['server']['server_url'],
+                            "set_ip", ip)
         try:
             req = requests.get(url,
                                auth=self.auth,
@@ -244,7 +244,7 @@ class User:
     def create_user(self):
         self.username = str(uuid.uuid4())
         self.password = os.urandom(64).encode('base-64')
-        self.auth     = (self.username, self.password)
+        self.auth = (self.username, self.password)
         self.typeable_handle = None
 
         try:
@@ -305,9 +305,9 @@ def sync(config):
             user.submit_result(path)
         except Exception, exp:
             if re.search("418", str(exp)) is not None:
-                logging.error("You have not completed the informed consent and "
-                              "will be unable to submit results or get new "
-                              "experiments until you do.")
+                logging.error("You have not completed the informed consent "
+                              "and will be unable to submit results or get "
+                              "new experiments until you do.")
                 user.informed_consent()
                 return
             else:
@@ -393,6 +393,7 @@ def sync(config):
 
     logging.info("Finished sync with %s", config['server']['server_url'])
 
+
 def set_vpn_info(config, ip=None, country=None):
     logging.info("Setting country as "
                  "%s and IP address as %s" % (country, ip))
@@ -408,27 +409,10 @@ def set_vpn_info(config, ip=None, country=None):
     if ip is not None:
         user.set_ip(ip)
 
-def experiments_available(config):
-    logging.info("Starting to check for experiments with %s",
-                 config['server']['server_url'])
-    try:
-        user = User(config)
-    except Exception as exp:
-        logging.error("Unable to create user: %s" % str(exp))
-        return False
-
-    try:
-        client = centinel.client.Client(config)
-        if client.has_experiments_to_run():
-            return True
-    except Exception, exp:
-        logging.error("Unable to check schedule: %s", str(exp))
-
-    return False
 
 def get_meta(config, ip=''):
-    url     = "%s/%s/%s" % (config['server']['server_url'],
-                            "meta", ip)
+    url = "%s/%s/%s" % (config['server']['server_url'],
+                        "meta", ip)
     try:
         req = requests.get(url,
                            proxies=config['proxy']['proxy'],
