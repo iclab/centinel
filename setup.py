@@ -8,8 +8,8 @@ online information controls, and Internet censorship."""
 setup(
     name = "centinel",
     version = "0.1.5.2",
-    author = "Sathyanarayanan Gunasekaran",
-    author_email = "gsathya@gatech.edu",
+    author = "ICLab Developers"
+    author_email = "bj6@princeton.edu"
     description = DESCRIPTION,
     license = "MIT",
     keywords = "censorship information controls network interference",
@@ -22,6 +22,7 @@ setup(
                         "requests >= 2.5.1"],
     include_package_data = True,
     entry_points = {
-        'console_scripts': ['centinel=centinel.client:run']
+        'console_scripts': ['centinel=centinel.cli:run',
+                            'centinel-vpn=centinel.vpn.cli:run']
     },
 )
