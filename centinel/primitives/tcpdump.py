@@ -10,6 +10,7 @@ import tempfile
 
 
 # local imports
+import centinel
 from centinel import command
 
 
@@ -26,7 +27,17 @@ class Tcpdump():
         # type and whatever you change it to will become the new
         # default value until the interpreter is restarted
         if pcap_args is None:
-            pcap_args = ["-i", "any"]
+            # use the centinel configured tcpdump options if available
+            # (if not specified by the user, this will be -i any, so
+            # the same as below
+            if hasattr(centinel.conf['experiments'], 'tcpdump_params'):
+                pcap_args = centinel.conf['experiments']['tcpdump_params']
+            # for backwards compatability, ensure that we give some
+            # pcap args for what to capture
+            else:
+                pcap_args = ["-i", "any"]
+                logging.warning("Global config not available, so falling "
+                                "back on -i any pcap args")
         self.pcap_args = pcap_args
 
     def start(self):
