@@ -8,8 +8,8 @@ online information controls, and Internet censorship."""
 setup(
     name = "centinel",
     version = "0.1.5.2",
-    author = "ICLab Developers"
-    author_email = "bj6@princeton.edu"
+    author = "ICLab Developers",
+    author_email = "info@iclab.org",
     description = DESCRIPTION,
     license = "MIT",
     keywords = "censorship information controls network interference",
