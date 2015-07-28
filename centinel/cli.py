@@ -34,7 +34,7 @@ def parse_args():
 
     daemon_help = ('Create cron jobs to run centinel in the background and '
                    'autoupdate. You must be root to use this functionality'
-                   'By default, this will use /usr/local/bin/centinel-dev'
+                   'By default, this will use /usr/local/bin/centinel'
                    'for the binary location and will create an autoupdate '
                    'script')
     parser.add_argument('--daemonize', help=daemon_help, action='store_true',
@@ -42,17 +42,17 @@ def parse_args():
     binary_help = ('Name or location of the binary to use in the cron job '
                    'for centinel')
     parser.add_argument('--binary', help=binary_help,
-                        default='/usr/local/bin/centinel-dev')
+                        default='/usr/local/bin/centinel')
     update_help = ('Create an autoupdate script for the installed package. '
                    'Note that you must have installed from a pip package for '
                    'this to work correctly and you must also set the '
                    'daemonize option')
     parser.add_argument('--auto-update', action='store_false',
-                        help=update_help, default="centinel-dev")
+                        help=update_help, default="centinel")
 
     args = parser.parse_args()
-    if not args.daemonize and (args.auto_update != 'centinel-dev' or
-                               args.binary != '/usr/local/bin/centinel-dev'):
+    if not args.daemonize and (args.auto_update != 'centinel' or
+                               args.binary != '/usr/local/bin/centinel'):
         parser.error("--auto-update and --binary must be used with "
                      "--daemonize")
     return args
