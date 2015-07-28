@@ -83,6 +83,9 @@ if __name__ == "__main__":
 
         configuration.write_out_config(DEFAULT_CONFIG_FILE)
 
+    # making the config globally accessible by adding it to the centinel module
+    centinel.conf = configuration.params
+
     client = centinel.client.Client(configuration.params)
     client.setup_logging()
 

@@ -61,6 +61,7 @@ class Configuration():
 
         # experiments
         experiments = {}
+        experiments['tcpdump_params'] = "-i any"
         self.params['experiments'] = experiments
 
         # server
