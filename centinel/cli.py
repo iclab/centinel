@@ -85,6 +85,7 @@ def run():
 
         configuration.write_out_config(DEFAULT_CONFIG_FILE)
 
+    centinel.conf = configuration.params
     client = centinel.client.Client(configuration.params)
     client.setup_logging()
 
