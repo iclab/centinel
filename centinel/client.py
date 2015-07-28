@@ -22,6 +22,7 @@ class Client():
     def __init__(self, config):
         self.config = config
         self.experiments = self.load_experiments()
+        self._meta = None
 
     def setup_logging(self):
         logging.basicConfig(filename=self.config['log']['log_file'],
@@ -89,7 +90,18 @@ class Client():
                 return True
         return False
 
+    def get_meta(self):
+        """we only want to get the meta information (our normalized IP) once,
+        so we are going to do lazy instantiation to improve performance
+
+        """
+        # get the normalized IP if we don't already have it
+        if self._meta is None:
+            self._meta = get_meta(self.config)
+        return self._meta
+
     def run(self, data_dir=None):
+
         """
         Note: this function will check the experiments directory for a
         special file, scheduler.info, that details how often each
@@ -164,7 +176,7 @@ class Client():
             results["meta"] = {}
             try:
                 logging.info("Getting metadata for experiment...")
-                meta = get_meta(self.config)
+                meta = self.get_meta()
                 results["meta"] = meta
             except Exception as exception:
                 logging.error("Error fetching metadata for "
