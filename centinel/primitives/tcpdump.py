@@ -5,6 +5,7 @@
 # second passes over existing pcaps
 
 from base64 import b64encode
+import logging
 import os
 import tempfile
 
@@ -30,7 +31,7 @@ class Tcpdump():
             # use the centinel configured tcpdump options if available
             # (if not specified by the user, this will be -i any, so
             # the same as below
-            if hasattr(centinel.conf['experiments'], 'tcpdump_params'):
+            if 'tcpdump_params' in centinel.conf['experiments']:
                 pcap_args = centinel.conf['experiments']['tcpdump_params']
             # for backwards compatability, ensure that we give some
             # pcap args for what to capture

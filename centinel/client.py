@@ -4,7 +4,6 @@ import imp
 import json
 import logging
 import os
-import sys
 import tarfile
 import time
 
@@ -16,6 +15,7 @@ from centinel.backend import get_meta
 from centinel.primitives.tcpdump import Tcpdump
 
 loaded_modules = set()
+
 
 class Client():
 
@@ -46,8 +46,8 @@ class Client():
 
         try:
             input_file_handle = open(input_file)
-        except Exception as e:
-            logging.error("Can not read from %s" % (input_file))
+        except Exception as exp:
+            logging.error("Can not read from %s: %s" % (input_file, str(exp)))
             return None
 
         return input_file_handle
@@ -57,8 +57,8 @@ class Client():
         """
 
         # look for experiments in experiments directory
-        for path in glob.glob(os.path.join(self.config['dirs']['experiments_dir'],
-                                           '[!_]*.py')):
+        exp_dir = self.config['dirs']['experiments_dir']
+        for path in glob.glob(os.path.join(exp_dir, '[!_]*.py')):
             # get name of file and path
             name, ext = os.path.splitext(os.path.basename(path))
             # load the experiment
@@ -69,26 +69,14 @@ class Client():
                 imp.load_source(name, path)
                 loaded_modules.add(name)
             except Exception as exception:
-                logging.error("Failed to load experiment %s: %s" % (name, exception))
+                logging.error("Failed to load experiment %s: %s" %
+                              (name, exception))
 
         # return dict of experiment names and classes
         return ExperimentList.experiments
 
     def has_experiments_to_run(self):
-        # load scheduler information
-        sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
-                                      'scheduler.info')
-        sched_info = {}
-        if os.path.exists(sched_filename):
-            with open(sched_filename, 'r') as file_p:
-                sched_info = json.load(file_p)
-
-        for name in sched_info:
-            run_next = sched_info[name]['last_run']
-            run_next += sched_info[name]['frequency']
-            if run_next <= time.time():
-                return True
-        return False
+        return schedule.has_experiments_to_run(self.config)
 
     def get_meta(self):
         """we only want to get the meta information (our normalized IP) once,
@@ -151,14 +139,15 @@ class Client():
             if 'python_exps' not in sched_info[name]:
                 self.run_exp(name)
             else:
-                for python_exp, exp_config in sched_info[name]['python_exps'].items():
+                exps = sched_info[name]['python_exps'].items()
+                for python_exp, exp_config in exps:
                     self.run_exp(python_exp, exp_config, schedule_name=name)
 
             sched_info[name]['last_run'] = time.time()
 
         # write out the updated last run times
         with open(sched_filename, 'w') as file_p:
-            json.dump(sched_info, file_p, indent = 2,
+            json.dump(sched_info, file_p, indent=2,
                       separators=(',', ': '))
 
         self.consolidate_results()
@@ -194,14 +183,14 @@ class Client():
 
             input_files = {}
             if exp_config is not None:
-                if 'input_files' in exp_config and \
-                    exp_config['input_files'] is not None:
+                if (('input_files' in exp_config) and
+                   (exp_config['input_files'] is not None)):
                     for filename in exp_config['input_files']:
                         file_handle = self.load_input_file(filename)
                         if file_handle is not None:
                             input_files[filename] = file_handle
-                if 'params' in exp_config and \
-                    exp_config['params'] is not None:
+                if (('params' in exp_config) and
+                   (exp_config['params'] is not None)):
                     Exp.params = exp_config['params']
 
             # if the experiment specifies a list of input file names,
@@ -212,8 +201,8 @@ class Client():
                     file_handle = self.load_input_file(filename)
                     if file_handle is not None:
                         input_files[filename] = file_handle
-            else:
             # otherwise, fall back on [experiment name].txt
+            else:
                 input_files = self.load_input_file("%s.txt" % (name))
 
             try:
@@ -235,7 +224,7 @@ class Client():
 
             if run_tcpdump and os.geteuid() != 0:
                 logging.info("Centinel is not running as root, "
-                                 "tcpdump will not start.")
+                             "tcpdump will not start.")
                 run_tcpdump = False
 
             if run_tcpdump and Exp.overrides_tcpdump:
@@ -252,8 +241,8 @@ class Client():
                     logging.info("tcpdump started...")
                     # wait for tcpdump to initialize
                     time.sleep(2)
-            except Exception as e:
-                logging.warning("Failed to run tcpdump: %s" %(e))
+            except Exception as exp:
+                logging.warning("Failed to run tcpdump: %s" % (exp,))
 
             try:
                 # run the experiment
@@ -283,7 +272,7 @@ class Client():
                             file_p.write(data)
                     except Exception as exp:
                         logging.warning("Failed to write external file:"
-                                        "%s" %(exp))
+                                        "%s" % (exp))
 
             if tcpdump_started:
                 logging.info("Waiting for tcpdump to process packets...")
@@ -304,8 +293,8 @@ class Client():
                         logging.info("Saved pcap to "
                                      "%s." % (pcap_file_path))
                 except Exception as exception:
-                    logging.warning("Failed to write pcap file: %s" %(exception))
-
+                    logging.warning("Failed to write pcap file: %s" %
+                                    (exception))
 
             # close input file handle(s)
             if type(input_files) is dict:
@@ -331,15 +320,14 @@ class Client():
             result_file_path = self.get_result_file(name,
                                                     start_time.isoformat())
             result_file = bz2.BZ2File(result_file_path, "w")
-            json.dump(results, result_file, indent = 2,
+            json.dump(results, result_file, indent=2,
                       separators=(',', ': '))
             result_file.close()
-
 
     def consolidate_results(self):
         # bundle and compress result files
         result_files = [path for path in glob.glob(
-            os.path.join(self.config['dirs']['results_dir'],'*.json.bz2'))]
+            os.path.join(self.config['dirs']['results_dir'], '*.json.bz2'))]
 
         if len(result_files) >= self.config['results']['files_per_archive']:
             logging.info("Compressing and archiving results.")
@@ -350,7 +338,7 @@ class Client():
             files_per_archive = self.config['results']['files_per_archive']
             results_dir = self.config['dirs']['results_dir']
             for path in result_files:
-                if files_archived % files_per_archive  == 0:
+                if (files_archived % files_per_archive) == 0:
                     archive_count += 1
                     archive_filename = "results-%s_%d.tar.bz2" % (
                         datetime.now().isoformat(), archive_count)
@@ -362,11 +350,9 @@ class Client():
                         tar_file.close()
                     tar_file = tarfile.open(archive_file_path, "w:bz2")
 
-                tar_file.add(path,
-                             arcname = os.path.basename(path))
+                tar_file.add(path, arcname=os.path.basename(path))
                 os.remove(path)
                 files_archived += 1
 
             if tar_file:
                 tar_file.close()
-

@@ -42,6 +42,12 @@ class TurkeyExperiment(Experiment):
             blocked = SEARCH_STRING not in result["response"]["body"]
             result["blocked"] = blocked
         except Exception as err:
+            try:
+                result['x']
+            except NameError:
+                result = {}
+            except KeyError:
+                pass
             result["blocked"] = str(err)
 
         self.results.append(result)
