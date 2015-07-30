@@ -156,7 +156,7 @@ class BaselineExperiment(Experiment):
                         ssl_port = http_netloc.split(':')[1]
 
             except Exception as exp:
-                logging.warning("%s: failed to parse URL: %s" % (url, exp))
+                logging.exception("%s: failed to parse URL: %s" % (url, exp))
                 http_netloc = url
                 http_ssl    = False
                 ssl_port = 443
