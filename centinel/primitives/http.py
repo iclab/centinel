@@ -126,6 +126,8 @@ def get_request(host, path="/", headers=None, ssl=False,
 
             redirect_number += 1
     else:
+        if external is not None and type(external) is dict:
+            external[url] = first_response
         return first_response
     # the external result is used when threading to store
     # the results in the list container provided.
