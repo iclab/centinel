@@ -116,7 +116,7 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
         except Exception as exp:
             logging.exception("%s: Failed to sync: %s" % (filename, exp))
 
-        if not centinel.backend.experiments_available(config.params):
+        if not experiments_available(config.params):
             logging.info("%s: No experiments available." % (filename))
             try:
                 centinel.backend.set_vpn_info(config.params, vpn_address, country)
@@ -217,12 +217,6 @@ def create_config_files(directory):
 def experiments_available(config):
     logging.info("Starting to check for experiments with %s",
                  config['server']['server_url'])
-    try:
-        user = centinel.backend.User(config)
-    except Exception as exp:
-        logging.exception("Unable to create user: %s" % str(exp))
-        return False
-
     try:
         client = centinel.client.Client(config)
         if client.has_experiments_to_run():
