@@ -1,3 +1,4 @@
+import base64
 import centinel.primitives.http as http
 import centinel.primitives.dnslib as dns
 
@@ -17,6 +18,10 @@ class TurkeyExperiment(Experiment):
 
     def run(self):
         ips = dns.get_ips(self.host)
+        if 'response1-ips' in ips:
+            ips = ips['response1-ips']
+        else:
+            raise Exception("DNS resolution didn't yield any IP addresses.")
         blocked_ips = filter(self.is_blocked, ips)
 
         if not blocked_ips:
@@ -24,6 +29,10 @@ class TurkeyExperiment(Experiment):
 
         # let's try using Google's nameserver
         ips = dns.get_ips(self.host, nameserver=GOOGLE_DNS)
+        if 'response1-ips' in ips:
+            ips = ips['response1-ips']
+        else:
+            raise Exception("DNS resolution didn't yield any IP addresses.")
         blocked_ips = filter(self.is_blocked, ips)
 
         if not blocked_ips:
@@ -36,20 +45,21 @@ class TurkeyExperiment(Experiment):
 
         blocked = True
 
-        try:
-            result = http.get_request(ip, self.path, headers, ssl=True)
+        result = http.get_request(host=ip, path=self.path, headers=headers, ssl=True)
 
-            blocked = SEARCH_STRING not in result["response"]["body"]
-            result["blocked"] = blocked
-        except Exception as err:
-            try:
-                result['x']
-            except NameError:
-                result = {}
-            except KeyError:
-                pass
-            result["blocked"] = str(err)
+        body = None
+        if 'response' in result:
+            if 'body' in result['response']:
+                body = result['response']['body']
+            elif 'body.b64' in result['response']:
+                body = base64.b64decode(result["response"]["body.b64"])
+            else:
+                raise Exception("HTTP GET result did not return a body.")
+        else:
+            raise Exception("HTTP GET results didn't contain a response.")
 
+        blocked = SEARCH_STRING not in body
+        result["blocked"] = blocked
         self.results.append(result)
 
         return blocked
