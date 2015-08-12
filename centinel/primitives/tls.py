@@ -45,7 +45,6 @@ def get_fingerprint(host, port=443, external=None):
         if external is not None:
             external[row] = {"tls_error": tls_error,
                              "fingerprint_error": fingerprint_error}
-        raise exception
 
     if external is not None and type(external) is dict:
         external[row] = {"cert": cert,
