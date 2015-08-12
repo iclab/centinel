@@ -71,7 +71,8 @@ def get_request(host, path="/", headers=None, ssl=False,
     if "failure" in first_response["response"]:  # If there was an error, just ignore redirects and return
         if external is not None and type(external) is dict:
             external[url] = first_response
-            return first_response
+        return first_response
+
     # Checks HTTP Status code and location header to see if the webpage calls for a redirect
     stat_starts_with_3 = str(first_response["response"]["status"]).startswith("3")
     response_headers_contains_location = "location" in first_response["response"]["headers"]
