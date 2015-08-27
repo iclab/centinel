@@ -30,7 +30,7 @@ class LinearBaselineExperiment(Experiment):
     name = "baseline_linear"
     # country-specific, world baseline
     # this can be overridden by the main thread
-    input_files = ['country', 'world']
+    input_files = ['country.csv', 'world.csv']
 
     # we do our own tcpdump recording here
     overrides_tcpdump = True
