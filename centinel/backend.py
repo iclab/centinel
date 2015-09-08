@@ -38,7 +38,7 @@ class User:
             req.raise_for_status()
             return req.json()
         except Exception as exp:
-            logging.error("Exception trying to make request - %s for URL: %s" %
+            logging.exception("Exception trying to make request - %s for URL: %s" %
                           (exp, url))
             raise exp
 
@@ -47,7 +47,7 @@ class User:
         try:
             return int(self.request("version")["version"])
         except Exception as exp:
-            logging.error("Exception trying to get recommended version: %s " %
+            logging.exception("Exception trying to get recommended version: %s " %
                           (exp))
             raise exp
 
@@ -56,7 +56,7 @@ class User:
         try:
             return self.request("experiments")["experiments"]
         except Exception as exp:
-            logging.error("Error trying to get experiments: %s " % (exp))
+            logging.exception("Error trying to get experiments: %s " % (exp))
             raise exp
 
     @property
@@ -64,7 +64,7 @@ class User:
         try:
             return self.request("input_files")["inputs"]
         except Exception as exp:
-            logging.error("Error trying to get input files: %s " % (exp))
+            logging.exception("Error trying to get input files: %s " % (exp))
             raise exp
 
     @property
@@ -72,7 +72,7 @@ class User:
         try:
             return self.request("results")
         except Exception as exp:
-            logging.error("Error trying to get results: %s " % (exp))
+            logging.exception("Error trying to get results: %s " % (exp))
             raise exp
 
     @property
@@ -80,7 +80,7 @@ class User:
         try:
             return self.request("clients")
         except Exception as exp:
-            logging.error("Error trying to get clients: %s " % (exp))
+            logging.exception("Error trying to get clients: %s " % (exp))
             raise exp
 
     def submit_result(self, file_name):
@@ -100,7 +100,7 @@ class User:
                    and self.config['results']['delete_after_sync']):
                     os.remove(file_name)
             except Exception as exp:
-                logging.error("Error trying to submit result: %s" % exp)
+                logging.exception("Error trying to submit result: %s" % exp)
                 raise exp
 
     def sync_scheduler(self):
@@ -124,7 +124,7 @@ class User:
                                verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
-            logging.error("Error trying to download scheduler.info: %s" % exp)
+            logging.exception("Error trying to download scheduler.info: %s" % exp)
             raise exp
 
         server_sched = json.loads(req.content)
@@ -168,7 +168,7 @@ class User:
                                verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
-            logging.error("Error trying to download experiments: %s" % exp)
+            logging.exception("Error trying to download experiments: %s" % exp)
             raise exp
 
         name = "%s" % name
@@ -187,7 +187,7 @@ class User:
                                verify=self.verify)
             req.raise_for_status()
         except Exception as exp:
-            logging.error("Error trying to download experiments: %s" % exp)
+            logging.exception("Error trying to download experiments: %s" % exp)
             raise exp
 
         name = "%s" % name
@@ -210,7 +210,7 @@ class User:
             req.raise_for_status()
             return req.json()
         except Exception as exp:
-            logging.error("Error trying to submit registration URL: %s " % exp)
+            logging.exception("Error trying to submit registration URL: %s " % exp)
             raise exp
 
     def set_country(self, country):
@@ -224,7 +224,7 @@ class User:
             req.raise_for_status()
             return req.json()
         except Exception as exp:
-            logging.error("Error trying to set country: %s " % exp)
+            logging.exception("Error trying to set country: %s " % exp)
             raise exp
 
     def set_ip(self, ip):
@@ -238,7 +238,7 @@ class User:
             req.raise_for_status()
             return req.json()
         except Exception as exp:
-            logging.error("Error trying to set ip: %s " % exp)
+            logging.exception("Error trying to set ip: %s " % exp)
             raise exp
 
     def create_user(self):
@@ -258,7 +258,7 @@ class User:
                     login_details['typeable_handle'] = self.typeable_handle
                 json.dump(login_details, login_fh)
         except Exception as exp:
-            logging.error("Unable to register: %s" % str(exp))
+            logging.exception("Unable to register: %s" % str(exp))
             raise exp
 
     def informed_consent(self):
@@ -286,7 +286,7 @@ def sync(config):
     try:
         user = User(config)
     except Exception, exp:
-        logging.error("Unable to create user: %s" % str(exp))
+        logging.exception("Unable to create user: %s" % str(exp))
         return
 
     # send all results (.bz2)
@@ -353,9 +353,9 @@ def sync(config):
                 try:
                     user.sync_scheduler()
                 except Exception as e:
-                    logging.error("Scheduler sync failed: %s", str(e))
+                    logging.exception("Scheduler sync failed: %s", str(e))
         except Exception as e:
-            logging.error("Unable to download experiment file: %s", str(e))
+            logging.exception("Unable to download experiment file: %s", str(e))
 
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
@@ -366,7 +366,7 @@ def sync(config):
     try:
         server_inputs = user.input_files
     except Exception as exp:
-        logging.error("Unable to retrive user inputs due to Exception: "
+        logging.exception("Unable to retrive user inputs due to Exception: "
                       "%s. Preempting" % exp)
         return
 
@@ -386,7 +386,7 @@ def sync(config):
         try:
             user.download_input_file(input_file)
         except Exception, e:
-            logging.error("Unable to download input file %s", str(e))
+            logging.exception("Unable to download input file %s", str(e))
         if time.time() - start > config['server']['total_timeout']:
             logging.error("Interaction with server took too long. Preempting")
             return
@@ -400,7 +400,7 @@ def set_vpn_info(config, ip=None, country=None):
     try:
         user = User(config)
     except Exception as exp:
-        logging.error("Unable to create user: %s" % str(exp))
+        logging.exception("Unable to create user: %s" % str(exp))
         return False
 
     if country is not None:
@@ -420,5 +420,5 @@ def get_meta(config, ip=''):
         req.raise_for_status()
         return req.json()
     except Exception as exp:
-        logging.error("Error trying to get metadata: %s " % exp)
+        logging.exception("Error trying to get metadata: %s " % exp)
         raise exp

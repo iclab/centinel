@@ -47,7 +47,7 @@ class Client():
         try:
             input_file_handle = open(input_file)
         except Exception as exp:
-            logging.error("Can not read from %s: %s" % (input_file, str(exp)))
+            logging.exception("Can not read from %s: %s" % (input_file, str(exp)))
             return None
 
         return input_file_handle
@@ -69,14 +69,28 @@ class Client():
                 imp.load_source(name, path)
                 loaded_modules.add(name)
             except Exception as exception:
-                logging.error("Failed to load experiment %s: %s" %
+                logging.exception("Failed to load experiment %s: %s" %
                               (name, exception))
 
         # return dict of experiment names and classes
         return ExperimentList.experiments
 
     def has_experiments_to_run(self):
-        return schedule.has_experiments_to_run(self.config)
+        # load scheduler information
+        sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
+                                      'scheduler.info')
+        sched_info = {}
+        if os.path.exists(sched_filename):
+            with open(sched_filename, 'r') as file_p:
+                sched_info = json.load(file_p)
+
+        for name in sched_info:
+            run_next = sched_info[name]['last_run']
+            run_next += sched_info[name]['frequency']
+            if run_next <= time.time():
+                return True
+        return False
+
 
     def get_meta(self):
         """we only want to get the meta information (our normalized IP) once,
@@ -168,7 +182,7 @@ class Client():
                 meta = self.get_meta()
                 results["meta"] = meta
             except Exception as exception:
-                logging.error("Error fetching metadata for "
+                logging.exception("Error fetching metadata for "
                               "%s: %s" % (name, exception))
                 results["meta_exception"] = str(exception)
 
@@ -209,7 +223,7 @@ class Client():
                 # instantiate the experiment
                 exp = Exp(input_files)
             except Exception as exception:
-                logging.error("Error initializing %s: %s" % (name, exception))
+                logging.exception("Error initializing %s: %s" % (name, exception))
                 results["init_exception"] = str(exception)
                 return
 
@@ -242,13 +256,13 @@ class Client():
                     # wait for tcpdump to initialize
                     time.sleep(2)
             except Exception as exp:
-                logging.warning("Failed to run tcpdump: %s" % (exp,))
+                logging.exception("Failed to run tcpdump: %s" % (exp,))
 
             try:
                 # run the experiment
                 exp.run()
             except Exception as exception:
-                logging.error("Error running %s: %s" % (name, exception))
+                logging.exception("Error running %s: %s" % (name, exception))
                 results["runtime_exception"] = str(exception)
 
             # save any external results that the experiment has generated
@@ -271,7 +285,7 @@ class Client():
                             data = bz2.compress(fcontents)
                             file_p.write(data)
                     except Exception as exp:
-                        logging.warning("Failed to write external file:"
+                        logging.exception("Failed to write external file:"
                                         "%s" % (exp))
 
             if tcpdump_started:
@@ -293,7 +307,7 @@ class Client():
                         logging.info("Saved pcap to "
                                      "%s." % (pcap_file_path))
                 except Exception as exception:
-                    logging.warning("Failed to write pcap file: %s" %
+                    logging.exception("Failed to write pcap file: %s" %
                                     (exception))
 
             # close input file handle(s)
@@ -306,7 +320,7 @@ class Client():
             try:
                 results[name] = exp.results
             except Exception as exception:
-                logging.error("Error saving results for "
+                logging.exception("Error saving results for "
                               "%s: %s" % (name, exception))
                 results["results_exception"] = str(exception)
 
