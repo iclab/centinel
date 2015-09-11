@@ -63,8 +63,7 @@ class BaselineExperiment(Experiment):
         # Initialize the results for this input file.
         # This can be anything from file name to version
         # to any useful information.
-        result = {}
-        result["file_name"] = file_name
+        result = {"file_name": file_name}
         run_start_time = time.time()
 
         http_results = {}
