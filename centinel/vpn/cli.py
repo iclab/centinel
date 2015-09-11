@@ -218,6 +218,11 @@ def create_config_files(directory):
         configuration.params['server']['login_file'] = login_file
         configuration.params['user']['is_vpn'] = True
 
+        configuration.params['server']['verify'] = False
+        configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
+        # set vpn server to be sbu server by default
+        configuration.params['server']['server_url'] = "https://130.245.145.7:8082"
+
         conf_file = os.path.join(conf_dir, filename)
         configuration.write_out_config(conf_file)
 
