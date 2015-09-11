@@ -6,13 +6,14 @@ import threading
 import time
 
 
-class OpenVPN():
-    def __init__(self, config_file=None, auth_file=None, timeout=10):
+class OpenVPN:
+    def __init__(self, config_file=None, auth_file=None, crt_file=None, timeout=60):
         self.started = False
         self.stopped = False
         self.error = False
         self.notifications = ""
         self.auth_file = auth_file
+        self.crt_file = crt_file
         self.config_file = config_file
         self.thread = threading.Thread(target=self._invoke_openvpn)
         self.thread.setDaemon(1)
@@ -22,10 +23,15 @@ class OpenVPN():
         if self.auth_file is None:
             cmd = ['sudo', 'openvpn', '--script-security', '2',
                    '--config', self.config_file]
-        else:
+        elif self.crt_file is None:
             cmd = ['sudo', 'openvpn', '--script-security', '2',
                    '--config', self.config_file,
                    '--auth-user-pass', self.auth_file]
+        else:
+            cmd = ['sudo', 'openvpn', '--script-security', '2',
+                   '--config', self.config_file,
+                   '--auth-user-pass', self.auth_file,
+                   '--ca', self.crt_file]
         self.process = subprocess.Popen(cmd,
                                         stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
@@ -45,7 +51,7 @@ class OpenVPN():
 
         if "Initialization Sequence Completed" in line:
             self.started = True
-        if "ERROR:" in line:
+        if "ERROR:" in line or "Cannot resolve host address:" in line:
             self.error = True
         if "process exiting" in line:
             self.stopped = True
