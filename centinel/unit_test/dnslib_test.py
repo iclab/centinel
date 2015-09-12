@@ -1,20 +1,34 @@
 import unittest
+import os.path
 from ..primitives import dnslib
 
 class DNSUnitTest(unittest.TestCase):
 
     def setUp(self):
-        self.dnsQuery = dnslib.DNSQuery()
+        #READ TEST EXAMPLES
+        self.namerservers = []
+        self.domains = []
+        cwd = os.getcwd()
+        # cwd = cwd.rstrip(os.path.basename(cwd))
+        with open(os.path.join(cwd,'centinel/data/dns_example.txt'),'r') as dnsfile:
+            domain = dnsfile.readline().rstrip('\n')
+            while(domain != ''):
+                self.domains.append(domain)
+                domain = dnsfile.readline().rstrip('\n')
+            dnsfile.close()
+
+        self.dnsQuery = dnslib.DNSQuery(self.domains, self.namerservers)
         self.ipregex = '^((2([0-5]){2}\.)|(([1][0-9]\d\.)|(([1-9]\d\.)|(\d\.)))){3}(2([0-5]){2}$)|(([1][0-9]\d$)|(([1-9]\d$)|(\d$)))'
 
-
+    #1. read test case from file
+    #2. go through each domain (nameservers if provide)
     def test_lookup_domain(self):
 
-        #CASE 1:
         # GIVEN A VALID DOMAIN NAME,
         # THE CLINT SHOULD RECEIVE TWO RESPONSES FROM THE DNS SEVER
-        result = self.dnsQuery.lookup_domain("www.google.com")
-        self._lookup_domain_helper(result)
+        for domain in self.domains:
+            result = self.dnsQuery.lookup_domain(domain)
+            self._lookup_domain_helper(result)
 
 
     def test_send_chaos_queries(self):
