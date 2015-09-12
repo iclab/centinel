@@ -1,6 +1,6 @@
 import unittest
 import os.path
-from test_output_format import bcolors
+import test_helper
 from ..primitives import traceroute
 
 class TrancerouteUnitTest(unittest.TestCase):
@@ -29,15 +29,15 @@ class TrancerouteUnitTest(unittest.TestCase):
 
     def _good_input_test(self, result):
         #GIVEN A VALID INPUT, RESULT SHOULD CONTAIN RETURN MESSAGE IN A HEALTHY FORMAT
-        self._assert('assertFalse','error' in result, result)
+        test_helper.ic_assert(self,'assertFalse','error' in result, result)
 
-    def _assert(self, assert_name, expr, result):
-        try:
-            self.__getattribute__(assert_name)(expr)
-            print bcolors.OKGREEN + '%s passed' %(result['domain']) + bcolors.ENDC
-        except AssertionError as err:
-            err_msg = 'unknown error, no message given' if result['error'] is '' else result['error']
-            self.error_list[result['domain']] = err_msg
+    # def _assert(self, assert_name, expr, result):
+    #     try:
+    #         self.__getattribute__(assert_name)(expr)
+    #         print bcolors.OKGREEN + '%s passed' %(result['domain']) + bcolors.ENDC
+    #     except AssertionError as err:
+    #         err_msg = 'unknown error, no message given' if result['error'] is '' else result['error']
+    #         self.error_list[result['domain']] = err_msg
 
 
 
@@ -51,9 +51,10 @@ class TrancerouteUnitTest(unittest.TestCase):
 
     def tearDown(self):
         if self.error_list is not None:
-            for err in self.error_list:
-                print bcolors.FAIL + '%s %s' % (err, self.error_list[err]) + bcolors.ENDC
-            raise AssertionError('%s errors found' % (len(self.error_list)))
+            test_helper.echo_err(self.error_list)
+            # for err in self.error_list:
+            #     print bcolors.FAIL + '%s %s' % (err, self.error_list[err]) + bcolors.ENDC
+            # raise AssertionError('%s errors found' % (len(self.error_list)))
         else:
             print 'ok all passed'
 
