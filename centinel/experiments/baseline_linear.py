@@ -69,9 +69,7 @@ class LinearBaselineExperiment(Experiment):
         # Initialize the results for this input file.
         # This can be anything from file name to version
         # to any useful information.
-        result = {}
-        result["file_name"] = file_name
-
+        result = {'file_name': file_name}
 
         http_results = {}
         tls_results = {}
@@ -195,17 +193,15 @@ class LinearBaselineExperiment(Experiment):
                                                      http_path,
                                                      ssl=http_ssl)
             except Exception as exp:
-                logging.info("%s: HTTP test failed: %s" %
-                             (url, exp))
-                http_results[url] = { "exception" : str(exp) }
+                logging.warning("%s: HTTP test failed: %s" % (url, exp))
+                http_results[url] = {"exception": str(exp)}
 
             # TLS certificate
             # this will only work if the URL starts with https://
             if http_ssl:
                 try:
                     tls_result = {}
-                    logging.info("%s: TLS certificate" %
-                                 (domain_name))
+                    logging.info("%s: TLS certificate" % (domain_name))
                     fingerprint, cert = tls.get_fingerprint(domain_name, ssl_port)
                     tls_result['port'] = ssl_port
                     tls_result['fingerprint'] = fingerprint
@@ -213,18 +209,18 @@ class LinearBaselineExperiment(Experiment):
 
                     tls_results[domain_name] = tls_result
                 except Exception as exp:
-                    logging.info("%s: TLS certfiticate download failed: %s" %
-                                 (domain_name, exp))
-                    tls_results[domain_name] = { "exception" : str(exp) }
+                    logging.warning("%s: TLS certfiticate download failed: %s" %
+                                    (domain_name, exp))
+                    tls_results[domain_name] = {"exception": str(exp)}
 
             # DNS Lookup
             logging.info("%s: DNS" % (domain_name))
             try:
                 dns_results[domain_name] = dnslib.lookup_domain(domain_name)
             except Exception as exp:
-                logging.info("%s: DNS lookup failed: %s" %
-                             (domain_name, exp))
-                dns_results[domain_name] = { "exception" : str(exp) }
+                logging.warning("%s: DNS lookup failed: %s" %
+                                (domain_name, exp))
+                dns_results[domain_name] = {"exception": str(exp)}
 
             # Traceroute
             for method in self.traceroute_methods:
@@ -234,10 +230,9 @@ class LinearBaselineExperiment(Experiment):
                     traceroute_results[domain_name] = traceroute.traceroute(
                         domain_name, method=method)
                 except Exception as exp:
-                    logging.info("%s: Traceroute (%s) failed: %s" %
+                    logging.warning("%s: Traceroute (%s) failed: %s" %
                                     (domain_name, method.upper(), exp))
-                    traceroute_results[domain_name] = {
-                        "exception" : str(exp) }
+                    traceroute_results[domain_name] = {"exception": str(exp)}
 
             # end tcpdump
             if tcpdump_started:
@@ -246,8 +241,7 @@ class LinearBaselineExperiment(Experiment):
                 time.sleep(2)
                 td.stop()
                 logging.info("%s: tcpdump stopped." % (url))
-                pcap_indexes[url] = '%s-%s.pcap' % (file_name,
-                    format(url_index, '04'))
+                pcap_indexes[url] = '%s-%s.pcap' % (file_name, format(url_index, '04'))
                 pcap_results[pcap_indexes[url]] = td.pcap()
 
             # Meta-data
@@ -265,7 +259,7 @@ class LinearBaselineExperiment(Experiment):
             for url, meta in url_metadata_results.items():
                 try:
                     indexed_meta = {}
-                    for i in range(1,len(index_row)):
+                    for i in range(1, len(index_row)):
                         indexed_meta[index_row[i]] = meta[i - 1]
                     indexed_url_metadata[url] = indexed_meta
                 except:

@@ -20,6 +20,9 @@ def parse_args():
     parser.add_argument('--auth-file', '-u', dest='auth_file', default=None,
                         help=("File with HMA username on first line, \n"
                               "HMA password on second line"))
+    parser.add_argument('--crt-file', '-r', dest='crt_file', default=None,
+                        help=("Certificate file for the current vpn\n"
+                              "provider, if provided"))
     parser.add_argument('--create-hma-configs', dest='create_HMA',
                         action="store_true",
                         help='Create the openvpn config files for HMA')
@@ -44,7 +47,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
+def scan_vpns(directory, auth_file, crt_file, exclude_list, shuffle_lists=False):
     """For each VPN, check if there are experiments and scan with it if
     necessary
 
@@ -62,7 +65,10 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
     # iterate over each VPN
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
-    auth_file = return_abs_path(".", auth_file)
+    if auth_file is not None:
+        auth_file = return_abs_path(directory, auth_file)
+    if crt_file is not None:
+        crt_file = return_abs_path(directory, crt_file)
     conf_list = os.listdir(conf_dir)
 
     if shuffle_lists:
@@ -75,7 +81,7 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
         logging.info("Moving onto (%d/%d) %s" % (number, total, filename))
         print "(%d/%d) %s" % (number, total, filename)
 
-        number = number + 1
+        number += 1
         vpn_config = os.path.join(vpn_dir, filename)
         centinel_config = os.path.join(conf_dir, filename)
 
@@ -97,7 +103,7 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
                 country = meta['country']
         except Exception as exp:
             logging.exception("%s: Failed to geolocate "
-                          "%s: %s" % (filename, vpn_address, exp))
+                              "%s: %s" % (filename, vpn_address, exp))
 
         if country and exclude_list and country in exclude_list:
             logging.info("%s: Skipping this server (%s)" % (filename, country))
@@ -125,8 +131,10 @@ def scan_vpns(directory, auth_file, exclude_list, shuffle_lists=False):
             continue
 
         logging.info("%s: Starting VPN." % (filename))
-        vpn = openvpn.OpenVPN(timeout=30, auth_file=auth_file,
-                                       config_file=vpn_config)
+
+        vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file,
+                              config_file=vpn_config, crt_file=crt_file)
+
         vpn.start()
         if not vpn.started:
             vpn.stop()
@@ -210,6 +218,11 @@ def create_config_files(directory):
         configuration.params['server']['login_file'] = login_file
         configuration.params['user']['is_vpn'] = True
 
+        configuration.params['server']['verify'] = False
+        configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
+        # set vpn server to be sbu server by default
+        configuration.params['server']['server_url'] = "https://130.245.145.7:8082"
+
         conf_file = os.path.join(conf_dir, filename)
         configuration.write_out_config(conf_file)
 
@@ -241,8 +254,8 @@ def run():
         # create the config files for the openvpn config files
         create_config_files(args.create_conf_dir)
     else:
-        scan_vpns(args.directory, args.auth_file, args.exclude_list,
-                  args.shuffle_lists)
+        scan_vpns(args.directory, args.auth_file, args.crt_file,
+                  args.exclude_list, args.shuffle_lists)
 
 if __name__ == "__main__":
     run()
