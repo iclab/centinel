@@ -45,12 +45,9 @@ class BaselineExperiment(Experiment):
         if os.geteuid() != 0:
             logging.info("Centinel is not running as root, "
                          "traceroute will be limited to UDP.")
-            self.traceroute_methods = ["udp"]
-        else:
-            # if running as root, TCP and UDP traceroute
-            # doing all 3 methods takes a lot of time
-            # self.traceroute_methods = ["icmp", "udp", "tcp"]
-            self.traceroute_methods = ["tcp", "udp"]
+            # only change to udp if method list was not empty before
+            if self.traceroute_methods:
+                self.traceroute_methods = ["udp"]
 
     def run(self):
         for input_file in self.input_files.items():
