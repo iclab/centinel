@@ -4,10 +4,7 @@
     "python_exps": {
       "baseline": {
         "params": {
-          "traceroute_methods": [
-            "tcp",
-            "udp"
-          ]
+          "traceroute_methods": ["tcp"]
         },
         "input_files": [
           "xx.csv"
