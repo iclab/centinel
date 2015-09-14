@@ -28,10 +28,10 @@ def _get_http_request(host, path="/", headers=None, ssl=False,
 
     try:
         if ssl:
-            conn = httplib.HTTPSConnection(host)
+            conn = httplib.HTTPSConnection(host, timeout=10)
             request["ssl"] = True
         else:
-            conn = httplib.HTTPConnection(host)
+            conn = httplib.HTTPConnection(host, timeout=10)
             request["ssl"] = False
         if headers:
             conn.request("GET", path, headers=headers)
