@@ -1,7 +1,7 @@
 __author__ = 'xinwenwang'
 
 import pytest
-from ..primitives import traceroute
+from centinel.primitives import traceroute
 
 
 class TestTraceRoute:
