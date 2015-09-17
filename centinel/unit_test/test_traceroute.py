@@ -1,5 +1,3 @@
-__author__ = 'xinwenwang'
-
 import pytest
 from centinel.primitives import traceroute
 
