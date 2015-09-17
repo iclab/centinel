@@ -15,7 +15,7 @@ def get_ips(host, nameserver=None, record="A"):
     return lookup_domain(host, nameservers=nameservers, rtype=record)
 
 
-def lookup_domain(domain, nameservers=[], rtype="A", timeout=10):
+def lookup_domain(domain, nameservers=[], rtype="A", timeout=2):
     """Wrapper for DNSQuery method"""
     dns_exp = DNSQuery(domains=[domain], nameservers=nameservers, rtype=rtype,
                        timeout=timeout)
