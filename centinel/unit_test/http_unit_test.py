@@ -5,7 +5,6 @@ import os
 
 class TestHTTPMethods(unittest.TestCase):
 
-
     def test_URL_NotExist(self):
         """
         test if _get_http_request(args...) returns failure
@@ -18,7 +17,6 @@ class TestHTTPMethods(unittest.TestCase):
             res = http._get_http_request(line)
             self.assertIn('failure', res['response'].keys())
         fd.close()
-
 
     def test_URL_Exist(self):
         """
@@ -55,7 +53,6 @@ class TestHTTPMethods(unittest.TestCase):
         for key,result in results.items():
             self.assertNotIn('failure', result['response'].keys())
         fd.close()
-
 
 if __name__ == '__main__' :
     tests = unittest.TestLoader().loadTestsFromTestCase(TestHTTPMethods)
