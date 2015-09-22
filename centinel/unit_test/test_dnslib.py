@@ -81,21 +81,18 @@ class TestDnslib:
 
 
 
-    #+ valid domain name with invalid servername
-    @pytest.mark.xfailed
+    #+ valid domain name with invalid servernam
     def test_lookup_domain_bad_servername(self):
 
-        servername = []
+        servername = ['127.0.0.1']
         domain = 'www.google.com'
 
-        with pytest.raises(RuntimeError):
+        result = dnslib.lookup_domain(domain, servername)
+        assert result is not None
 
-            result = dnslib.lookup_domain(domain, servername)
-            assert result is not None
-
-            #- test response1 is none
-            assert 'response1' in result
-            assert result['response1'] is None
+        #- test response1 is none
+        assert 'response1' in result
+        assert result['response1'] is None
 
     #.2 test multiple domains
     @pytest.mark.skipif(True)
