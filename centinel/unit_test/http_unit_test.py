@@ -53,7 +53,3 @@ class TestHTTPMethods:
         for key,result in results.items():
             assert 'failure' not in result['response'].keys()
         fd.close()
-
-if __name__ == '__main__' :
-    tests = unittest.TestLoader().loadTestsFromTestCase(TestHTTPMethods)
-    unittest.TextTestRunner(verbosity=2).run(tests)
