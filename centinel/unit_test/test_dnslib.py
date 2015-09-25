@@ -1,17 +1,46 @@
 import pytest
 import re
+import os
 from centinel.primitives import dnslib
 
 
 class TestDnslib:
 
-    @pytest.fixture(scope='module')
+    @pytest.fixture(scope='class')
     def ipregex(self):
         return "^((((2(([0-4]\d)|(5[0-5]))\.)|(1\d\d\.))|([1-9]\d\.))|(\d\.)){3}((((2(([0-4]\d)|(5[0-5]))$)|(1\d\d$))|([1-9]\d$))|(\d$))"
 
-    # 1. test good case response
-    #   .1 test single domain w/ domain name
+    @pytest.fixture(scope='class')
+    def invalid_domains(self):
+        cwd = os.getcwd()
+        invalid_domains = [];
+        with open(os.path.join(cwd,'centinel/data/invalid_hosts.txt')) as testfile:
+            domain = testfile.readline().rstrip('\n')
+            while domain != '':
+                invalid_domains.append(domain)
+                domain = testfile.readline().rstrip('\n')
+            testfile.close()
+        return invalid_domains
+
+    @pytest.fixture(scope='class')
+    def valid_domains(self):
+        cwd = os.getcwd()
+        valid_domains = [];
+        with open(os.path.join(cwd,'centinel/data/valid_hosts.txt')) as testfile:
+            domain = testfile.readline().rstrip('\n')
+            while domain != '':
+                valid_domains.append(domain)
+                domain = testfile.readline().rstrip('\n')
+            testfile.close()
+        return valid_domains
+
     def test_lookup_domain_good(self, ipregex, domain='www.google.com'):
+        """
+        1. test good case response
+            .1 test single domain w/ domain name
+        :param ipregex: valid IP regular expression fixture
+        :param domain: domain to be tested
+        """
 
         result = dnslib.lookup_domain(domain)
 
@@ -45,10 +74,16 @@ class TestDnslib:
                 assert re.match(ipregex, ip), 'ip is invalid'
 
 
-    #   .2 test multiple domains w/ domain names
-    def test_loopup_domains_good(self, ipregex):
+    def test_loopup_domains_good(self, ipregex, valid_domains):
+        """
+        .2 test multiple domains w/ domain names
+        :param ipregex: valid IP regular expression fixture
+        """
+        if len(valid_domains) is not 0:
+            domains = valid_domains
+        else:
+            domains = ['www.google.com', 'www.github.com']
 
-        domains = ['www.google.com', 'www.github.com']
         results = dnslib.lookup_domains(domains)
 
         #* test results is not None
@@ -61,12 +96,14 @@ class TestDnslib:
         for name in domains:
             assert name in results
 
-    # 2. test handling of bad case
-    #   .1 test single domain w/ domain name
-    #     * test result is not none (even in bad case, the return value should exist)
-    #+ no domain name given
-    def test_lookup_domain_bad_domain_name(self):
 
+    def test_lookup_domain_bad_domain_name(self):
+        """
+         2. test handling of bad case
+            .1 test single domain w/ domain name
+                * test result is not none (even in bad case, the return value should exist)
+                    + no domain name given
+        """
         #+ invalid domain name
         domain = 'www.gosdafeefwqmqwnpqpjdvzgle.s.adf.wefpqwfm.ewqfqpwqrqwn.com'
         result = dnslib.lookup_domain(domain)
@@ -81,8 +118,10 @@ class TestDnslib:
 
 
 
-    #+ valid domain name with invalid servernam
     def test_lookup_domain_bad_servername(self):
+        """
+        + valid domain name with invalid servernam
+        """
 
         servername = ['127.0.0.1']
         domain = 'www.google.com'
@@ -94,13 +133,15 @@ class TestDnslib:
         assert 'response1' in result
         assert result['response1'] is None
 
-    #.2 test multiple domains
-    @pytest.mark.skipif(True)
-    def test_lookup_domains_thread_error(self):
+
+    def test_lookup_domains_thread_error(self, invalid_domains):
+        """
+        .2 test multiple domains
+        """
 
         #* test results is not none
         #+ given a great number of domains
-        domains = []
+        domains = invalid_domains if len(invalid_domains) is not 0 else []
         result = dnslib.lookup_domains(domains)
 
         #- test 'error' is in results
@@ -109,10 +150,11 @@ class TestDnslib:
         assert result['error'] is "Threads took too long to finish."
 
 
-    # 3. others
-    # .1 test send chaos queries
     def test_send_chaos_queries(self):
-
+        """
+        3. others
+            .1 test send chaos queries
+        """
         result = dnslib.send_chaos_queries()
 
         assert result is not None
@@ -126,4 +168,9 @@ class TestDnslib:
             assert not isNone
 
 
-pytest.main('-v')
+if __name__ == '__main__':
+    pytest.main("-v")
+
+
+
+
