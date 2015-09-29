@@ -1,0 +1,9 @@
+www.google.com
+www.facebook.com
+www.amazon.com
+www.gmail.com
+www.stackoverflow.com
+www.linkedIn.com
+www.espncricinfo.com
+www.bleacherreport.com
+www.zigzag.com`
