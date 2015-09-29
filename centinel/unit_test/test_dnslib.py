@@ -14,7 +14,7 @@ class TestDnslib:
     def invalid_domains(self):
         cwd = os.getcwd()
         invalid_domains = [];
-        with open(os.path.join(cwd,'centinel/data/invalid_hosts.txt')) as testfile:
+        with open("data/invalid_hosts.txt","r") as testfile:
             domain = testfile.readline().rstrip('\n')
             while domain != '':
                 invalid_domains.append(domain)
@@ -26,7 +26,7 @@ class TestDnslib:
     def valid_domains(self):
         cwd = os.getcwd()
         valid_domains = [];
-        with open(os.path.join(cwd,'centinel/data/valid_hosts.txt')) as testfile:
+        with open("data/valid_hosts.txt","r") as testfile:
             domain = testfile.readline().rstrip('\n')
             while domain != '':
                 valid_domains.append(domain)
@@ -50,7 +50,7 @@ class TestDnslib:
         #* test query domain is matched given domain
         assert result['domain'] == domain, 'Requested domain name should match given domain name'
 
-        #* test domainserver is not none
+        #* test DNS is not none
         assert result['nameserver'] is not None
 
         #* test first reqsposne is not none
@@ -120,7 +120,7 @@ class TestDnslib:
 
     def test_lookup_domain_bad_servername(self):
         """
-        + valid domain name with invalid servernam
+        + valid domain name with invalid servername
         """
 
         servername = ['127.0.0.1']

@@ -8,7 +8,7 @@ class TestTraceRoute:
     def invalid_domains(self):
         cwd = os.getcwd()
         invalid_domains = [];
-        with open(os.path.join(cwd,'centinel/data/invalid_hosts.txt')) as testfile:
+        with open("data/invalid_hosts.txt","r") as testfile:
             domain = testfile.readline().rstrip('\n')
             while domain != '':
                 invalid_domains.append(domain)
