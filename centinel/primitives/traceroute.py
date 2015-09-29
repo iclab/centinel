@@ -9,6 +9,7 @@
 import threading
 import time
 import trparse
+from sys import platform
 
 from centinel import command
 
@@ -34,11 +35,25 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
         cmd_arguments = []
 
     if method == "tcp":
-        cmd_arguments.append('-T')
+        if platform in [ 'linux', 'linux2' ]:
+            cmd_arguments.append('-T')
+        elif platform == "darwin":
+            cmd_arguments.append('-P')
+            cmd_arguments.append('tcp')
+
     elif method == "udp":
-        cmd_arguments.append('-U')
+        if platform in [ 'linux', 'linux2' ]:
+            cmd_arguments.append('-U')
+        elif platform == "darwin":
+            cmd_arguments.append('-P')
+            cmd_arguments.append('udp')
+
     elif method == "icmp":
-        cmd_arguments.append('-I')
+        if platform in [ 'linux', 'linux2' ]:
+            cmd_arguments.append('-I')
+        elif platform == "darwin":
+            cmd_arguments.append('-P')
+            cmd_arguments.append('icmp')
 
     cmd = ['traceroute'] + cmd_arguments + [domain]
     caller = command.Command(cmd, _traceroute_callback)
