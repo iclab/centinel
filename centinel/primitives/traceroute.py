@@ -97,7 +97,18 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
 
     output_string = caller.notifications
 
-    parsed_output = trparse.loads(output_string)
+    try:
+        parsed_output = trparse.loads(output_string)
+    except Exception as exc:
+        results = {}
+        results["domain"] = domain
+        results["method"] = method
+        results["error"] = str(exc)
+        results["raw"] = output_string
+        if external is not None and type(external) is dict:
+            external[domain] = results
+        return results
+
     hops = list()
     for hop in parsed_output.hops:
         hop_json = { "index" : hop.idx, "asn" : hop.asn }
