@@ -8,6 +8,8 @@
 
 import threading
 import time
+import trparse
+from sys import platform
 
 from centinel import command
 
@@ -33,11 +35,25 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
         cmd_arguments = []
 
     if method == "tcp":
-        cmd_arguments.append('-T')
+        if platform in [ 'linux', 'linux2' ]:
+            cmd_arguments.append('-T')
+        elif platform == "darwin":
+            cmd_arguments.append('-P')
+            cmd_arguments.append('tcp')
+
     elif method == "udp":
-        cmd_arguments.append('-U')
+        if platform in [ 'linux', 'linux2' ]:
+            cmd_arguments.append('-U')
+        elif platform == "darwin":
+            cmd_arguments.append('-P')
+            cmd_arguments.append('udp')
+
     elif method == "icmp":
-        cmd_arguments.append('-I')
+        if platform in [ 'linux', 'linux2' ]:
+            cmd_arguments.append('-I')
+        elif platform == "darwin":
+            cmd_arguments.append('-P')
+            cmd_arguments.append('icmp')
 
     cmd = ['traceroute'] + cmd_arguments + [domain]
     caller = command.Command(cmd, _traceroute_callback)
@@ -50,10 +66,13 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
             else:
                 message = (", traceroute thread threw an "
                            "exception: %s" (caller.exception))
-        if "enough privileges" in caller.notifications:
+        elif "enough privileges" in caller.notifications:
             message = ": not enough privileges"
-        if "service not known" in caller.notifications:
+        elif "not known" in caller.notifications:
             message = ": name or service not known"
+        else:
+            message = caller.notifications
+
         results = {}
         results["domain"] = domain
         results["method"] = method
@@ -76,58 +95,29 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
     # to round up
     time_elapsed = int(time.time() - start_time)
 
-    # parse the output
-    # a healthy line should looks like this:
-    # 1  10.0.1.1 (10.0.1.1)  0.675 ms  0.576 ms  0.533 ms
-    #
-    # an empty output looks like this:
-    # 2 * * *
+    output_string = caller.notifications
 
-    hops = {}
-    meaningful_hops = 0
-    total_hops = 0
-    lines = caller.notifications.split("\n")
-    line_number = 0
-    unparseable_lines = {}
-    for original_line in lines:
-        line_number = line_number + 1
-        if original_line == "":
-            continue
-        line = original_line.split()
-        if len(line) == 9:
-            total_hops = total_hops + 1
-            number, domain_name, ip, rtt1, ms, rtt2, ms, rtt3, ms = line
-            # remove parentheses from around the ip address
-            ip = ip[1:-1]
-            number = int(number)
-            # sometimes, some RTT values are not present and there is
-            # an asterisk in their place.
-            # this should be handled by the whoever analyses the
-            # output.
-            hops[number] = { "domain_name" : domain_name,
-                             "ip"          : ip,
-                             "rtt1"        : rtt1,
-                             "rtt2"        : rtt2,
-                             "rtt3"        : rtt3
-                           }
-            meaningful_hops = meaningful_hops + 1
-        else:
-            number = line[0]
-            try:
-                number = int(number)
-                total_hops = total_hops + 1
-                hops[number] = { "raw" : original_line }
-            except ValueError:
-                unparseable_lines[line_number] = original_line
+    parsed_output = trparse.loads(output_string)
+    hops = list()
+    for hop in parsed_output.hops:
+        hop_json = { "index" : hop.idx, "asn" : hop.asn }
+        probes_json = []
+        for probe in hop.probes:
+            probes_json.append({ "name" : probe.name,
+                              "ip" : probe.ip,
+                              "rtt" : probe.rtt,
+                              "anno" : probe.anno })
+        hop_json["probes"] = probes_json
+        hops.append(hop_json)
+
     results = {}
-    results["domain"] = domain
+    results["dest_name"] = parsed_output.dest_name
+    results["dest_ip"] = parsed_output.dest_ip
     results["method"] = method
-    results["total_hops"] = total_hops
-    results["meaningful_hops"] = meaningful_hops
     results["hops"] = hops
-    results["unparseable_lines"] = unparseable_lines
     results["forcefully_terminated"] = forcefully_terminated
     results["time_elapsed"] = time_elapsed
+
     # the external result is used when threading to store
     # the results in the list container provided.
     if external is not None and type(external) is dict:
