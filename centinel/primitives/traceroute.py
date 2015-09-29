@@ -51,10 +51,13 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
             else:
                 message = (", traceroute thread threw an "
                            "exception: %s" (caller.exception))
-        if "enough privileges" in caller.notifications:
+        elif "enough privileges" in caller.notifications:
             message = ": not enough privileges"
-        if "service not known" in caller.notifications:
+        elif "not known" in caller.notifications:
             message = ": name or service not known"
+        else:
+            message = caller.notifications
+
         results = {}
         results["domain"] = domain
         results["method"] = method
