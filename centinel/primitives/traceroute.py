@@ -6,6 +6,7 @@
 # for this to work, traceroute has to be installed
 # and accessible.
 
+import copy
 import threading
 import time
 import trparse
@@ -30,46 +31,49 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
     # the method specified by the function parameter here will
     # over-ride the ones given in cmd_arguments because
     # traceroute will use the last one in the argument list.
+    _cmd_arguments = []
 
-    if cmd_arguments is None:
-        cmd_arguments = []
+
+    if cmd_arguments is not None:
+        _cmd_arguments = copy.deepcopy(cmd_arguments)
 
     if method == "tcp":
         if platform in [ 'linux', 'linux2' ]:
-            cmd_arguments.append('-T')
+            _cmd_arguments.append('-T')
         elif platform == "darwin":
-            cmd_arguments.append('-P')
-            cmd_arguments.append('tcp')
+            _cmd_arguments.append('-P')
+            _cmd_arguments.append('tcp')
 
     elif method == "udp":
         if platform in [ 'linux', 'linux2' ]:
-            cmd_arguments.append('-U')
+            _cmd_arguments.append('-U')
         elif platform == "darwin":
-            cmd_arguments.append('-P')
-            cmd_arguments.append('udp')
+            _cmd_arguments.append('-P')
+            _cmd_arguments.append('udp')
 
     elif method == "icmp":
         if platform in [ 'linux', 'linux2' ]:
-            cmd_arguments.append('-I')
+            _cmd_arguments.append('-I')
         elif platform == "darwin":
-            cmd_arguments.append('-P')
-            cmd_arguments.append('icmp')
+            _cmd_arguments.append('-P')
+            _cmd_arguments.append('icmp')
 
-    cmd = ['traceroute'] + cmd_arguments + [domain]
+    cmd = ['traceroute'] + _cmd_arguments + [domain]
+
     caller = command.Command(cmd, _traceroute_callback)
     caller.start()
     if not caller.started:
         message = ""
         if caller.exception is not None:
             if "No such file or directory" in caller.exception:
-                message = ": traceroute not found or not installed"
+                message = "traceroute not found or not installed"
             else:
-                message = (", traceroute thread threw an "
+                message = ("traceroute thread threw an "
                            "exception: %s" (caller.exception))
         elif "enough privileges" in caller.notifications:
-            message = ": not enough privileges"
+            message = "not enough privileges"
         elif "not known" in caller.notifications:
-            message = ": name or service not known"
+            message = "name or service not known"
         else:
             message = caller.notifications
 
@@ -97,7 +101,18 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
 
     output_string = caller.notifications
 
-    parsed_output = trparse.loads(output_string)
+    try:
+        parsed_output = trparse.loads(output_string)
+    except Exception as exc:
+        results = {}
+        results["domain"] = domain
+        results["method"] = method
+        results["error"] = str(exc)
+        results["raw"] = output_string
+        if external is not None and type(external) is dict:
+            external[domain] = results
+        return results
+
     hops = list()
     for hop in parsed_output.hops:
         hop_json = { "index" : hop.idx, "asn" : hop.asn }
