@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import getpass
 import os
 
@@ -39,6 +40,9 @@ def parse_args():
                    'script')
     parser.add_argument('--daemonize', help=daemon_help, action='store_true',
                         dest='daemonize')
+    verbose_help = ('Verbose logging')
+    parser.add_argument('--verbose', '-V', help=verbose_help, action='store_true',
+                        dest='verbose')
     binary_help = ('Name or location of the binary to use in the cron job '
                    'for centinel')
     parser.add_argument('--binary', help=binary_help,
@@ -85,10 +89,14 @@ def run():
 
         configuration.write_out_config(DEFAULT_CONFIG_FILE)
 
+    if args.verbose:
+        if 'log' not in configuration.params:
+            configuration.params['log'] = dict()
+        configuration.params['log']['log_level'] = logging.DEBUG
+
     centinel.conf = configuration.params
     client = centinel.client.Client(configuration.params)
     client.setup_logging()
-
     # disable cert verification if the flag is set
     if args.no_verify:
         configuration.params['server']['verify'] = False
