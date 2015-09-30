@@ -3,6 +3,7 @@ import glob
 import imp
 import json
 import logging
+import logging.config
 import os
 import tarfile
 import time
@@ -25,9 +26,21 @@ class Client():
         self._meta = None
 
     def setup_logging(self):
-        logging.basicConfig(filename=self.config['log']['log_file'],
-                            format=self.config['log']['log_format'],
-                            level=self.config['log']['log_level'])
+
+        log_config = {'version':1,
+                      'formatters':{'error':{'format':self.config['log']['log_format']},
+                                    'debug':{'format':self.config['log']['log_format']}},
+                      'handlers':{'console':{'class':'logging.StreamHandler',
+                                             'formatter':'debug',
+                                             'level':self.config['log']['log_level']},
+                                  'file':{'class':'logging.FileHandler',
+                                          'filename':self.config['log']['log_file'],
+                                          'formatter':'error',
+                                          'level': self.config['log']['log_level']}},
+                      'root':{'handlers':('console', 'file'), 'level':self.config['log']['log_level']}}
+        logging.config.dictConfig(log_config)
+
+        logging.debug("Finished setting up logging.")
 
     def get_result_file(self, name, start_time):
         result_file = "%s-%s.json.bz2" % (name, start_time)
