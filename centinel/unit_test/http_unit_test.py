@@ -16,7 +16,6 @@ class TestHTTPMethods:
         for line in fd:
             line = line.rstrip('\n')
             res = http._get_http_request(line)
-            print res;
             assert 'failure' in res['response'].keys()
 
         fd.close()
