@@ -97,8 +97,8 @@ class DNSQuery():
         thread_wait_timeout = 200
         ind = 1
         total_item_count = len(self.domains)
-        for nameserver in self.nameservers:
-            for domain in self.domains:
+        for domain in self.domains:
+            for nameserver in self.nameservers:
                 wait_time = 0
                 while threading.active_count() > self.max_threads:
                     time.sleep(1)
@@ -114,12 +114,13 @@ class DNSQuery():
                 thread = threading.Thread(target=self.lookup_domain,
                                           args=(domain, nameserver,
                                                 log_prefix))
-                ind += 1
                 thread.setDaemon(1)
                 thread.start()
                 self.threads.append(thread)
             if thread_error:
                 break
+            ind += 1
+
         for thread in self.threads:
             thread.join(self.timeout * 3)
         return self.results
