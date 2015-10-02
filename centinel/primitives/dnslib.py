@@ -2,6 +2,7 @@ from base64 import b64encode
 import dns.rdatatype
 import dns.message
 import dns.resolver
+import logging
 import select
 import socket
 import threading
@@ -94,6 +95,8 @@ class DNSQuery():
         """
         thread_error = False
         thread_wait_timeout = 200
+        ind = 1
+        total_item_count = len(self.domains)
         for nameserver in self.nameservers:
             for domain in self.domains:
                 wait_time = 0
@@ -107,9 +110,11 @@ class DNSQuery():
                 if thread_error:
                     self.results["error"] = "Threads took too long to finish."
                     break
-
+                log_prefix = "%d/%d: " % (ind, total_item_count)
                 thread = threading.Thread(target=self.lookup_domain,
-                                          args=(domain, nameserver))
+                                          args=(domain, nameserver,
+                                                log_prefix))
+                ind += 1
                 thread.setDaemon(1)
                 thread.start()
                 self.threads.append(thread)
@@ -119,7 +124,7 @@ class DNSQuery():
             thread.join(self.timeout * 3)
         return self.results
 
-    def lookup_domain(self, domain, nameserver=None):
+    def lookup_domain(self, domain, nameserver=None, log_prefix = ''):
         """Most basic DNS primitive that lookups a domain, waits for a
         second response, then returns all of the results
 
@@ -140,6 +145,9 @@ class DNSQuery():
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.settimeout(self.timeout)
+
+        logging.debug("%sQuerying DNS enteries for "
+                      "%s (nameserver: %s)." % (log_prefix, domain, nameserver))
 
         # construct and send the request
         request = dns.message.make_query(domain,

@@ -7,6 +7,7 @@
 # and accessible.
 
 import copy
+import logging
 import threading
 import time
 import trparse
@@ -15,7 +16,8 @@ from sys import platform
 from centinel import command
 
 
-def traceroute(domain, method="udp", cmd_arguments=None, external=None):
+def traceroute(domain, method="udp", cmd_arguments=None,
+               external=None, log_prefix=''):
     """This function uses centinel.command to issue
     a traceroute command, wait for it to finish execution and
     parse the results out to a dictionary.
@@ -33,6 +35,8 @@ def traceroute(domain, method="udp", cmd_arguments=None, external=None):
     # traceroute will use the last one in the argument list.
     _cmd_arguments = []
 
+    logging.debug("%sRunning traceroute for "
+                  "%s using %s probes." % (log_prefix, domain, method))
 
     if cmd_arguments is not None:
         _cmd_arguments = copy.deepcopy(cmd_arguments)
@@ -159,6 +163,8 @@ def traceroute_batch(input_list, method="udp", cmd_arguments=[],
     threads = []
     thread_error = False
     thread_wait_timeout = 200
+    ind = 1
+    total_item_count = len(input_list)
     for domain in input_list:
         wait_time = 0
         while threading.active_count() > max_threads:
@@ -176,9 +182,11 @@ def traceroute_batch(input_list, method="udp", cmd_arguments=[],
         # to avoid overwhelming the connection.
         time.sleep(delay_time)
 
+        log_prefix = "%d/%d: " % (ind, total_item_count)
         thread = threading.Thread(target=traceroute,
                                   args=(domain, method, cmd_arguments,
-                                        results))
+                                        results, log_prefix))
+        ind += 1
         thread.setDaemon(1)
         thread.start()
         threads.append(thread)
