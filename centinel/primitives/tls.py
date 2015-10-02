@@ -1,17 +1,22 @@
 # Dependencies: install M2Crypto with sudo apt-get install
 # python-m2crypto
 
+import logging
 import M2Crypto
 import ssl
 import threading
 import time
 
 
-def get_fingerprint(host, port=443, external=None):
+def get_fingerprint(host, port=443, external=None, log_prefix=''):
     tls_error = None
     fingerprint_error = None
     exception = None
     cert = None
+
+    logging.debug("%sGetting TLS certificate "
+                  "for %s:%d." % (log_prefix, host, port))
+
     try:
         cert = ssl.get_server_certificate((host, port))
     # if this fails, there's a possibility that SSLv3 handshake was
@@ -69,6 +74,8 @@ def get_fingerprint_batch(input_list, default_port=443,
     threads = []
     thread_error = False
     thread_wait_timeout = 200
+    ind = 1
+    total_item_count = len(input_list)
     for row in input_list:
         if len(row.split(":")) == 2:
             host, port = row.split(":")
@@ -95,8 +102,11 @@ def get_fingerprint_batch(input_list, default_port=443,
         # to avoid overwhelming the connection.
         time.sleep(delay_time)
 
+        log_prefix = "%d/%d: " % (ind, total_item_count)
         thread = threading.Thread(target=get_fingerprint,
-                                  args=(host, port, results))
+                                  args=(host, port,
+                                        results, log_prefix))
+        ind += 1
         thread.setDaemon(1)
         thread.start()
         threads.append(thread)

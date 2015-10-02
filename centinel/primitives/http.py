@@ -1,4 +1,5 @@
 import httplib
+import logging
 import threading
 import time
 from urlparse import urlparse
@@ -58,13 +59,15 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
 
 
 def get_request(host, path="/", headers=None, ssl=False,
-                external=None, url=None):
+                external=None, url=None, log_prefix=''):
     http_results = {}
     first_response = _get_http_request(host, path, headers, ssl)
     if "failure" in first_response["response"]:  # If there was an error, just ignore redirects and return
         if external is not None and type(external) is dict:
             external[url] = first_response
         return first_response
+
+    logging.debug("%sSending HTTP GET request for %s." % (log_prefix, url))
 
     # Checks HTTP Status code and location header to see if the webpage calls for a redirect
     stat_starts_with_3 = str(first_response["response"]["status"]).startswith("3")
@@ -154,6 +157,8 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
     threads = []
     thread_error = False
     thread_wait_timeout = 200
+    ind = 1
+    total_item_count = len(input_list)
     for row in input_list:
         headers = []
         path = "/"
@@ -198,10 +203,11 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
         # add just a little bit of delay before starting the thread
         # to avoid overwhelming the connection.
         time.sleep(delay_time)
-
+        log_prefix = "%d/%d: " % (ind, total_item_count)
         thread = threading.Thread(target=get_request,
                                   args=(host, path, headers, ssl,
-                                        results, url))
+                                        results, url, log_prefix))
+        ind += 1
         thread.setDaemon(1)
         thread.start()
         threads.append(thread)
