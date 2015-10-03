@@ -54,10 +54,10 @@ class Configuration():
         # logging
         self.params['log'] = {}
         self.params['log']['log_level'] = logging.INFO
-        self.params['log']['log_file'] = None
-        # an alternative is os.path.join(centinel_home,
-        # "centinel.log")
-        self.params['log']['log_format'] = '%(asctime)s: %(levelname)s: %(message)s'
+        self.params['log']['log_file'] = os.path.join(self.params['user']['centinel_home'],
+                                                      "centinel.log")
+        self.params['log']['log_format'] = ('%(asctime)s '
+            '%(filename)s(line %(lineno)d) %(levelname)s: %(message)s')
 
         # experiments
         experiments = {}

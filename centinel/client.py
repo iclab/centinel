@@ -3,6 +3,7 @@ import glob
 import imp
 import json
 import logging
+import logging.config
 import os
 import tarfile
 import time
@@ -25,9 +26,21 @@ class Client():
         self._meta = None
 
     def setup_logging(self):
-        logging.basicConfig(filename=self.config['log']['log_file'],
-                            format=self.config['log']['log_format'],
-                            level=self.config['log']['log_level'])
+
+        log_config = {'version':1,
+                      'formatters':{'error':{'format':self.config['log']['log_format']},
+                                    'debug':{'format':self.config['log']['log_format']}},
+                      'handlers':{'console':{'class':'logging.StreamHandler',
+                                             'formatter':'debug',
+                                             'level':self.config['log']['log_level']},
+                                  'file':{'class':'logging.FileHandler',
+                                          'filename':self.config['log']['log_file'],
+                                          'formatter':'error',
+                                          'level': self.config['log']['log_level']}},
+                      'root':{'handlers':('console', 'file'), 'level':self.config['log']['log_level']}}
+        logging.config.dictConfig(log_config)
+
+        logging.debug("Finished setting up logging.")
 
     def get_result_file(self, name, start_time):
         result_file = "%s-%s.json.bz2" % (name, start_time)
@@ -49,13 +62,13 @@ class Client():
         except Exception as exp:
             logging.exception("Can not read from %s: %s" % (input_file, str(exp)))
             return None
-
+        logging.debug("Input file %s loaded." % (name))
         return input_file_handle
 
     def load_experiments(self):
         """This function will return the list of experiments.
         """
-
+        logging.debug("Loading experiments.")
         # look for experiments in experiments directory
         exp_dir = self.config['dirs']['experiments_dir']
         for path in glob.glob(os.path.join(exp_dir, '[!_]*.py')):
@@ -68,10 +81,12 @@ class Client():
                     continue
                 imp.load_source(name, path)
                 loaded_modules.add(name)
+                logging.debug("Loaded experiment \"%s(%s)\"." % (name, path))
             except Exception as exception:
                 logging.exception("Failed to load experiment %s: %s" %
                               (name, exception))
 
+        logging.debug("Finished loading experiments.")
         # return dict of experiment names and classes
         return ExperimentList.experiments
 
@@ -88,7 +103,9 @@ class Client():
             run_next = sched_info[name]['last_run']
             run_next += sched_info[name]['frequency']
             if run_next <= time.time():
+                logging.debug("Client has experiment(s) to run (%s)." % (name))
                 return True
+        logging.debug("Client has no experiments to run.")
         return False
 
 
@@ -125,17 +142,28 @@ class Client():
             logging.warn("Creating results directory in "
                          "%s" % (self.config['dirs']['results_dir']))
             os.makedirs(self.config['dirs']['results_dir'])
+        logging.debug("Results directory: %s" % (self.config['dirs']['results_dir']))
 
         experiments_set = self.experiments.items()
 
         # load scheduler information
         sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
                                       'scheduler.info')
+
+        logging.debug("Loading scheduler file.")
         sched_info = {}
         if os.path.exists(sched_filename):
             with open(sched_filename, 'r') as file_p:
-                sched_info = json.load(file_p)
+                try:
+                    sched_info = json.load(file_p)
+                except Exception as exp:
+                    logging.error("Failed to load the "
+                                  "scheduler: %s" % str(exp))
+                    return
 
+        logging.debug("Scheduler file loaded.")
+
+        logging.debug("Processing the experiment schedule.")
         for name in sched_info:
 
             # check if we should preempt on the experiment (if the
@@ -147,6 +175,9 @@ class Client():
             run_next = sched_info[name]['last_run']
             run_next += sched_info[name]['frequency']
             if run_next > time.time():
+                run_next_str = datetime.fromtimestamp(long(run_next))
+                logging.debug("Skipping %s, it will "
+                              "be run on or after %s." % (name, run_next_str))
                 continue
 
             # backward compatibility with older-style scheduler
@@ -155,10 +186,12 @@ class Client():
             else:
                 exps = sched_info[name]['python_exps'].items()
                 for python_exp, exp_config in exps:
+                    logging.debug("Running %s." % (python_exp))
                     self.run_exp(python_exp, exp_config, schedule_name=name)
-
+                    logging.debug("Finished running %s." % (python_exp))
             sched_info[name]['last_run'] = time.time()
 
+        logging.debug("Updating timeout values in scheduler.")
         # write out the updated last run times
         with open(sched_filename, 'w') as file_p:
             json.dump(sched_info, file_p, indent=2,
@@ -166,8 +199,8 @@ class Client():
 
         self.consolidate_results()
 
-        logging.info("Finished running experiments. Look in %s for "
-                     "results." % (self.config['dirs']['results_dir']))
+        logging.info("Finished running experiments. "
+                     "Look in %s for results." % (self.config['dirs']['results_dir']))
 
     def run_exp(self, name, exp_config=None, schedule_name=None):
         if name not in self.experiments:
@@ -178,7 +211,7 @@ class Client():
 
             results["meta"] = {}
             try:
-                logging.info("Getting metadata for experiment...")
+                logging.debug("Getting metadata for experiment...")
                 meta = self.get_meta()
                 results["meta"] = meta
             except Exception as exception:
@@ -191,7 +224,6 @@ class Client():
             else:
                 results["meta"]["schedule_name"] = name
 
-            logging.info("Running %s..." % (name))
             start_time = datetime.now()
             results["meta"]["client_time"] = start_time.isoformat()
 
@@ -221,6 +253,7 @@ class Client():
 
             try:
                 # instantiate the experiment
+                logging.debug("Initializing the experiment class for %s" % (name))
                 exp = Exp(input_files)
             except Exception as exception:
                 logging.exception("Error initializing %s: %s" % (name, exception))
@@ -268,11 +301,12 @@ class Client():
             # save any external results that the experiment has generated
             # they could be anything that doesn't belong in the json file
             # (e.g. pcap files)
-            # these should all be compress with bzip2
+            # these should all be compressed with bzip2
             # the experiment is responsible for giving these a name and
             # keeping a list of files in the json results
             results_dir = self.config['dirs']['results_dir']
             if exp.external_results is not None:
+                logging.debug("Writing external files for %s" % (name))
                 for fname, fcontents in exp.external_results.items():
                     external_file_name = ("external_%s-%s-%s"
                                           ".bz2" % (name,
@@ -284,9 +318,12 @@ class Client():
                         with open(external_file_path, 'w:bz2') as file_p:
                             data = bz2.compress(fcontents)
                             file_p.write(data)
+                            logging.debug("External file "
+                                          "%s written successfully" % (fname))
                     except Exception as exp:
                         logging.exception("Failed to write external file:"
                                         "%s" % (exp))
+                logging.debug("Finished writing external files for %s" % (name))
 
             if tcpdump_started:
                 logging.info("Waiting for tcpdump to process packets...")
@@ -311,16 +348,19 @@ class Client():
                                     (exception))
 
             # close input file handle(s)
+            logging.debug("Closing input files for %s" % (name))
             if type(input_files) is dict:
                 for file_name, file_handle in input_files.items():
                     file_handle.close()
             else:
                 input_files.close()
+            logging.debug("Input files closed for %s" % (name))
 
+            logging.debug("Storing results for %s" % (name))
             try:
                 results[name] = exp.results
             except Exception as exception:
-                logging.exception("Error saving results for "
+                logging.exception("Error storing results for "
                               "%s: %s" % (name, exception))
                 results["results_exception"] = str(exception)
 
@@ -329,14 +369,22 @@ class Client():
             results["meta"]["time_taken"] = time_taken.total_seconds()
 
             logging.info("%s took %s to finish." % (name, time_taken))
-            # Pretty printing results will increase file size, but files are
-            # compressed before sending.
-            result_file_path = self.get_result_file(name,
-                                                    start_time.isoformat())
-            result_file = bz2.BZ2File(result_file_path, "w")
-            json.dump(results, result_file, indent=2,
-                      separators=(',', ': '))
-            result_file.close()
+
+            logging.debug("Saving %s results to file" % (name))
+            try:
+                # Pretty printing results will increase file size, but files are
+                # compressed before sending.
+                result_file_path = self.get_result_file(name,
+                                                        start_time.isoformat())
+                result_file = bz2.BZ2File(result_file_path, "w")
+                json.dump(results, result_file, indent=2,
+                          separators=(',', ': '))
+                result_file.close()
+            except Exception as exception:
+                logging.exception("Error saving results for "
+                              "%s to file: %s" % (name, exception))
+                results["results_exception"] = str(exception)
+            logging.debug("Done saving %s results to file" % (name))
 
     def consolidate_results(self):
         # bundle and compress result files
