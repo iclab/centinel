@@ -1,8 +1,8 @@
-import httplib
 import logging
 import threading
 import time
 from urlparse import urlparse
+from http_helper import ICHTTPConnection
 
 
 def _get_http_request(host, path="/", headers=None, ssl=False):
@@ -23,38 +23,27 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
     response = {}
 
     try:
-        if ssl:
-            conn = httplib.HTTPSConnection(host, timeout=10)
-            request["ssl"] = True
-        else:
-            conn = httplib.HTTPConnection(host, timeout=10)
-            request["ssl"] = False
-        if headers:
-            conn.request("GET", path, headers=headers)
-        else:
-            conn.request("GET", path)
 
-        resp = conn.getresponse()
-        response["status"] = resp.status
-        response["reason"] = resp.reason
+        request['ssl'] = ssl
+        conn = ICHTTPConnection(host=host, timeout=10)
+        conn.request(path,headers,ssl,timeout=10)
+        response["status"] = conn.getStatus()
+        response["reason"] = conn.getReason()
+        response["headers"] = conn.getHeaders()
 
-        headers = dict(resp.getheaders())
-        response["headers"] = headers
-
-        body = resp.read()
         try:
-            body.encode('utf8')
-            response["body"] = body
+            body = conn.getBody()
+            response["body"] = body.encode('utf-8')
         except UnicodeDecodeError:
             # if utf-8 fails to encode, just use base64
             response["body.b64"] = body.encode('base64')
 
-        conn.close()
     except Exception as err:
         response["failure"] = str(err)
 
     result = {"response": response,
               "request": request}
+
     return result
 
 
