@@ -11,7 +11,6 @@ import time
 def get_fingerprint(host, port=443, external=None, log_prefix=''):
     tls_error = None
     fingerprint_error = None
-    exception = None
     cert = None
 
     logging.debug("%sGetting TLS certificate "
@@ -21,41 +20,49 @@ def get_fingerprint(host, port=443, external=None, log_prefix=''):
         cert = ssl.get_server_certificate((host, port))
     # if this fails, there's a possibility that SSLv3 handshake was
     # attempted and rejected by the server. Use TLSv1 instead.
-    except ssl.SSLError as exp:
-        cert = ssl.get_server_certificate((host, port),
-                                          ssl_version=ssl.PROTOCOL_TLSv1)
+    except ssl.SSLError:
+        # exception could also happen here
+        try:
+            cert = ssl.get_server_certificate((host, port),
+                                              ssl_version=ssl.PROTOCOL_TLSv1)
+        except Exception as exp:
+            tls_error = str(exp)
     except Exception as exp:
         tls_error = str(exp)
-        exception = exp
 
     # this comes out as unicode, but m2crypto breaks if it gets
     # something other than a string, so convert to ascii
     if type(cert) == unicode:
         cert = cert.encode('ascii', 'ignore')
 
-    if exception is None:
+    if tls_error is None:
         try:
             x509 = M2Crypto.X509.load_cert_string(cert,
                                                   M2Crypto.X509.FORMAT_PEM)
             fingerprint = x509.get_fingerprint('sha1')
         except Exception as exp:
             fingerprint_error = str(exp)
-            exception = exp
 
     # the external result is used when threading to store
     # the results in the list container provided.
     row = "%s:%s" % (host, port)
 
-    if exception is not None:
-        if external is not None:
+    # handle return value based on exception types
+    if tls_error is None and fingerprint_error is None:
+        if external is not None and type(external) is dict:
+            external[row] = {"cert": cert,
+                             "fingerprint": fingerprint.lower()}
+        return fingerprint.lower(), cert
+    elif tls_error is None and fingerprint_error is not None:
+        if external is not None and type(external) is dict:
+            external[row] = {"cert": cert,
+                             "fingerprint_error": fingerprint_error}
+        return fingerprint_error, cert
+    else:
+        if external is not None and type(external) is dict:
             external[row] = {"tls_error": tls_error,
                              "fingerprint_error": fingerprint_error}
-
-    if external is not None and type(external) is dict:
-        external[row] = {"cert": cert,
-                         "fingerprint": fingerprint.lower()}
-
-    return fingerprint.lower(), cert
+        return fingerprint_error, tls_error
 
 
 def get_fingerprint_batch(input_list, default_port=443,
