@@ -22,7 +22,7 @@ setup(
                         "requests >= 2.5.1",
                         "trparse >= 0.2.1",
                         "pycurl >= 7.19.5",
-                        "pyopenssl >= 0.15.1"],
+                        "ndg-httpsclient >= 0.4.0"],
     include_package_data = True,
     entry_points = {
         'console_scripts': ['centinel=centinel.cli:run',
