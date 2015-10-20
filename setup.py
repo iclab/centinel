@@ -20,7 +20,8 @@ setup(
                         "m2crypto >= 0.22.0",
                         "dnspython >= 1.11.0",
                         "requests >= 2.5.1",
-                        "trparse >= 0.2.1"],
+                        "trparse >= 0.2.1",
+                        "pycurl >= 7.19.5"],
     include_package_data = True,
     entry_points = {
         'console_scripts': ['centinel=centinel.cli:run',

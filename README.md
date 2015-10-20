@@ -5,7 +5,7 @@ censorship.
 
 #### Install and usage
 ##### Debian
-    $ sudo apt-get install python-pip libssl-dev swig python-dev libffi-dev tcpdump
+    $ sudo apt-get install python-pip libssl-dev swig python-dev libffi-dev tcpdump libcurl4-openssl-dev
     $ sudo pip install -U dnspython requests argparse m2crypto pyopenssl ndg-httpsclient pyasn1 pip
     $ sudo pip install centinel-dev
     $ centinel-dev
