@@ -17,7 +17,6 @@ setup(
     packages = ["centinel", "centinel.primitives",
                 "centinel.vpn"],
     install_requires = ["argparse >= 1.2.1",
-                        "m2crypto >= 0.22.0",
                         "dnspython >= 1.11.0",
                         "requests >= 2.5.1",
                         "trparse >= 0.2.1",

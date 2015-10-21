@@ -2,7 +2,15 @@
 # python-m2crypto
 
 import logging
-import M2Crypto
+
+try:
+    import M2Crypto
+    m2crypto_imported = True
+except:
+    logging.warning("M2Crypto could not be imported. "
+                    "TLS fingerprinting will be disabled.")
+    m2crypto_imported = False
+
 import ssl
 import threading
 import time
@@ -35,13 +43,16 @@ def get_fingerprint(host, port=443, external=None, log_prefix=''):
     if type(cert) == unicode:
         cert = cert.encode('ascii', 'ignore')
 
-    if tls_error is None:
+    if tls_error is None and m2crypto_imported:
         try:
             x509 = M2Crypto.X509.load_cert_string(cert,
                                                   M2Crypto.X509.FORMAT_PEM)
             fingerprint = x509.get_fingerprint('sha1')
         except Exception as exp:
             fingerprint_error = str(exp)
+
+    if not m2crypto_imported:
+        fingerprint_error = "M2Crypto could not be imported."
 
     # the external result is used when threading to store
     # the results in the list container provided.
