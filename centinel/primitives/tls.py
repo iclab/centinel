@@ -26,14 +26,14 @@ def get_fingerprint(host, port=443, external=None, log_prefix=''):
 
     try:
         cert = ssl.get_server_certificate((host, port),
-                                          ssl_version=ssl.PROTOCOL_SSLv23)
+                                          ssl_version=ssl.PROTOCOL_TLSv1)
     # if this fails, there's a possibility that SSLv3 handshake was
     # attempted and rejected by the server. Use TLSv1 instead.
     except ssl.SSLError:
         # exception could also happen here
         try:
             cert = ssl.get_server_certificate((host, port),
-                                              ssl_version=ssl.PROTOCOL_TLSv1)
+                                              ssl_version=ssl.PROTOCOL_SSLv23)
         except Exception as exp:
             tls_error = str(exp)
     except Exception as exp:
