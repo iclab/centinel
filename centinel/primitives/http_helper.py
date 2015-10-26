@@ -53,7 +53,7 @@ class ICHTTPConnection:
         buf = StringIO()
         c = pycurl.Curl()
 
-        if header is not None:
+        if header:
             slist = []
             for key, value in header.iteritems():
                 slist.append(key+": "+value)
