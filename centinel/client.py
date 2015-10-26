@@ -12,6 +12,7 @@ from datetime import datetime
 
 from experiment import Experiment, ExperimentList
 
+import centinel
 from centinel.backend import get_meta
 from centinel.primitives.tcpdump import Tcpdump
 
@@ -227,6 +228,7 @@ class Client():
             start_time = datetime.now()
             results["meta"]["client_time"] = start_time.isoformat()
 
+            results["meta"]["centinel_version"] = centinel.__version__
             input_files = {}
             if exp_config is not None:
                 if (('input_files' in exp_config) and
