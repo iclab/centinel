@@ -26,13 +26,22 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
 
         request['ssl'] = ssl
         conn = ICHTTPConnection(host=host, timeout=10)
-        conn.request(path,headers,ssl,timeout=10)
+        if headers is None:
+            headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) "
+                                     "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                     "Chrome/46.0.2490.80 Safari/537.36"}
+        elif type(headers) is dict and "User-Agent" not in headers:
+            headers["User-Agent"] = "Mozilla/5.0 (X11; Linux x86_64) " \
+                                    "AppleWebKit/537.36 (KHTML, like Gecko) " \
+                                    "Chrome/46.0.2490.80 Safari/537.36"
+
+        conn.request(path, headers, ssl, timeout=10)
         response["status"] = conn.getStatus()
         response["reason"] = conn.getReason()
         response["headers"] = conn.getHeaders()
+        body = conn.getBody()
 
         try:
-            body = conn.getBody()
             response["body"] = body.encode('utf-8')
         except UnicodeDecodeError:
             # if utf-8 fails to encode, just use base64
@@ -124,11 +133,11 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
     """
     This is a parallel version of the HTTP GET primitive.
 
-    Params:
-    input_list- the input is a list of either dictionaries containing
-                query information, or just domain names (and NOT URLs).
-    delay_time- delay before starting each thread
-    max_threads- maximum number of concurrent threads
+    :param input_list: the input is a list of either dictionaries containing
+                       query information, or just domain names (and NOT URLs).
+    :param delay_time: delay before starting each thread
+    :param max_threads: maximum number of concurrent threads
+    :return: results in dict format
 
     Note: the input list can look like this:
     [
@@ -140,7 +149,6 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
           "ssl": True, "url": "http://www.facebook.com" },
         ...
     ]
-
     """
     results = {}
     threads = []
