@@ -95,15 +95,3 @@ class ICHTTPConnection:
             encoding = 'iso-8859-1'
 
         self.body = buf.getvalue().decode(encoding)
-
-    def getHeaders(self):
-        return self.headers
-
-    def getBody(self):
-        return self.body
-
-    def getStatus(self):
-        return self.status
-
-    def getReason(self):
-        return self.reason
