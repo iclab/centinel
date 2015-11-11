@@ -1,8 +1,11 @@
 import logging
 import threading
 import time
+import random
 from urlparse import urlparse
+
 from http_helper import ICHTTPConnection
+from centinel.utils import user_agent_pool
 
 
 def _get_http_request(host, path="/", headers=None, ssl=False):
@@ -19,20 +22,19 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
     request = {"host": host,
                "path": path,
                "method": "GET"}
-
     response = {}
 
     try:
-
         request['ssl'] = ssl
         conn = ICHTTPConnection(host=host, timeout=10)
-        conn.request(path,headers,ssl,timeout=10)
-        response["status"] = conn.getStatus()
-        response["reason"] = conn.getReason()
-        response["headers"] = conn.getHeaders()
+
+        conn.request(path, headers, ssl, timeout=10)
+        response["status"] = conn.status
+        response["reason"] = conn.reason
+        response["headers"] = conn.headers
+        body = conn.body
 
         try:
-            body = conn.getBody()
             response["body"] = body.encode('utf-8')
         except UnicodeDecodeError:
             # if utf-8 fails to encode, just use base64
@@ -50,6 +52,13 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
 def get_request(host, path="/", headers=None, ssl=False,
                 external=None, url=None, log_prefix=''):
     http_results = {}
+
+    # Add User-Agent string if not present in headers
+    if headers is None:
+        headers = {"User-Agent": random.choice(user_agent_pool)}
+    elif type(headers) is dict and "User-Agent" not in headers:
+        headers["user-Agent"] = random.choice(user_agent_pool)
+
     first_response = _get_http_request(host, path, headers, ssl)
     if "failure" in first_response["response"]:  # If there was an error, just ignore redirects and return
         if external is not None and type(external) is dict:
@@ -124,11 +133,11 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
     """
     This is a parallel version of the HTTP GET primitive.
 
-    Params:
-    input_list- the input is a list of either dictionaries containing
-                query information, or just domain names (and NOT URLs).
-    delay_time- delay before starting each thread
-    max_threads- maximum number of concurrent threads
+    :param input_list: the input is a list of either dictionaries containing
+                       query information, or just domain names (and NOT URLs).
+    :param delay_time: delay before starting each thread
+    :param max_threads: maximum number of concurrent threads
+    :return: results in dict format
 
     Note: the input list can look like this:
     [
@@ -140,7 +149,6 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
           "ssl": True, "url": "http://www.facebook.com" },
         ...
     ]
-
     """
     results = {}
     threads = []
@@ -149,7 +157,7 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
     ind = 1
     total_item_count = len(input_list)
     for row in input_list:
-        headers = []
+        headers = {}
         path = "/"
         ssl = False
         theme = "http"
