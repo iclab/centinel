@@ -36,10 +36,10 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
                                     "Chrome/46.0.2490.80 Safari/537.36"
 
         conn.request(path, headers, ssl, timeout=10)
-        response["status"] = conn.getStatus()
-        response["reason"] = conn.getReason()
-        response["headers"] = conn.getHeaders()
-        body = conn.getBody()
+        response["status"] = conn.status
+        response["reason"] = conn.reason
+        response["headers"] = conn.headers
+        body = conn.body
 
         try:
             response["body"] = body.encode('utf-8')
