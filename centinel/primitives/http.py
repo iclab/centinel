@@ -21,9 +21,11 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
     """
     request = {"host": host,
                "path": path,
-               "headers": headers,
                "ssl": ssl,
                "method": "GET"}
+    if headers:
+        request["headers"] = headers
+
     response = {}
 
     try:
