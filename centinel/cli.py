@@ -81,8 +81,8 @@ def run():
         else:
             print 'Configuration file does not exist.'
 
-        if not ('version' in configuration.params and \
-            configuration.params['version']['version'] == centinel.__version__):
+        if not ('version' in configuration.params and
+                configuration.params['version']['version'] == centinel.__version__):
             print ('Configuration file is from a different version of '
                    'Centinel.')
             configuration = centinel.config.Configuration()
