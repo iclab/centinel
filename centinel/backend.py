@@ -416,7 +416,8 @@ def get_meta(config, ip=''):
     try:
         req = requests.get(url,
                            proxies=config['proxy']['proxy'],
-                           verify=config['server']['verify'])
+                           verify=config['server']['verify'],
+                           timeout=10)
         req.raise_for_status()
         return req.json()
     except Exception as exp:
