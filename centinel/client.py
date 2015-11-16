@@ -309,7 +309,7 @@ class Client:
                 for fname, fcontents in exp.external_results.items():
                     external_file_name = ("external_%s-%s-%s"
                                           ".bz2" % (name,
-                                                    start_time.isoformat(),
+                                                    start_time.strftime("%Y-%M-%dT%H%M%S.%f"),
                                                     fname))
                     external_file_path = os.path.join(results_dir,
                                                       external_file_name)
@@ -333,7 +333,7 @@ class Client:
                 logging.info("tcpdump stopped.")
                 try:
                     pcap_file_name = ("pcap_%s-%s.pcap"
-                                      ".bz2" % (name, start_time.isoformat()))
+                                      ".bz2" % (name, start_time.strftime("%Y-%M-%dT%H%M%S.%f")))
                     pcap_file_path = os.path.join(results_dir,
                                                   pcap_file_name)
 
@@ -374,7 +374,7 @@ class Client:
                 # Pretty printing results will increase file size, but files are
                 # compressed before sending.
                 result_file_path = self.get_result_file(name,
-                                                        start_time.isoformat())
+                                                        start_time.strftime("%Y-%M-%dT%H%M%S.%f"))
                 result_file = bz2.BZ2File(result_file_path, "w")
                 json.dump(results, result_file, indent=2,
                           separators=(',', ': '))
@@ -402,7 +402,7 @@ class Client:
                 if (files_archived % files_per_archive) == 0:
                     archive_count += 1
                     archive_filename = "results-%s_%d.tar.bz2" % (
-                        datetime.now().isoformat(), archive_count)
+                        datetime.now().strftime("%Y-%M-%dT%H%M%S.%f"), archive_count)
                     archive_file_path = os.path.join(results_dir,
                                                      archive_filename)
                     logging.info("Creating new archive"
