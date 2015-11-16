@@ -7,11 +7,8 @@ import logging.config
 import os
 import tarfile
 import time
-
 from datetime import datetime
-
 from experiment import Experiment, ExperimentList
-
 import centinel
 from centinel.backend import get_meta
 from centinel.primitives.tcpdump import Tcpdump
@@ -19,8 +16,7 @@ from centinel.primitives.tcpdump import Tcpdump
 loaded_modules = set()
 
 
-class Client():
-
+class Client:
     def __init__(self, config):
         self.config = config
         self.experiments = self.load_experiments()
@@ -28,17 +24,17 @@ class Client():
 
     def setup_logging(self):
 
-        log_config = {'version':1,
-                      'formatters':{'error':{'format':self.config['log']['log_format']},
-                                    'debug':{'format':self.config['log']['log_format']}},
-                      'handlers':{'console':{'class':'logging.StreamHandler',
-                                             'formatter':'debug',
-                                             'level':self.config['log']['log_level']},
-                                  'file':{'class':'logging.FileHandler',
-                                          'filename':self.config['log']['log_file'],
-                                          'formatter':'error',
-                                          'level': self.config['log']['log_level']}},
-                      'root':{'handlers':('console', 'file'), 'level':self.config['log']['log_level']}}
+        log_config = {'version': 1,
+                      'formatters': {'error': {'format': self.config['log']['log_format']},
+                                     'debug': {'format': self.config['log']['log_format']}},
+                      'handlers': {'console': {'class': 'logging.StreamHandler',
+                                               'formatter': 'debug',
+                                               'level': self.config['log']['log_level']},
+                                   'file': {'class': 'logging.FileHandler',
+                                            'filename': self.config['log']['log_file'],
+                                            'formatter': 'error',
+                                            'level': self.config['log']['log_level']}},
+                      'root': {'handlers': ('console', 'file'), 'level': self.config['log']['log_level']}}
         logging.config.dictConfig(log_config)
 
         logging.debug("Finished setting up logging.")
@@ -85,7 +81,7 @@ class Client():
                 logging.debug("Loaded experiment \"%s(%s)\"." % (name, path))
             except Exception as exception:
                 logging.exception("Failed to load experiment %s: %s" %
-                              (name, exception))
+                                  (name, exception))
 
         logging.debug("Finished loading experiments.")
         # return dict of experiment names and classes
@@ -109,7 +105,6 @@ class Client():
         logging.debug("Client has no experiments to run.")
         return False
 
-
     def get_meta(self):
         """we only want to get the meta information (our normalized IP) once,
         so we are going to do lazy instantiation to improve performance
@@ -130,6 +125,8 @@ class Client():
         the scheduled interval in seconds, then the experiment will
         not be run.
 
+        :param data_dir:
+        :return:
         """
         # XXX: android build needs this. refactor
         if data_dir:
@@ -217,7 +214,7 @@ class Client():
                 results["meta"] = meta
             except Exception as exception:
                 logging.exception("Error fetching metadata for "
-                              "%s: %s" % (name, exception))
+                                  "%s: %s" % (name, exception))
                 results["meta_exception"] = str(exception)
 
             if schedule_name is not None:
@@ -232,13 +229,13 @@ class Client():
             input_files = {}
             if exp_config is not None:
                 if (('input_files' in exp_config) and
-                   (exp_config['input_files'] is not None)):
+                        (exp_config['input_files'] is not None)):
                     for filename in exp_config['input_files']:
                         file_handle = self.load_input_file(filename)
                         if file_handle is not None:
                             input_files[filename] = file_handle
                 if (('params' in exp_config) and
-                   (exp_config['params'] is not None)):
+                        (exp_config['params'] is not None)):
                     Exp.params = exp_config['params']
 
             # if the experiment specifies a list of input file names,
@@ -324,7 +321,7 @@ class Client():
                                           "%s written successfully" % (fname))
                     except Exception as exp:
                         logging.exception("Failed to write external file:"
-                                        "%s" % (exp))
+                                          "%s" % (exp))
                 logging.debug("Finished writing external files for %s" % (name))
 
             if tcpdump_started:
@@ -347,7 +344,7 @@ class Client():
                                      "%s." % (pcap_file_path))
                 except Exception as exception:
                     logging.exception("Failed to write pcap file: %s" %
-                                    (exception))
+                                      (exception))
 
             # close input file handle(s)
             logging.debug("Closing input files for %s" % (name))
@@ -363,7 +360,7 @@ class Client():
                 results[name] = exp.results
             except Exception as exception:
                 logging.exception("Error storing results for "
-                              "%s: %s" % (name, exception))
+                                  "%s: %s" % (name, exception))
                 results["results_exception"] = str(exception)
 
             end_time = datetime.now()
@@ -384,7 +381,7 @@ class Client():
                 result_file.close()
             except Exception as exception:
                 logging.exception("Error saving results for "
-                              "%s to file: %s" % (name, exception))
+                                  "%s to file: %s" % (name, exception))
                 results["results_exception"] = str(exception)
             logging.debug("Done saving %s results to file" % (name))
 
