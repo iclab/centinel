@@ -21,11 +21,14 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
     """
     request = {"host": host,
                "path": path,
+               "ssl": ssl,
                "method": "GET"}
+    if headers:
+        request["headers"] = headers
+
     response = {}
 
     try:
-        request['ssl'] = ssl
         conn = ICHTTPConnection(host=host, timeout=10)
 
         conn.request(path, headers, ssl, timeout=10)
@@ -141,11 +144,11 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
 
     Note: the input list can look like this:
     [
-        { "host": "www.google.com",   "path": "/", "headers": [],
+        { "host": "www.google.com",   "path": "/", "headers": {},
           "ssl": False, "url": "http://www.google.com/" },
         "www.twitter.com",
         "www.youtube.com",
-        { "host": "www.facebook.com", "path": "/", "headers": [],
+        { "host": "www.facebook.com", "path": "/", "headers": {},
           "ssl": True, "url": "http://www.facebook.com" },
         ...
     ]

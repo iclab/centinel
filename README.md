@@ -15,7 +15,7 @@ censorship.
     $ centinel-dev
 
 ##### Latest development version
-    * git clone https://github.com/projectbismark/centinel.git
+    * git clone https://github.com/iclab/centinel.git
     # install dnspython, requests
     * python centinel.py
 

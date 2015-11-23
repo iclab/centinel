@@ -6,7 +6,7 @@ import logging
 try:
     import M2Crypto
     m2crypto_imported = True
-except:
+except ImportError:
     logging.warning("M2Crypto could not be imported. "
                     "TLS fingerprinting will be disabled.")
     m2crypto_imported = False
@@ -82,12 +82,11 @@ def get_fingerprint_batch(input_list, default_port=443,
     """
     This is a parallel version of the TLS fingerprint primitive.
 
-    Params:
-    input_list-   the input is a list of host:ports.
-    default_port- default port to use when no port specified
-    delay_time-   delay before starting each thread
-    max_threads-  maximum number of concurrent threads
-
+    :param input_list: the input is a list of host:ports.
+    :param default_port: default port to use when no port specified
+    :param delay_time: delay before starting each thread
+    :param max_threads: maximum number of concurrent threads
+    :return:
     """
     results = {}
     threads = []
