@@ -12,7 +12,6 @@ class TestHTTPMethods:
         """
         file_name = "../data/invalid_hosts.txt"
         fd = open(os.path.join(os.getcwd(), file_name), 'r')
-        #sys.stdout.write("Hello World!\n")
         for line in fd:
             line = line.rstrip('\n')
             res = http._get_http_request(line)
