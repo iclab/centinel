@@ -64,7 +64,7 @@ class ICHTTPConnection:
         c.setopt(pycurl.WRITEDATA, buf)
         c.setopt(pycurl.TIMEOUT, timeout)
         c.setopt(pycurl.ENCODING, 'identity')
-        c.setopt(pycurl.CURLOPT_NOSIGNAL, 1)
+        c.setopt(pycurl.NOSIGNAL, 1)
 
         if ssl:
             if self.port is None:
