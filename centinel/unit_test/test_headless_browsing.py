@@ -1,5 +1,5 @@
 import pytest
-from hb_pi import HeadlessBrowser
+from primitives.headless_browser import HeadlessBrowser
 import os
 import sys
 from subprocess import call
@@ -56,7 +56,7 @@ class TestHeadlessbrowser:
         generated for URLs in a file
         """
         hb = HeadlessBrowser()
-        url_file = 'input_list.txt'
+        url_file = 'data/headless_browsing.txt'
         call(["rm", "-rf", "har", "htmls", "screenshots", "hb_results.json"])
         hb.run(input_file=url_file)
 

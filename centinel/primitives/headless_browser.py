@@ -35,7 +35,7 @@ class HeadlessBrowser:
         Setup the profile for firefox
         :param firebug: whether add firebug extension
         :param netexport: whether add netexport extension
-        :return:
+        :return: a firefox profile object
         """
         capture_path = os.getcwd()
         profile = webdriver.FirefoxProfile()
@@ -49,7 +49,7 @@ class HeadlessBrowser:
             profile.set_preference("extensions.firebug.delayLoad", False)
             profile.set_preference("extensions.firebug.onByDefault", True)
             profile.set_preference("extensions.firebug.showFirstRunPage", False)
-            profile.set_preference("extensions.firebug.net.defaultPersist", True)
+            profile.set_preference("extensions.firebug.net.defaultPersist", True)  # persist all redirection responses
         if netexport:
             fc.make_folder(capture_path + "/har/")
             profile.add_extension(capture_path + '/extensions/netExport-0.9b7.xpi')
@@ -68,13 +68,17 @@ class HeadlessBrowser:
     def wrap_results(self, **kwargs):
         """
         Wrap returned http response into a well formatted dict
-        :param fd: the directory in which har files lie
-        :return: Dict
+        :param kwargs (dict): this param should contains following keys:
+                                fd: file directory to 
+                                url: the test url fo the result
+                                files_count: the number of files under har/ directory
+
+        :return (dict): the results of all 
         """
 
         if 'fd' not in kwargs or \
-            'url' not in kwargs or \
-            'files_count' not in kwargs:
+                        'url' not in kwargs or \
+                        'files_count' not in kwargs:
             sys.stderr.write("not enough arguments in wrap_results function\n")
             return {}
 
@@ -83,15 +87,15 @@ class HeadlessBrowser:
         url = kwargs['url']
         length = kwargs['files_count']
 
-        #print url, length, fd
-
         results = {}
 
         files = []
         wait_time = 15
         host = self.divide_url(url)[0]
         print host
-        time.sleep(0.5)  # wait for har file write to disk
+        time.sleep(0.5)
+
+        # wait until the har file is generated
         while len(os.listdir(fd)) <= length + self.parsed:
             time.sleep(1)
             wait_time -= 1
@@ -105,13 +109,15 @@ class HeadlessBrowser:
             sys.stdout.flush()
         print ''
         time.sleep(1)
+
+        # find all har files under har/ directory
         for fn in os.listdir(fd):
             if fn.endswith(".har") and fn.startswith(host):
                 path = fd + '/' + fn
                 files.append((fn, os.stat(path).st_mtime))
 
+        # sort all har files and parse the latest one
         files.sort(key=lambda x: x[1])
-
         with open(fd + '/' + files[-1][0]) as f:
             raw_data = json.load(f)['log']['entries']
             results = [{} for i in range(0, len(raw_data))]
@@ -137,10 +143,13 @@ class HeadlessBrowser:
                 sys.stdout.write("\rstart parsing %s %d%%" % (url, int(100 * (i + 1) / len(results))))
                 sys.stdout.flush()
             print "\n"
-        self.parsed += 1
+
+        self.parsed += 1  # increment the number of parsed har files
         sys.stdout.write('\n\n')
         sys.stdout.flush()
 
+        # save test result of this url to the external result object or 
+        # return the result
         if external is not None:
             external[url] = results
         else:
@@ -152,21 +161,21 @@ class HeadlessBrowser:
         """
         if 'https://' in url:
             host = url[8:].split('/')[0]
-            path = url[8+len(host):]
+            path = url[8 + len(host):]
         elif 'http://' in url:
             host = url[7:].split('/')[0]
-            path = url[7+len(host):]
+            path = url[7 + len(host):]
         else:
             host = url.split('/')[0]
             path = url[len(host):]
         return host, path
 
-    def get(self, host, files_count, path="", ssl=False, external=None):
+    def get(self, host, files_count, path="/", ssl=False, external=None):
         """
         Send get request to a url and wrap the results
-        :param host:
-        :param path:
-        :return:
+        :param host (str): the host name of the url
+        :param path (str): the path of the url (start with "/")
+        :return (dict): the result of the test url
         """
         theme = "https" if ssl else "http"
         url = host + path
@@ -178,34 +187,21 @@ class HeadlessBrowser:
 
             har_file_path = capture_path + "har/"
 
-            # SAVE THE HAR FILE UNDER THE FOLDER NAMED BY ITS URL
-            # profile = self.setup_profile()
-            # profile.set_preference("extensions.firebug.netexport.defaultLogDir", capture_path + "/har/"+url)
-            # profile.update_preferences()
-
-            # if self.binary is None:
-            #     self.binary = FirefoxBinary(log_file=sys.stdout) # log_file for debug
-
-
             # fc.load_page(self.driver, http_url)
             fc.switch_tab(self.driver)
             self.load_page(http_url)
 
             print "driver get: " + http_url
-            # if prev_window:
 
             time.sleep(2)
-            # self.wait_for_ready_state(time_=5, state="interactive")
 
             if url[-1] == "/":
                 f_name = url.split('/')[-2]
             else:
                 f_name = url.split('/')[-1]
 
-
             fc.save_html(self.driver, f_name, capture_path + "htmls/")
             fc.save_screenshot(self.driver, f_name, capture_path + "screenshots/")
-
 
             result = self.wrap_results(url=http_url, files_count=files_count, fd=har_file_path)
 
@@ -218,76 +214,33 @@ class HeadlessBrowser:
 
         return result
 
-    def load_page(self, url):
-        sys.stdout.flush()
-        self.driver.get(url)
-        self.driver.delete_all_cookies()
-        time.sleep(1)
-        sys.stdout.flush()
-        return
-
-    def get_batch(self, input_list, delay_time=1, max_threads=100):
-        """
-
-        :param input_list:
-        :param delay_time:
-        :param max_threads:
-        :return:
-        """
-
-        results = {}
-
-        ssl = False
-        path = "/"
-        host = None
-
-        threads = []
-        threads_error = False
-        thread_wait_timeout = 200
-
-        for row in input_list:
-
-            if type(row) is 'dict':
-                if "host" not in row:
-                    continue
-                host = row['host']
-
-                if "path" in row:
-                    path = row['path']
-                if "ssl" in row:
-                    ssl = row['ssl']
-            else:
-                host, path = self.divide_url(row)
-
-            self.get(host=host, files_count=len(os.listdir(os.getcwd()+"/har/")), path=path, ssl=ssl, external=results)
-
-        return results
-
     def foctor_get_requests(self, site_list_file, results):
         """
         use foctor_core library do get requests
+        site_list_file (str): the file name of the list of test urls
+                        format: 
+                            1, www.facebook.com
+                            2, www.google.com
+                            ...
+        results (dict): the object to save the responses from server
         """
+
         capture_path = os.getcwd() + "/"
         fc.make_folder(capture_path)
-        display_mode = 0
-        # driver, display, tor_pname = fc.crawl_setup(tor=False, capture_path=capture_path, display_mode=display_mode)
+
+        display_mode = 0  # 0 is virtural display(Xvfb mode)
+
         site_list = fc.read_site_list(site_list_file=site_list_file, start_index=0, end_index=1 << 31)
+
         driver, display = fc.do_crawl(sites=site_list, driver=self.driver, display=self.display,
                                       capture_path=capture_path, callback=self.wrap_results,
                                       external=results, fd=capture_path + "har/",
                                       files_count=len(os.listdir(capture_path + "har/")))
         fc.teardown_driver(driver, display, display_mode)
-        driver.quit()
 
-    def quit(self):
-        """
-        close webdriver and clean tmp files
-        :return:
-		"""
-        if self.driver is not None:
-            self.driver.quit()
+        driver.quit()  # quit driver will also clean up the tmp file under /tmp directory
 
-    def run(self, input_file, url=None, input_list=None, verbose=0):
+    def run(self, input_file, url=None, verbose=0):
         """
         run the headless browser with given input
         if url given, the proc will only run hlb with given url and ignore input_list.
@@ -299,9 +252,10 @@ class HeadlessBrowser:
                 ...
         :return:
         """
-        if not url and not input_list and not input_file:
+        if not url and not input_file:
             print 'no inputs'
             return {"error": "no inputs"}
+
         results = {}
 
         self.open_virtual_display()
@@ -310,28 +264,23 @@ class HeadlessBrowser:
         else:
             log_file = None
 
+        # set up firefox driver 
         self.binary = FirefoxBinary(log_file=log_file)
         self.profile = self.setup_profile()
         self.driver = webdriver.Firefox(firefox_profile=self.profile, firefox_binary=self.binary, timeout=60)
         self.driver.set_page_load_timeout(60)
         fc.make_folder(os.getcwd() + "/har/")
 
-        afile = False
+        isfile = False
         if url:
-
             host, path = self.divide_url(url)
             results[url] = self.get(host, path)
-
-        elif input_list:
-            results_list = self.get_batch(input_list)
-            for key, value in results_list.iteritems():
-                results[key] = value
-
         else:
             self.foctor_get_requests(input_file, results)
-            afile = True
+            isfile = True
 
-        if not afile:
+        # foctor_core will quit the driver by itself so we only quit the driver when we don't use foctor core
+        if not isfile:
             print "quit driver"
             self.quit()
             self.close_virtual_display()
@@ -340,13 +289,3 @@ class HeadlessBrowser:
             json.dump(results, f, indent=4)
         print "Headless browser test finished"
         return results
-
-    @fc.timeout(seconds=20)
-    def wait_for_ready_state(self, time_, state):
-        time.sleep(1)
-        try:
-            WebDriverWait(self.driver, int(time_)).until(
-                lambda d: d.execute_script('return document.readyState') == state)
-        except Exception as e:
-            print e
-            pass
