@@ -16,15 +16,15 @@
 import csv
 import logging
 import os
-from random import shuffle
 import time
 import urlparse
+from random import shuffle
 
+import centinel.primitives.http as http
+import centinel.primitives.traceroute as traceroute
 from centinel.experiment import Experiment
 from centinel.primitives import dnslib
 from centinel.primitives import tls
-import centinel.primitives.http as http
-import centinel.primitives.traceroute as traceroute
 
 
 class BaselineExperiment(Experiment):
@@ -63,19 +63,14 @@ class BaselineExperiment(Experiment):
         result = {"file_name": file_name}
         run_start_time = time.time()
 
-        http_results = {}
-        http_inputs  = []
-        tls_results = {}
-        tls_inputs  = []
-        dns_results = {}
-        dns_inputs  = []
-        traceroute_results = {}
-        traceroute_inputs  = []
+        http_inputs = []
+        tls_inputs = []
+        dns_inputs = []
+        traceroute_inputs = []
         url_metadata_results = {}
         file_metadata = {}
         file_comments = []
         index_row = None
-        comments = ""
 
         # first parse the input and create data structures
         csvreader = csv.reader(file_contents, delimiter=',', quotechar='"')
@@ -123,7 +118,6 @@ class BaselineExperiment(Experiment):
             meta = row[1:]
             http_ssl = False
             ssl_port = 443
-            http_path = '/'
 
             # parse the URL to extract netlocation, HTTP path, domain name,
             # and HTTP method (SSL or plain)
@@ -134,7 +128,7 @@ class BaselineExperiment(Experiment):
                 # if netloc is not urlparse-able, add // to the start
                 # of URL
                 if http_netloc == '':
-                    urlparse_object = urlparse.urlparse('//%s' % (url))
+                    urlparse_object = urlparse.urlparse('//%s' % url)
                     http_netloc = urlparse_object.netloc
 
                 domain_name = http_netloc.split(':')[0]
@@ -154,17 +148,17 @@ class BaselineExperiment(Experiment):
             except Exception as exp:
                 logging.exception("%s: failed to parse URL: %s" % (url, exp))
                 http_netloc = url
-                http_ssl    = False
+                http_ssl = False
                 ssl_port = 443
-                http_path   = '/'
+                http_path = '/'
                 domain_name = url
 
             # HTTP GET
-            http_inputs.append( { "host": http_netloc,
-                                  "path": http_path,
-                                  "ssl":  http_ssl,
-                                  "url":  url
-                                } )
+            http_inputs.append({"host": http_netloc,
+                                "path": http_path,
+                                "ssl": http_ssl,
+                                "url": url
+                                })
 
             # TLS certificate
             # this will only work if the URL starts with https://
@@ -210,8 +204,8 @@ class BaselineExperiment(Experiment):
         for method in self.traceroute_methods:
             shuffle(traceroute_inputs)
             start = time.time()
-            logging.info("Running %s traceroutes..." % (method.upper()) )
-            result["traceroute.%s" % (method) ] = (
+            logging.info("Running %s traceroutes..." % (method.upper()))
+            result["traceroute.%s" % (method)] = (
                 traceroute.traceroute_batch(traceroute_inputs, method))
             elapsed = time.time() - start
             logging.info("Traceroutes took %d seconds for %d "
@@ -224,7 +218,7 @@ class BaselineExperiment(Experiment):
             for url, meta in url_metadata_results.items():
                 try:
                     indexed_meta = {}
-                    for i in range(1,len(index_row)):
+                    for i in range(1, len(index_row)):
                         indexed_meta[index_row[i]] = meta[i - 1]
                     indexed_url_metadata[url] = indexed_meta
                 except:
@@ -239,5 +233,5 @@ class BaselineExperiment(Experiment):
         run_finish_time = time.time()
         elapsed = run_finish_time - run_start_time
         result["total_time"] = elapsed
-        logging.info("Testing took a total of %d seconds." % (elapsed) )
+        logging.info("Testing took a total of %d seconds." % (elapsed))
         return result

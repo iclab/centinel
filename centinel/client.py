@@ -361,7 +361,10 @@ class Client:
             except Exception as exception:
                 logging.exception("Error storing results for "
                                   "%s: %s" % (name, exception))
-                results["results_exception"] = str(exception)
+                if "results_exception" not in results:
+                    results["results_exception"] = {}
+
+                results["results_exception"][name] = str(exception)
 
             end_time = datetime.now()
             time_taken = (end_time - start_time)
@@ -382,8 +385,7 @@ class Client:
             except Exception as exception:
                 logging.exception("Error saving results for "
                                   "%s to file: %s" % (name, exception))
-                results["results_exception"] = str(exception)
-            logging.debug("Done saving %s results to file" % (name))
+            logging.debug("Done saving %s results to file" % name)
 
     def consolidate_results(self):
         # bundle and compress result files
