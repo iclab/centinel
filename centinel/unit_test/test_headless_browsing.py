@@ -1,5 +1,5 @@
 import pytest
-from primitives.headless_browser import HeadlessBrowser
+from centinel.primitives.headless_browser import HeadlessBrowser
 import os
 import sys
 from subprocess import call
