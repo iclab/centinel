@@ -1,0 +1,3 @@
+[submodule "centinel/primitives/foctor_core"]
+	path = centinel/primitives/foctor_core
+	url = https://github.com/JASONews/foctor_core_for_pi.git
