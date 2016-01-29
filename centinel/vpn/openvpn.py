@@ -4,6 +4,8 @@
 import subprocess
 import threading
 import time
+import os
+import signal
 
 
 class OpenVPN:
@@ -35,7 +37,8 @@ class OpenVPN:
         self.process = subprocess.Popen(cmd,
                                         stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
-                                        stderr=subprocess.STDOUT)
+                                        stderr=subprocess.STDOUT,
+                                        preexec_fn=os.setsid)
         self.kill_switch = self.process.terminate
         self.starting = True
         while True:
@@ -79,7 +82,7 @@ class OpenVPN:
         """Stop openvpn"""
         if not timeout:
             timeout = self.timeout
-        self.kill_switch()
+        os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         self.thread.join(timeout)
         if self.stopped:
             print "stopped"
