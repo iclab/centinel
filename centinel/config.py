@@ -8,7 +8,7 @@ import centinel
 
 class Configuration:
 
-    def __init__(self,):
+    def __init__(self):
 
         self.params = {}
 
@@ -93,6 +93,45 @@ class Configuration:
         if self.params['proxy']['proxy_type']:
             self.params['proxy'] = {self.params['proxy']['proxy_type']:
                                     self.params['proxy']['proxy_url']}
+
+    def update(self, old, backup_path=None):
+        """
+        Update the old configuration file with new values.
+
+        :param old: old configuration to update.
+        :param backup_path: path to write a backup of the old config file.
+
+        :return:
+        """
+        for category in old.params.keys():
+            for parameter in old.params[category].keys():
+                if (category in self.params and
+                    parameter in self.params[category] and
+                    (old.params[category][parameter] !=
+                     self.params[category][parameter]) and
+                    (category != "version")):
+                    print ("Config value '%s.%s' "
+                           "in old configuration is different "
+                           "from the new version\n"
+                           "[old value] = %s\n"
+                           "[new value] = %s"
+                           "" % (category, parameter,
+                                 old.params[category][parameter],
+                                 self.params[category][parameter]))
+                    answer = raw_input("Do you want to overwrite? ([y]/n) ")
+                    while answer.lower() not in ['y', 'yes', 'n', 'no']:
+                        answer = raw_input("Answer not recongnized. Enter 'y' or 'n'. ")
+
+                    if answer in ['n', 'no']:
+                        old_value = old.params[category][parameter]
+                        self.params[category][parameter] = old_value
+                elif not (category in self.params and
+                          parameter in self.params[category]):
+                    print ("Deprecated config option '%s.%s' has "
+                           "been removed." % (category, parameter))
+        if backup_path is not None:
+            old.write_out_config(backup_path)
+            print "Backup saved in %s." % backup_path
 
     def write_out_config(self, config_file):
         """

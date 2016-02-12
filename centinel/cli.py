@@ -3,6 +3,7 @@ import argparse
 import logging
 import getpass
 import os
+import sys
 
 import centinel
 import centinel.config
@@ -59,6 +60,8 @@ def parse_args():
                    'daemonize option')
     parser.add_argument('--auto-update', action='store_false',
                         help=update_help, default="centinel")
+    group.add_argument('--update-config', help='Update configuration file',
+                       action='store_true')
 
     args = parser.parse_args()
     if (not args.daemonize and 
@@ -84,18 +87,31 @@ def run():
     else:
         # if the file does not exist, then the default config file
         # will be used
+        new_configuration = None
         if os.path.exists(DEFAULT_CONFIG_FILE):
             configuration.parse_config(DEFAULT_CONFIG_FILE)
         else:
-            print 'Configuration file does not exist.'
+            print 'Configuration file does not exist. Creating a new one.'
+            new_configuration = centinel.config.Configuration()
 
         if not ('version' in configuration.params and
                 configuration.params['version']['version'] == centinel.__version__):
-            print ('Configuration file is from a different version of '
-                   'Centinel.')
-            configuration = centinel.config.Configuration()
+            if not args.update_config:
+                print ('WARNING: configuration file is from '
+                       'a different version (%s) of '
+                       'Centinel. Run with --update-config to update '
+                       'it.' % (configuration.params['version']['version']))
+            else:
+                new_configuration = centinel.config.Configuration()
+                backup_path = DEFAULT_CONFIG_FILE + ".old"
+                new_configuration.update(configuration, backup_path)
 
-        configuration.write_out_config(DEFAULT_CONFIG_FILE)
+        if new_configuration is not None:
+            configuration = new_configuration
+            configuration.write_out_config(DEFAULT_CONFIG_FILE)
+            print 'New configuration written to %s' % (DEFAULT_CONFIG_FILE)
+            if args.update_config:
+                sys.exit(0)
 
     if args.verbose:
         if 'log' not in configuration.params:
