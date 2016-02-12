@@ -32,19 +32,25 @@ def parse_args():
                     "results for analysis")
     group.add_argument('--informed-consent', help=consent_help,
                        dest='consent', default=False, action='store_true')
-
-    daemon_help = ('Create cron jobs to run centinel in the background and '
-                   'autoupdate. You must be root to use this functionality'
-                   'By default, this will use /usr/local/bin/centinel'
+    daemon_help = ('Create cron jobs to run Centinel in the background and '
+                   'autoupdate the package. You need to run this command as '
+                   'root in order to setup this functionality. '
+                   'By default, this will use /usr/local/bin/centinel '
                    'for the binary location and will create an autoupdate '
-                   'script')
+                   'script.')
     parser.add_argument('--daemonize', help=daemon_help, action='store_true',
                         dest='daemonize')
+    user_help = ('Using this option with --daemonize will make the '
+                 'cron job created to run Centinel as the specified user '
+                 'instead of root. You will still need to run this '
+                 'command as root to setup this functionality. '
+                 'By default, root is used to run both daemonized scripts.')
+    parser.add_argument('--user', help=user_help, default="root")
     verbose_help = ('Verbose logging')
-    parser.add_argument('--verbose', '-V', help=verbose_help, action='store_true',
-                        dest='verbose')
+    parser.add_argument('--verbose', '-V', help=verbose_help,
+                        action='store_true', dest='verbose')
     binary_help = ('Name or location of the binary to use in the cron job '
-                   'for centinel')
+                   'for Centinel')
     parser.add_argument('--binary', help=binary_help,
                         default='/usr/local/bin/centinel')
     update_help = ('Create an autoupdate script for the installed package. '
@@ -55,9 +61,11 @@ def parse_args():
                         help=update_help, default="centinel")
 
     args = parser.parse_args()
-    if not args.daemonize and (args.auto_update != 'centinel' or
-                               args.binary != '/usr/local/bin/centinel'):
-        parser.error("--auto-update and --binary must be used with "
+    if (not args.daemonize and 
+        (args.auto_update != 'centinel' or
+         args.binary != '/usr/local/bin/centinel' or
+         args.user != "root")):
+        parser.error("--auto-update, --user, and --binary must be used with "
                      "--daemonize")
     return args
 
@@ -113,7 +121,8 @@ def run():
         if not os.path.exists(args.binary):
             print "Error: no binary found to daemonize"
             exit(1)
-        centinel.daemonize.daemonize(args.auto_update, args.binary)
+        centinel.daemonize.daemonize(args.auto_update, args.binary,
+            args.user)
     else:
         client.run()
 
