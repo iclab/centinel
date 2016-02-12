@@ -57,7 +57,7 @@ def daemonize(package, bin_loc, user):
                           "# cron job for centinel\n",
                           "su ", user, " -c '", bin_loc, " --sync'\n",
                           "su ", user, " -c '", bin_loc, "'\n",
-                          "su ", user, " -c '",bin_loc, " --sync'\n"])
+                          "su ", user, " -c '", bin_loc, " --sync'\n"])
     else:
         # create a script to run centinel every hour as root
         hourly = "".join(["#!/bin/bash\n",
