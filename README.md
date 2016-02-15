@@ -7,12 +7,12 @@ censorship.
 ##### Debian
     $ sudo apt-get install python-pip libssl-dev swig python-dev libffi-dev tcpdump libcurl4-openssl-dev
     $ sudo pip install -U pip
-    $ sudo pip install centinel-dev
-    $ centinel-dev
+    $ sudo pip install centinel
+    $ centinel
 
 ##### OSX
-    $ sudo pip install centinel-dev
-    $ centinel-dev
+    $ sudo pip install centinel
+    $ centinel
 
 ##### Latest development version
     * git clone https://github.com/iclab/centinel.git
@@ -24,12 +24,3 @@ censorship.
     * Linux/OS X
     * BISmark Routers
     * Android
-
-### Acknowledgements
-
-* Ben Jones
-* Abbas Razaghpanah
-* Sathya Gunasekaran
-* Nick Feamster
-* Phillipa Gill
-* Sam Burnett
