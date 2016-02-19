@@ -6,7 +6,6 @@ import threading
 import time
 import os
 import signal
-import logging
 
 
 class OpenVPN:
@@ -24,13 +23,6 @@ class OpenVPN:
         self.thread = threading.Thread(target=self._invoke_openvpn)
         self.thread.setDaemon(1)
         self.timeout = timeout
-
-        # sanity check: tls_auth and key_direction must present together
-        if (tls_auth is not None and key_direction is None) or \
-                (tls_auth is None and key_direction is not None):
-            logging.error("tls_auth and key_direction must present "
-                          "together! Or none of them would be included "
-                          "in command options")
 
     def _invoke_openvpn(self):
         cmd = ['sudo', 'openvpn', '--script-security', '2']

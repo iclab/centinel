@@ -25,6 +25,11 @@ def parse_args():
     parser.add_argument('--crt-file', '-r', dest='crt_file', default=None,
                         help=("Certificate file for the current vpn\n"
                               "provider, if provided"))
+    parser.add_argument('--tls-auth', '-t', dest='tls_auth', default=None,
+                        help="Key for additional layer of authentication")
+    parser.add_argument('--key-direction', '-k', dest='key_direction', default=None,
+                        help=("Key direction for tls auth, must specify when "
+                              "tls-auth is used"))
     g1 = parser.add_mutually_exclusive_group()
     g1.add_argument('--create-hma-configs', dest='create_HMA',
                     action="store_true",
@@ -288,6 +293,13 @@ def run():
         # create the config files for the openvpn config files
         create_config_files(args.create_conf_dir)
     else:
+        # sanity check tls_auth and key_direction
+        if (args.tls_auth is not None and args.key_direction is None) or \
+                (args.tls_auth is None and args.key_direction is not None):
+            logging.error("tls_auth and key_direction must be specified "
+                          "together!")
+            return
+
         scan_vpns(directory=args.directory, auth_file=args.auth_file,
                   crt_file=args.crt_file, tls_auth=args.tls_auth,
                   key_direction=args.key_direction, exclude_list=args.exclude_list,
