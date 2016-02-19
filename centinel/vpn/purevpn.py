@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import socket
 import sys
 import urllib
 import zipfile
@@ -42,8 +43,19 @@ def create_config_files(directory):
     for filename in os.listdir(orig_path):
         if filename.endswith('.ovpn'):
             file_path = os.path.join(orig_path, filename)
-            new_path = os.path.join(directory, filename)
-            shutil.copyfile(file_path, new_path)
+            lines = [line.rstrip('\n') for line in open(file_path)]
+
+            # get ip address for this vpn
+            ip = ""
+            for line in lines:
+                if line.startswith('remote'):
+                    hostname = line.split(' ')[1]
+                    ip = socket.gethostbyname(hostname)
+                    break
+
+            if len(ip) > 0:
+                new_path = os.path.join(directory, ip + '.ovpn')
+                shutil.copyfile(file_path, new_path)
 
     # remove extracted folder
     shutil.rmtree(os.path.join(directory, '../Linux OpenVPN Updated files'))

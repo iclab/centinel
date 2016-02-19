@@ -1,8 +1,9 @@
 import httplib2
+import logging
 import os
+import socket
 import sys
 import urllib
-import logging
 from BeautifulSoup import BeautifulSoup, SoupStrainer
 
 
@@ -39,6 +40,26 @@ def create_config_files(directory):
         with open(file_path, 'a') as f:
             f.write("up /etc/openvpn/update-resolv-conf\n")
             f.write("down /etc/openvpn/update-resolv-conf\n")
+
+    # rename all config files using their ip address
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        lines = [line.rstrip('\n') for line in open(file_path)]
+
+        # get ip address for this vpn
+        ip = ""
+        for line in lines:
+            if line.startswith('remote'):
+                hostname = line.split(' ')[1]
+                ip = socket.gethostbyname(hostname)
+                break
+
+        if len(ip) > 0:
+            new_path = os.path.join(directory, ip + '.ovpn')
+            os.rename(file_path, new_path)
+        else:
+            logging.warn("Unable to resolve hostname and remove %s" % filename)
+            os.remove(file_path)
 
 
 if __name__ == "__main__":
