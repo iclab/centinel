@@ -6,34 +6,46 @@ import threading
 import time
 import os
 import signal
+import logging
 
 
 class OpenVPN:
-    def __init__(self, config_file=None, auth_file=None, crt_file=None, timeout=60):
+    def __init__(self, config_file=None, auth_file=None, crt_file=None,
+                 tls_auth=None, key_direction=None, timeout=60):
         self.started = False
         self.stopped = False
         self.error = False
         self.notifications = ""
         self.auth_file = auth_file
         self.crt_file = crt_file
+        self.tls_auth = tls_auth
+        self.key_dir = key_direction
         self.config_file = config_file
         self.thread = threading.Thread(target=self._invoke_openvpn)
         self.thread.setDaemon(1)
         self.timeout = timeout
 
+        # sanity check: tls_auth and key_direction must present together
+        if (tls_auth is not None and key_direction is None) or \
+                (tls_auth is None and key_direction is not None):
+            logging.error("tls_auth and key_direction must present "
+                          "together! Or none of them would be included "
+                          "in command options")
+
     def _invoke_openvpn(self):
-        if self.auth_file is None:
-            cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.config_file]
-        elif self.crt_file is None:
-            cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.config_file,
-                   '--auth-user-pass', self.auth_file]
-        else:
-            cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.config_file,
-                   '--auth-user-pass', self.auth_file,
-                   '--ca', self.crt_file]
+        cmd = ['sudo', 'openvpn', '--script-security', '2']
+        # --config must be the first parameter, since otherwise
+        # other specified options might not be able to overwrite
+        # the wrong, relative-path options in config file
+        if self.config_file is not None:
+            cmd.extend(['--config', self.config_file])
+        if self.crt_file is not None:
+            cmd.extend(['--ca', self.crt_file])
+        if self.tls_auth is not None and self.key_dir is not None:
+            cmd.extend(['--tls-auth', self.tls_auth, self.key_dir])
+        if self.auth_file is not None:
+            cmd.extend(['--auth-user-pass', self.auth_file])
+
         self.process = subprocess.Popen(cmd,
                                         stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
@@ -49,7 +61,6 @@ class OpenVPN:
 
     def output_callback(self, line, kill_switch):
         """Set status of openvpn according to what we process"""
-
         self.notifications += line + "\n"
 
         if "Initialization Sequence Completed" in line:

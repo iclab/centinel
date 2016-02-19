@@ -21,7 +21,9 @@ setup(
                       "requests >= 2.5.1",
                       "trparse >= 0.2.1",
                       "pycurl >= 7.19.5",
-                      "urllib3 == 1.9.1"],
+                      "urllib3 == 1.9.1",
+                      "dnspython == 1.12.0",
+                      "M2Crypto == 0.21.1"],
     include_package_data=True,
     entry_points={
         'console_scripts': ['centinel=centinel.cli:run',

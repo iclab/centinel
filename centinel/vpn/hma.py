@@ -3,7 +3,6 @@
 # Hide My Ass VPN service
 
 import os
-import re
 import requests
 import sys
 
