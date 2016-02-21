@@ -277,9 +277,14 @@ def run():
     """Entry point for all uses of centinel"""
 
     args = parse_args()
-    logging.basicConfig(filename=args.log_file,
-                        format="%(levelname)s %(asctime)s: %(message)s",
-                        level=logging.INFO)
+    if args.log_file:
+        logging.basicConfig(filename=args.log_file,
+                            format="%(levelname)s %(asctime)s: %(message)s",
+                            level=logging.INFO)
+    else:
+        logging.basicConfig(format="%(levelname)s %(asctime)s: %(message)s",
+                            level=logging.INFO)
+
     if args.create_conf_dir:
         if args.create_HMA:
             hma_dir = return_abs_path(args.create_conf_dir, 'vpns')
