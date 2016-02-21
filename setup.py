@@ -18,7 +18,7 @@ setup(
               "centinel.vpn"],
     install_requires=["argparse >= 1.2.1",
                       "dnspython >= 1.11.0",
-                      "requests >= 2.5.1",
+                      "requests >= 2.9.1",
                       "trparse >= 0.2.1",
                       "pycurl >= 7.19.5",
                       "urllib3 == 1.9.1",
