@@ -173,7 +173,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         try:
             client = centinel.client.Client(config.params)
             centinel.conf = config.params
-            client.setup_logging()
+            # do not use client logging config
+            # client.setup_logging()
             client.run()
         except Exception as exp:
             logging.exception("%s: Error running Centinel: %s" % (filename, exp))
@@ -253,7 +254,7 @@ def create_config_files(directory):
         configuration.params['server']['login_file'] = login_file
         configuration.params['user']['is_vpn'] = True
 
-        configuration.params['server']['verify'] = False
+        configuration.params['server']['verify'] = True
         configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
 
         conf_file = os.path.join(conf_dir, filename)
@@ -277,13 +278,21 @@ def run():
     """Entry point for all uses of centinel"""
 
     args = parse_args()
+
+    # set up logging
+    log_formatter = logging.Formatter("%(asctime)s %(filename)s(line %(lineno)d) "
+                                      "%(levelname)s: %(message)s")
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    root_logger.addHandler(console_handler)
+
+    # add file handler if specified
     if args.log_file:
-        logging.basicConfig(filename=args.log_file,
-                            format="%(levelname)s %(asctime)s: %(message)s",
-                            level=logging.INFO)
-    else:
-        logging.basicConfig(format="%(levelname)s %(asctime)s: %(message)s",
-                            level=logging.INFO)
+        file_handler = logging.FileHandler(args.log_file)
+        file_handler.setFormatter(log_formatter)
+        root_logger.addHandler(file_handler)
 
     if args.create_conf_dir:
         if args.create_HMA:
