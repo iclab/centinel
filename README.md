@@ -5,7 +5,7 @@ censorship.
 
 #### Install and usage
 ##### Debian
-    $ sudo apt-get install python-pip libssl-dev swig python-dev libffi-dev tcpdump libcurl4-openssl-dev
+    $ sudo apt-get install python-pip libssl-dev swig python-dev libffi-dev tcpdump libcurl4-openssl-dev traceroute
     $ sudo pip install -U pip
     $ sudo pip install centinel
     $ centinel
@@ -17,6 +17,7 @@ censorship.
 ##### Latest development version
     * git clone https://github.com/iclab/centinel.git
     # install dnspython, requests
+    * sudo python setup.py install
     * python centinel.py
 
 #### Supported platforms
