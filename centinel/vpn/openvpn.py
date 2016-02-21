@@ -1,11 +1,12 @@
 #!/usr/bin/python
 # openvpn.py: library to handle starting and stopping openvpn instances
 
+import logging
+import os
+import signal
 import subprocess
 import threading
 import time
-import os
-import signal
 
 
 class OpenVPN:
@@ -76,10 +77,11 @@ class OpenVPN:
             if self.error or self.started:
                 break
         if self.started:
-            print "openvpn started"
+            logging.info("OpenVPN connected")
         else:
-            print "openvpn not started"
-            print self.notifications
+            logging.warn("openvpn not started")
+            for line in self.notifications.split('\n'):
+                logging.warn("OpenVPN output:\t\t%s" % line)
 
     def stop(self, timeout=None):
         """Stop openvpn"""
@@ -88,7 +90,8 @@ class OpenVPN:
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         self.thread.join(timeout)
         if self.stopped:
-            print "stopped"
+            logging.info("OpenVPN stopped")
         else:
-            print "not stopped"
-            print self.notifications
+            logging.warn("Cannot stop OpenVPN!")
+            for line in self.notifications.split('\n'):
+                logging.warn("OpenVPN output:\t\t%s" % line)

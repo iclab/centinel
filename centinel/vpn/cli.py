@@ -107,7 +107,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
     for filename in conf_list:
         logging.info("Moving onto (%d/%d) %s" % (number, total, filename))
-        print "(%d/%d) %s" % (number, total, filename)
 
         number += 1
         vpn_config = os.path.join(vpn_dir, filename)
