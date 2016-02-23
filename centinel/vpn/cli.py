@@ -41,7 +41,7 @@ def parse_args():
                     action='store_true',
                     help='Create the openvpn config files for PureVPN')
     parser.add_argument('--shuffle', '-s', dest='shuffle_lists',
-                        action="store_true",
+                        action="store_true", default=False,
                         help='Randomize the order of vantage points')
     parser.add_argument('--exclude', '-e', dest='exclude_list', default=None,
                         help=('Countries to exclude when scanning (comma '
@@ -58,11 +58,20 @@ def parse_args():
                         'that contains the openvpn config files')
     g2.add_argument('--create-config', '-c', help=create_conf_help,
                     dest='create_conf_dir')
+
+    # following args are used to support splitting clients among multiple VMs
+    # each running vpn walker will use this to decide which portion of vpn
+    # endpoints it should include
+    parser.add_argument('--vm-num', dest='vm_num', type=int, default=1,
+                        help="Specify the number of VMs running concurrently")
+    parser.add_argument('--vm-index', dest='vm_index', type=int, default=1,
+                        help='The index of current VM, must be >= 1 and '
+                             '<= vm_num')
     return parser.parse_args()
 
 
 def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
-              exclude_list, shuffle_lists=False):
+              exclude_list, shuffle_lists, vm_num, vm_index):
     """
     For each VPN, check if there are experiments and scan with it if
     necessary
@@ -82,6 +91,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     :param key_direction: must specify if tls_auth is used
     :param exclude_list: optional list of exluded countries
     :param shuffle_lists: shuffle vpn list if set true
+    :param vm_num: number of VMs that are running currently
+    :param vm_index: index of current VM
     :return:
     """
 
@@ -97,7 +108,17 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         crt_file = return_abs_path(directory, crt_file)
     if tls_auth is not None:
         tls_auth = return_abs_path(directory, tls_auth)
-    conf_list = os.listdir(conf_dir)
+    # sort file list to ensure the same filename sequence in each VM
+    conf_list = sorted(os.listdir(conf_dir))
+
+    # only select its own portion according to vm_num and vm_index
+    chunk_size = len(conf_list) / vm_num
+    last_chunk_additional = len(conf_list) % vm_num
+    start_pointer = 0 + (vm_index - 1) * chunk_size
+    end_pointer = start_pointer + chunk_size
+    if vm_index == vm_num:
+        end_pointer += last_chunk_additional
+    conf_list = conf_list[start_pointer:end_pointer]
 
     if shuffle_lists:
         shuffle(conf_list)
@@ -293,6 +314,14 @@ def run():
         file_handler.setFormatter(log_formatter)
         root_logger.addHandler(file_handler)
 
+    # check vm_num and vm_index value
+    if args.vm_num < 1:
+        print "vm_num value cannot be negative!"
+        return
+    if args.vm_index < 1 or args.vm_index > args.vm_num:
+        print "vm_index value cannot be negative or greater than vm_num!"
+        return
+
     if args.create_conf_dir:
         if args.create_HMA:
             hma_dir = return_abs_path(args.create_conf_dir, 'vpns')
@@ -316,7 +345,8 @@ def run():
         scan_vpns(directory=args.directory, auth_file=args.auth_file,
                   crt_file=args.crt_file, tls_auth=args.tls_auth,
                   key_direction=args.key_direction, exclude_list=args.exclude_list,
-                  shuffle_lists=args.shuffle_lists)
+                  shuffle_lists=args.shuffle_lists,
+                  vm_num=args.vm_num, vm_index=args.vm_index)
 
 if __name__ == "__main__":
     run()
