@@ -1,39 +1,44 @@
 #!/usr/bin/python
 # openvpn.py: library to handle starting and stopping openvpn instances
 
+import logging
+import os
+import signal
 import subprocess
 import threading
 import time
-import os
-import signal
 
 
 class OpenVPN:
-    def __init__(self, config_file=None, auth_file=None, crt_file=None, timeout=60):
+    def __init__(self, config_file=None, auth_file=None, crt_file=None,
+                 tls_auth=None, key_direction=None, timeout=60):
         self.started = False
         self.stopped = False
         self.error = False
         self.notifications = ""
         self.auth_file = auth_file
         self.crt_file = crt_file
+        self.tls_auth = tls_auth
+        self.key_dir = key_direction
         self.config_file = config_file
         self.thread = threading.Thread(target=self._invoke_openvpn)
         self.thread.setDaemon(1)
         self.timeout = timeout
 
     def _invoke_openvpn(self):
-        if self.auth_file is None:
-            cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.config_file]
-        elif self.crt_file is None:
-            cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.config_file,
-                   '--auth-user-pass', self.auth_file]
-        else:
-            cmd = ['sudo', 'openvpn', '--script-security', '2',
-                   '--config', self.config_file,
-                   '--auth-user-pass', self.auth_file,
-                   '--ca', self.crt_file]
+        cmd = ['sudo', 'openvpn', '--script-security', '2']
+        # --config must be the first parameter, since otherwise
+        # other specified options might not be able to overwrite
+        # the wrong, relative-path options in config file
+        if self.config_file is not None:
+            cmd.extend(['--config', self.config_file])
+        if self.crt_file is not None:
+            cmd.extend(['--ca', self.crt_file])
+        if self.tls_auth is not None and self.key_dir is not None:
+            cmd.extend(['--tls-auth', self.tls_auth, self.key_dir])
+        if self.auth_file is not None:
+            cmd.extend(['--auth-user-pass', self.auth_file])
+
         self.process = subprocess.Popen(cmd,
                                         stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
@@ -49,7 +54,6 @@ class OpenVPN:
 
     def output_callback(self, line, kill_switch):
         """Set status of openvpn according to what we process"""
-
         self.notifications += line + "\n"
 
         if "Initialization Sequence Completed" in line:
@@ -73,10 +77,11 @@ class OpenVPN:
             if self.error or self.started:
                 break
         if self.started:
-            print "openvpn started"
+            logging.info("OpenVPN connected")
         else:
-            print "openvpn not started"
-            print self.notifications
+            logging.warn("openvpn not started")
+            for line in self.notifications.split('\n'):
+                logging.warn("OpenVPN output:\t\t%s" % line)
 
     def stop(self, timeout=None):
         """Stop openvpn"""
@@ -85,7 +90,8 @@ class OpenVPN:
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         self.thread.join(timeout)
         if self.stopped:
-            print "stopped"
+            logging.info("OpenVPN stopped")
         else:
-            print "not stopped"
-            print self.notifications
+            logging.warn("Cannot stop OpenVPN!")
+            for line in self.notifications.split('\n'):
+                logging.warn("OpenVPN output:\t\t%s" % line)

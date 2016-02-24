@@ -8,10 +8,11 @@ import os
 import tarfile
 import time
 from datetime import datetime
-from experiment import Experiment, ExperimentList
+
 import centinel
 from centinel.backend import get_meta
 from centinel.primitives.tcpdump import Tcpdump
+from experiment import ExperimentList
 
 loaded_modules = set()
 
@@ -44,14 +45,14 @@ class Client:
         return os.path.join(self.config['dirs']['results_dir'], result_file)
 
     def get_input_file(self, experiment_name):
-        input_file = "%s" % (experiment_name)
+        input_file = "%s" % experiment_name
         return os.path.join(self.config['dirs']['data_dir'], input_file)
 
     def load_input_file(self, name):
         input_file = self.get_input_file(name)
 
         if not os.path.isfile(input_file):
-            logging.error("Input file not found %s" % (input_file))
+            logging.error("Input file not found %s" % input_file)
             return None
 
         try:
@@ -59,7 +60,7 @@ class Client:
         except Exception as exp:
             logging.exception("Can not read from %s: %s" % (input_file, str(exp)))
             return None
-        logging.debug("Input file %s loaded." % (name))
+        logging.debug("Input file %s loaded." % name)
         return input_file_handle
 
     def load_experiments(self):
@@ -100,7 +101,7 @@ class Client:
             run_next = sched_info[name]['last_run']
             run_next += sched_info[name]['frequency']
             if run_next <= time.time():
-                logging.debug("Client has experiment(s) to run (%s)." % (name))
+                logging.debug("Client has experiment(s) to run (%s)." % name)
                 return True
         logging.debug("Client has no experiments to run.")
         return False
@@ -142,8 +143,6 @@ class Client:
             os.makedirs(self.config['dirs']['results_dir'])
         logging.debug("Results directory: %s" % (self.config['dirs']['results_dir']))
 
-        experiments_set = self.experiments.items()
-
         # load scheduler information
         sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
                                       'scheduler.info')
@@ -184,9 +183,9 @@ class Client:
             else:
                 exps = sched_info[name]['python_exps'].items()
                 for python_exp, exp_config in exps:
-                    logging.debug("Running %s." % (python_exp))
+                    logging.debug("Running %s." % python_exp)
                     self.run_exp(python_exp, exp_config, schedule_name=name)
-                    logging.debug("Finished running %s." % (python_exp))
+                    logging.debug("Finished running %s." % python_exp)
             sched_info[name]['last_run'] = time.time()
 
         logging.debug("Updating timeout values in scheduler.")
@@ -202,12 +201,10 @@ class Client:
 
     def run_exp(self, name, exp_config=None, schedule_name=None):
         if name not in self.experiments:
-            logging.error("Experiment file %s not found! Skipping." % (name))
+            logging.error("Experiment file %s not found! Skipping." % name)
         else:
-            Exp = self.experiments[name]
-            results = {}
-
-            results["meta"] = {}
+            exp_class = self.experiments[name]
+            results = {"meta": {}}
             try:
                 logging.debug("Getting metadata for experiment...")
                 meta = self.get_meta()
@@ -236,24 +233,24 @@ class Client:
                             input_files[filename] = file_handle
                 if (('params' in exp_config) and
                         (exp_config['params'] is not None)):
-                    Exp.params = exp_config['params']
+                    exp_class.params = exp_config['params']
 
             # if the experiment specifies a list of input file names,
             # load them. failing to load input files does not stop
             # experiment from running.
-            if Exp.input_files is not None:
-                for filename in Exp.input_files:
+            if exp_class.input_files is not None:
+                for filename in exp_class.input_files:
                     file_handle = self.load_input_file(filename)
                     if file_handle is not None:
                         input_files[filename] = file_handle
             # otherwise, fall back on [experiment name].txt
             else:
-                input_files = self.load_input_file("%s.txt" % (name))
+                input_files = self.load_input_file("%s.txt" % name)
 
             try:
                 # instantiate the experiment
-                logging.debug("Initializing the experiment class for %s" % (name))
-                exp = Exp(input_files)
+                logging.debug("Initializing the experiment class for %s" % name)
+                exp = exp_class(input_files)
             except Exception as exception:
                 logging.exception("Error initializing %s: %s" % (name, exception))
                 results["init_exception"] = str(exception)
@@ -273,7 +270,7 @@ class Client:
                              "tcpdump will not start.")
                 run_tcpdump = False
 
-            if run_tcpdump and Exp.overrides_tcpdump:
+            if run_tcpdump and exp_class.overrides_tcpdump:
                 logging.info("Experiment overrides tcpdump recording.")
                 run_tcpdump = False
 
@@ -305,7 +302,7 @@ class Client:
             # keeping a list of files in the json results
             results_dir = self.config['dirs']['results_dir']
             if exp.external_results is not None:
-                logging.debug("Writing external files for %s" % (name))
+                logging.debug("Writing external files for %s" % name)
                 for fname, fcontents in exp.external_results.items():
                     external_file_name = ("external_%s-%s-%s"
                                           ".bz2" % (name,
@@ -318,11 +315,11 @@ class Client:
                             data = bz2.compress(fcontents)
                             file_p.write(data)
                             logging.debug("External file "
-                                          "%s written successfully" % (fname))
+                                          "%s written successfully" % fname)
                     except Exception as exp:
                         logging.exception("Failed to write external file:"
-                                          "%s" % (exp))
-                logging.debug("Finished writing external files for %s" % (name))
+                                          "%s" % exp)
+                logging.debug("Finished writing external files for %s" % name)
 
             if tcpdump_started:
                 logging.info("Waiting for tcpdump to process packets...")
@@ -341,21 +338,21 @@ class Client:
                         data = bz2.compress(td.pcap())
                         file_p.write(data)
                         logging.info("Saved pcap to "
-                                     "%s." % (pcap_file_path))
+                                     "%s." % pcap_file_path)
                 except Exception as exception:
                     logging.exception("Failed to write pcap file: %s" %
-                                      (exception))
+                                      exception)
 
             # close input file handle(s)
-            logging.debug("Closing input files for %s" % (name))
+            logging.debug("Closing input files for %s" % name)
             if type(input_files) is dict:
                 for file_name, file_handle in input_files.items():
                     file_handle.close()
             else:
                 input_files.close()
-            logging.debug("Input files closed for %s" % (name))
+            logging.debug("Input files closed for %s" % name)
 
-            logging.debug("Storing results for %s" % (name))
+            logging.debug("Storing results for %s" % name)
             try:
                 results[name] = exp.results
             except Exception as exception:
@@ -372,7 +369,7 @@ class Client:
 
             logging.info("%s took %s to finish." % (name, time_taken))
 
-            logging.debug("Saving %s results to file" % (name))
+            logging.debug("Saving %s results to file" % name)
             try:
                 # Pretty printing results will increase file size, but files are
                 # compressed before sending.

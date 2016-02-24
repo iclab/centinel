@@ -105,11 +105,9 @@ class Configuration:
         """
         for category in old.params.keys():
             for parameter in old.params[category].keys():
-                if (category in self.params and
-                    parameter in self.params[category] and
-                    (old.params[category][parameter] !=
-                     self.params[category][parameter]) and
-                    (category != "version")):
+                if (category in self.params and parameter in self.params[category] and
+                        (old.params[category][parameter] != self.params[category][parameter]) and
+                        (category != "version")):
                     print ("Config value '%s.%s' "
                            "in old configuration is different "
                            "from the new version\n"
