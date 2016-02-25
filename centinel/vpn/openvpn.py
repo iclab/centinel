@@ -64,9 +64,11 @@ class OpenVPN:
             self.stopped = True
 
     def start(self, timeout=None):
-        """Start openvpn and block until the connection is opened or there is
+        """
+        Start OpenVPN and block until the connection is opened or there is
         an error
-
+        :param timeout: time in seconds to wait for process to start
+        :return:
         """
         if not timeout:
             timeout = self.timeout
@@ -79,12 +81,16 @@ class OpenVPN:
         if self.started:
             logging.info("OpenVPN connected")
         else:
-            logging.warn("openvpn not started")
+            logging.warn("OpenVPN not started")
             for line in self.notifications.split('\n'):
                 logging.warn("OpenVPN output:\t\t%s" % line)
 
     def stop(self, timeout=None):
-        """Stop openvpn"""
+        """
+        Stop OpenVPN process group
+        :param timeout: time in seconds to wait for process to stop
+        :return:
+        """
         if not timeout:
             timeout = self.timeout
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
@@ -92,6 +98,6 @@ class OpenVPN:
         if self.stopped:
             logging.info("OpenVPN stopped")
         else:
-            logging.warn("Cannot stop OpenVPN!")
+            logging.error("Cannot stop OpenVPN!")
             for line in self.notifications.split('\n'):
                 logging.warn("OpenVPN output:\t\t%s" % line)

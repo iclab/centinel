@@ -7,6 +7,7 @@ import argparse
 import logging
 from random import shuffle
 import os
+import time
 
 import centinel.backend
 import centinel.client
@@ -127,6 +128,16 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     total = len(conf_list)
 
     for filename in conf_list:
+        time.sleep(5)
+        logging.info("Checking network connectivity...")
+        my_ip = get_external_ip()
+        if my_ip is None:
+            logging.error("Network connection lost!")
+            break
+        elif not my_ip.startswith('130.245'):
+            logging.error("VPN still connected! IP: %s" % my_ip)
+            break
+
         logging.info("Moving onto (%d/%d) %s" % (number, total, filename))
 
         number += 1
@@ -185,8 +196,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         vpn.start()
         if not vpn.started:
-            vpn.stop()
             logging.error("%s: Failed to start VPN!" % filename)
+            vpn.stop()
             continue
 
         logging.info("%s: Running Centinel." % filename)
@@ -229,6 +240,25 @@ def return_abs_path(directory, path):
         return
     directory = os.path.expanduser(directory)
     return os.path.abspath(os.path.join(directory, path))
+
+
+def get_external_ip():
+    url_list = ["https://wtfismyip.com/text",
+                "http://ip.42.pl/raw",
+                "http://myexternalip.com/raw",
+                "https://api.ipify.org/"]
+
+    from urllib2 import urlopen, URLError
+    # try four urls in case some are unreachable
+    for url in url_list:
+        try:
+            my_ip = urlopen(url, timeout=5).read().rstrip()
+            return my_ip
+        except URLError:
+            logging.exception("Failed to connect to %s" % url)
+            continue
+    # return None if all failed
+    return None
 
 
 def create_config_files(directory):
