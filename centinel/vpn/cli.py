@@ -138,7 +138,20 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             break
         elif not my_ip.startswith('130.245'):
             logging.error("VPN still connected! IP: %s" % my_ip)
-            break
+            if len(openvpn.OpenVPN.connected_instances) == 0:
+                logging.error("No active OpenVPN instance found! Exiting...")
+                break
+            else:
+                logging.warn("Trying to disconnect VPN")
+                for instance in openvpn.OpenVPN.connected_instances:
+                    instance.stop()
+
+                my_ip = get_external_ip()
+                if my_ip is None or not my_ip.startswith('130.245'):
+                    logging.error("Stopping VPN failed! Exiting...")
+                    break
+
+            logging.info("Disconnecting VPN successfully")
 
         logging.info("Moving onto (%d/%d) %s" % (number, total, filename))
 
