@@ -8,6 +8,8 @@ import logging
 from random import shuffle
 import os
 import time
+import sys
+import signal
 
 import centinel.backend
 import centinel.client
@@ -261,6 +263,15 @@ def get_external_ip():
     return None
 
 
+def signal_handler(signal, frame):
+    logging.warn("SIGINT or SIGTERM received")
+    if len(openvpn.OpenVPN.connected_instances) > 0:
+        logging.warn("Disconnecting VPN")
+        for instance in openvpn.OpenVPN.connected_instances:
+            instance.stop()
+    sys.exit(0)
+
+
 def create_config_files(directory):
     """
     For each VPN file in directory/vpns, create a new configuration
@@ -326,8 +337,11 @@ def experiments_available(config):
 
 def run():
     """Entry point for all uses of centinel"""
-
     args = parse_args()
+
+    # register signal handler
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
     # set up logging
     log_formatter = logging.Formatter("%(asctime)s %(filename)s(line %(lineno)d) "

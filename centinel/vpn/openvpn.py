@@ -10,6 +10,8 @@ import time
 
 
 class OpenVPN:
+    connected_instances = []
+
     def __init__(self, config_file=None, auth_file=None, crt_file=None,
                  tls_auth=None, key_direction=None, timeout=60):
         self.started = False
@@ -80,6 +82,8 @@ class OpenVPN:
                 break
         if self.started:
             logging.info("OpenVPN connected")
+            # append instance to connected list
+            OpenVPN.connected_instances.append(self)
         else:
             logging.warn("OpenVPN not started")
             for line in self.notifications.split('\n'):
@@ -97,6 +101,7 @@ class OpenVPN:
         self.thread.join(timeout)
         if self.stopped:
             logging.info("OpenVPN stopped")
+            OpenVPN.connected_instances.remove(self)
         else:
             logging.error("Cannot stop OpenVPN!")
             for line in self.notifications.split('\n'):
