@@ -227,6 +227,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         logging.info("%s: Stopping VPN." % filename)
         vpn.stop()
+        time.sleep(5)
 
         logging.info("%s: Synchronizing." % filename)
         try:
