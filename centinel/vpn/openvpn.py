@@ -101,7 +101,8 @@ class OpenVPN:
         self.thread.join(timeout)
         if self.stopped:
             logging.info("OpenVPN stopped")
-            OpenVPN.connected_instances.remove(self)
+            if self in OpenVPN.connected_instances:
+                OpenVPN.connected_instances.remove(self)
         else:
             logging.error("Cannot stop OpenVPN!")
             for line in self.notifications.split('\n'):
