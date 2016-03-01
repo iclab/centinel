@@ -220,6 +220,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         if not vpn.started:
             logging.error("%s: Failed to start VPN!" % filename)
             vpn.stop()
+            time.sleep(5)
             continue
 
         logging.info("%s: Running Centinel." % filename)
