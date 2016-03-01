@@ -7,6 +7,9 @@ import argparse
 import logging
 from random import shuffle
 import os
+import time
+import sys
+import signal
 
 import centinel.backend
 import centinel.client
@@ -126,7 +129,37 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     number = 1
     total = len(conf_list)
 
+    external_ip = get_external_ip()
+    if external_ip is None:
+        logging.error("No network connection, exiting...")
+
     for filename in conf_list:
+        # Check network connection first
+        time.sleep(5)
+        logging.info("Checking network connectivity...")
+        current_ip = get_external_ip()
+        if current_ip is None:
+            logging.error("Network connection lost!")
+            break
+        elif current_ip != external_ip:
+            logging.error("VPN still connected! IP: %s" % current_ip)
+            if len(openvpn.OpenVPN.connected_instances) == 0:
+                logging.error("No active OpenVPN instance found! Exiting...")
+                break
+            else:
+                logging.warn("Trying to disconnect VPN")
+                for instance in openvpn.OpenVPN.connected_instances:
+                    instance.stop()
+                    time.sleep(5)
+
+                current_ip = get_external_ip()
+                if current_ip is None or current_ip != external_ip:
+                    logging.error("Stopping VPN failed! Exiting...")
+                    break
+
+            logging.info("Disconnecting VPN successfully")
+
+        # start centinel for this endpoint
         logging.info("Moving onto (%d/%d) %s" % (number, total, filename))
 
         number += 1
@@ -185,8 +218,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         vpn.start()
         if not vpn.started:
-            vpn.stop()
             logging.error("%s: Failed to start VPN!" % filename)
+            vpn.stop()
+            time.sleep(5)
             continue
 
         logging.info("%s: Running Centinel." % filename)
@@ -201,6 +235,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         logging.info("%s: Stopping VPN." % filename)
         vpn.stop()
+        time.sleep(5)
 
         logging.info("%s: Synchronizing." % filename)
         try:
@@ -229,6 +264,35 @@ def return_abs_path(directory, path):
         return
     directory = os.path.expanduser(directory)
     return os.path.abspath(os.path.join(directory, path))
+
+
+def get_external_ip():
+    # pool of URLs that returns public IP
+    url_list = ["https://wtfismyip.com/text",
+                "http://ip.42.pl/raw",
+                "http://myexternalip.com/raw",
+                "https://api.ipify.org/"]
+
+    from urllib2 import urlopen, URLError
+    # try four urls in case some are unreachable
+    for url in url_list:
+        try:
+            my_ip = urlopen(url, timeout=5).read().rstrip()
+            return my_ip
+        except URLError:
+            logging.exception("Failed to connect to %s" % url)
+            continue
+    # return None if all failed
+    return None
+
+
+def signal_handler(signal, frame):
+    logging.warn("SIGINT or SIGTERM received")
+    if len(openvpn.OpenVPN.connected_instances) > 0:
+        logging.warn("Disconnecting VPN")
+        for instance in openvpn.OpenVPN.connected_instances:
+            instance.stop()
+    sys.exit(0)
 
 
 def create_config_files(directory):
@@ -296,8 +360,11 @@ def experiments_available(config):
 
 def run():
     """Entry point for all uses of centinel"""
-
     args = parse_args()
+
+    # register signal handler
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
     # set up logging
     log_formatter = logging.Formatter("%(asctime)s %(filename)s(line %(lineno)d) "

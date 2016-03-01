@@ -10,6 +10,8 @@ import time
 
 
 class OpenVPN:
+    connected_instances = []
+
     def __init__(self, config_file=None, auth_file=None, crt_file=None,
                  tls_auth=None, key_direction=None, timeout=60):
         self.started = False
@@ -64,9 +66,11 @@ class OpenVPN:
             self.stopped = True
 
     def start(self, timeout=None):
-        """Start openvpn and block until the connection is opened or there is
+        """
+        Start OpenVPN and block until the connection is opened or there is
         an error
-
+        :param timeout: time in seconds to wait for process to start
+        :return:
         """
         if not timeout:
             timeout = self.timeout
@@ -78,20 +82,28 @@ class OpenVPN:
                 break
         if self.started:
             logging.info("OpenVPN connected")
+            # append instance to connected list
+            OpenVPN.connected_instances.append(self)
         else:
-            logging.warn("openvpn not started")
+            logging.warn("OpenVPN not started")
             for line in self.notifications.split('\n'):
                 logging.warn("OpenVPN output:\t\t%s" % line)
 
     def stop(self, timeout=None):
-        """Stop openvpn"""
+        """
+        Stop OpenVPN process group
+        :param timeout: time in seconds to wait for process to stop
+        :return:
+        """
         if not timeout:
             timeout = self.timeout
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         self.thread.join(timeout)
         if self.stopped:
             logging.info("OpenVPN stopped")
+            if self in OpenVPN.connected_instances:
+                OpenVPN.connected_instances.remove(self)
         else:
-            logging.warn("Cannot stop OpenVPN!")
+            logging.error("Cannot stop OpenVPN!")
             for line in self.notifications.split('\n'):
                 logging.warn("OpenVPN output:\t\t%s" % line)
