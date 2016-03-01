@@ -129,15 +129,20 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     number = 1
     total = len(conf_list)
 
+    external_ip = get_external_ip()
+    if external_ip is None:
+        logging.error("No network connection, exiting...")
+
     for filename in conf_list:
+        # Check network connection first
         time.sleep(5)
         logging.info("Checking network connectivity...")
-        my_ip = get_external_ip()
-        if my_ip is None:
+        current_ip = get_external_ip()
+        if current_ip is None:
             logging.error("Network connection lost!")
             break
-        elif not my_ip.startswith('130.245'):
-            logging.error("VPN still connected! IP: %s" % my_ip)
+        elif current_ip != external_ip:
+            logging.error("VPN still connected! IP: %s" % current_ip)
             if len(openvpn.OpenVPN.connected_instances) == 0:
                 logging.error("No active OpenVPN instance found! Exiting...")
                 break
@@ -145,14 +150,16 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 logging.warn("Trying to disconnect VPN")
                 for instance in openvpn.OpenVPN.connected_instances:
                     instance.stop()
+                    time.sleep(5)
 
-                my_ip = get_external_ip()
-                if my_ip is None or not my_ip.startswith('130.245'):
+                current_ip = get_external_ip()
+                if current_ip is None or current_ip != external_ip:
                     logging.error("Stopping VPN failed! Exiting...")
                     break
 
             logging.info("Disconnecting VPN successfully")
 
+        # start centinel for this endpoint
         logging.info("Moving onto (%d/%d) %s" % (number, total, filename))
 
         number += 1
@@ -259,6 +266,7 @@ def return_abs_path(directory, path):
 
 
 def get_external_ip():
+    # pool of URLs that returns public IP
     url_list = ["https://wtfismyip.com/text",
                 "http://ip.42.pl/raw",
                 "http://myexternalip.com/raw",
