@@ -10,6 +10,17 @@ censorship.
     $ sudo pip install centinel
     $ centinel
 
+##### Fedora 23
+    $ sudo dnf install python-devel libcurl-devel openssl-devel swig libffi-devel tcpdump traceroute gcc redhat-rpm-config
+    $ sudo pip install -U pip
+    
+    $ sudo su
+    $ export PYCURL_SSL_LIBRARY=nss
+    $ pip install pycurl
+    $ exit
+    
+    $ sudo pip install centinel
+
 ##### OSX
     $ sudo pip install centinel
     $ centinel
