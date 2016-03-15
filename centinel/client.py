@@ -231,21 +231,21 @@ class Client:
                         file_handle = self.load_input_file(filename)
                         if file_handle is not None:
                             input_files[filename] = file_handle
+                # if the experiment specifies a list of input file names,
+                # load them. failing to load input files does not stop
+                # experiment from running.
+                elif exp_class.input_files is not None:
+                    for filename in exp_class.input_files:
+                        file_handle = self.load_input_file(filename)
+                        if file_handle is not None:
+                            input_files[filename] = file_handle
+                # otherwise, fall back to [schedule name].txt
+                else:
+                    input_files = self.load_input_file("%s.txt" % name)
+
                 if (('params' in exp_config) and
                         (exp_config['params'] is not None)):
                     exp_class.params = exp_config['params']
-
-            # if the experiment specifies a list of input file names,
-            # load them. failing to load input files does not stop
-            # experiment from running.
-            if exp_class.input_files is not None:
-                for filename in exp_class.input_files:
-                    file_handle = self.load_input_file(filename)
-                    if file_handle is not None:
-                        input_files[filename] = file_handle
-            # otherwise, fall back on [experiment name].txt
-            else:
-                input_files = self.load_input_file("%s.txt" % name)
 
             try:
                 # instantiate the experiment
