@@ -23,7 +23,7 @@ def lookup_domain(domain, nameservers=[], rtype="A", timeout=2):
     return dns_exp.lookup_domain(domain)
 
 
-def lookup_domains(domains, nameservers=[], rtype="A", timeout=10):
+def lookup_domains(domains, nameservers=[], rtype="A", timeout=4):
     dns_exp = DNSQuery(domains=domains, nameservers=nameservers, rtype=rtype,
                        timeout=timeout)
     return dns_exp.lookup_domains()
@@ -34,7 +34,7 @@ def send_chaos_queries():
     return dns_exp.send_chaos_queries()
 
 
-class DNSQuery():
+class DNSQuery:
     """Class to store state for all of the DNS queries"""
 
     def __init__(self, domains=[], nameservers=[], rtype="A", timeout=10,
