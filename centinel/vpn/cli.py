@@ -280,7 +280,7 @@ def get_external_ip():
             my_ip = urlopen(url, timeout=5).read().rstrip()
             return my_ip
         except URLError:
-            logging.exception("Failed to connect to %s" % url)
+            logging.warning("Failed to connect to %s" % url)
             continue
     # return None if all failed
     return None

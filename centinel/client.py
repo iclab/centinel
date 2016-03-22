@@ -13,6 +13,7 @@ import centinel
 from centinel.backend import get_meta
 from centinel.primitives.tcpdump import Tcpdump
 from experiment import ExperimentList
+from centinel.vpn.cli import get_external_ip
 
 loaded_modules = set()
 
@@ -113,7 +114,12 @@ class Client:
         """
         # get the normalized IP if we don't already have it
         if self._meta is None:
-            self._meta = get_meta(self.config)
+            external_ip = get_external_ip()
+            if external_ip:
+                self._meta = get_meta(self.config, external_ip)
+            else:
+                raise Exception("Unable to get public IP")
+
         return self._meta
 
     def run(self, data_dir=None):
