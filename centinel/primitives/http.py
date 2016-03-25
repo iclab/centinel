@@ -159,6 +159,8 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
     thread_wait_timeout = 200
     ind = 1
     total_item_count = len(input_list)
+    # randomly select one user agent for one input list
+    user_agent = random.choice(user_agent_pool)
     for row in input_list:
         headers = {}
         path = "/"
@@ -199,6 +201,9 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
         if thread_error:
             results["error"] = "Threads took too long to finish."
             break
+
+        if "User-Agent" not in headers:
+            headers["User-Agent"] = user_agent
 
         # add just a little bit of delay before starting the thread
         # to avoid overwhelming the connection.
