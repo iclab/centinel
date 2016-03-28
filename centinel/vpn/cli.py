@@ -116,7 +116,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         crt_file = return_abs_path(directory, crt_file)
     if tls_auth is not None:
         tls_auth = return_abs_path(directory, tls_auth)
-    conf_list = os.listdir(conf_dir)
+    conf_list = sorted(os.listdir(conf_dir))
 
     # reduce size of list if reduce_vp is true
     if reduce_vp:
