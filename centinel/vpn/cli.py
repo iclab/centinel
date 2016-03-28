@@ -131,7 +131,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
             try:
                 meta = centinel.backend.get_meta(config.params, vp_ip)
-                if 'country' in meta and 'as_number' in meta:
+                if 'country' in meta and 'as_number' in meta \
+                        and meta['country'] and meta['as_number']:
                     country_asn = '_'.join([meta['country'], meta['as_number']])
                     if country_asn not in country_asn_set:
                         country_asn_set.add(country_asn)
@@ -140,7 +141,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                     # run this endpoint if missing info
                     reduced_conf_set.add(filename)
             except:
-                logging.exception("Failed to geolocate %s" % vp_ip)
+                logging.warning("Failed to geolocate %s" % vp_ip)
                 reduced_conf_set.add(filename)
 
         conf_list = list(reduced_conf_set)
