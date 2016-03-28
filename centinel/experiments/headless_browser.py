@@ -1,10 +1,12 @@
 from centinel.primitives.headless_browser import HeadlessBrowser
 from centinel.experiment import Experiment
 
+
 class HeadlessBrowserExperiment(Experiment):
+    name = "headless_browser"
 
     def __init__(self, input_file):
-            self.input_file  = input_file
+            self.input_file = input_file
             self.results = []
 
     def run(self):
