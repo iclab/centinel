@@ -33,6 +33,10 @@ def parse_args():
     parser.add_argument('--key-direction', '-k', dest='key_direction', default=None,
                         help=("Key direction for tls auth, must specify when "
                               "tls-auth is used"))
+    parser.add_argument('--reduce-endpoint', dest='reduce_vp',
+                        action="store_true", default=False,
+                        help="Reduce the number of vantage points by only connect to "
+                             "one vantage point for each AS and country combination")
     g1 = parser.add_mutually_exclusive_group()
     g1.add_argument('--create-hma-configs', dest='create_HMA',
                     action="store_true",
@@ -74,7 +78,7 @@ def parse_args():
 
 
 def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
-              exclude_list, shuffle_lists, vm_num, vm_index):
+              exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp):
     """
     For each VPN, check if there are experiments and scan with it if
     necessary
@@ -96,6 +100,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     :param shuffle_lists: shuffle vpn list if set true
     :param vm_num: number of VMs that are running currently
     :param vm_index: index of current VM
+    :param reduce_vp: reduce number of vantage points
     :return:
     """
 
@@ -111,8 +116,38 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         crt_file = return_abs_path(directory, crt_file)
     if tls_auth is not None:
         tls_auth = return_abs_path(directory, tls_auth)
+    conf_list = os.listdir(conf_dir)
+
+    # reduce size of list if reduce_vp is true
+    if reduce_vp:
+        logging.info("Reducing list size. Original size: %d" % len(conf_list))
+        country_asn_set = set()
+        reduced_conf_set = set()
+        for filename in conf_list:
+            centinel_config = os.path.join(conf_dir, filename)
+            config = centinel.config.Configuration()
+            config.parse_config(centinel_config)
+            vp_ip = os.path.splitext(filename)[0]
+
+            try:
+                meta = centinel.backend.get_meta(config.params, vp_ip)
+                if 'country' in meta and 'as_number' in meta:
+                    country_asn = '_'.join([meta['country'], meta['as_number']])
+                    if country_asn not in country_asn_set:
+                        country_asn_set.add(country_asn)
+                        reduced_conf_set.add(filename)
+                else:
+                    # run this endpoint if missing info
+                    reduced_conf_set.add(filename)
+            except:
+                logging.exception("Failed to geolocate %s" % vp_ip)
+                reduced_conf_set.add(filename)
+
+        conf_list = list(reduced_conf_set)
+        logging.info("List size reduced. New size: %d" % len(conf_list))
+
     # sort file list to ensure the same filename sequence in each VM
-    conf_list = sorted(os.listdir(conf_dir))
+    conf_list = sorted(conf_list)
 
     # only select its own portion according to vm_num and vm_index
     chunk_size = len(conf_list) / vm_num
@@ -132,6 +167,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     external_ip = get_external_ip()
     if external_ip is None:
         logging.error("No network connection, exiting...")
+        return
 
     for filename in conf_list:
         # Check network connection first
@@ -182,9 +218,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                                              vpn_address)
             if 'country' in meta:
                 country = meta['country']
-        except Exception as exp:
-            logging.exception("%s: Failed to geolocate "
-                              "%s: %s" % (filename, vpn_address, exp))
+        except:
+            logging.exception("%s: Failed to geolocate %s" % (filename, vpn_address))
 
         if country and exclude_list and country in exclude_list:
             logging.info("%s: Skipping this server (%s)" % (filename, country))
@@ -412,8 +447,8 @@ def run():
         scan_vpns(directory=args.directory, auth_file=args.auth_file,
                   crt_file=args.crt_file, tls_auth=args.tls_auth,
                   key_direction=args.key_direction, exclude_list=args.exclude_list,
-                  shuffle_lists=args.shuffle_lists,
-                  vm_num=args.vm_num, vm_index=args.vm_index)
+                  shuffle_lists=args.shuffle_lists, vm_num=args.vm_num,
+                  vm_index=args.vm_index, reduce_vp=args.reduce_vp)
 
 if __name__ == "__main__":
     run()
