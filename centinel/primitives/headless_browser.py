@@ -1,24 +1,14 @@
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
-from selenium.webdriver.common.proxy import *
-from selenium.webdriver import ActionChains
-from selenium.common.exceptions import TimeoutException
-from selenium.common.exceptions import NoAlertPresentException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from pyvirtualdisplay import Display
-import foctor_core.foctor_core as fc
-from functools import wraps
+import json
+import logging
+import os
 import sys
 import time
-import os
-import signal
-import errno
-import json
-import random
-import threading
-import subprocess
+
+from pyvirtualdisplay import Display
+from selenium import webdriver
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+
+import foctor_core.foctor_core as fc
 
 
 class HeadlessBrowser:
@@ -253,7 +243,7 @@ class HeadlessBrowser:
         :return:
         """
         if not url and not input_file:
-            print 'no inputs'
+            logging.warning("No input file")
             return {"error": "no inputs"}
 
         results = {}
