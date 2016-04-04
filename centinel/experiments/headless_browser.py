@@ -5,10 +5,10 @@ from centinel.experiment import Experiment
 class HeadlessBrowserExperiment(Experiment):
     name = "headless_browser"
 
-    def __init__(self, input_file):
-            self.input_file = input_file
+    def __init__(self, input_files):
+            self.input_files = input_files
             self.results = []
 
     def run(self):
         hb = HeadlessBrowser()
-        self.results = hb.run(input_file=self.input_file)
+        self.results = hb.run(input_files=self.input_files)

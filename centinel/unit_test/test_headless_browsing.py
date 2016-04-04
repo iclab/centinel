@@ -58,7 +58,7 @@ class TestHeadlessbrowser:
         hb = HeadlessBrowser()
         url_file = 'data/headless_browsing.txt'
         call(["rm", "-rf", "har", "htmls", "screenshots", "hb_results.json"])
-        hb.run(input_file=url_file)
+        hb.run(input_files=url_file)
 
         # assert if /har folder is created
         assert True == os.path.exists('./har/')
