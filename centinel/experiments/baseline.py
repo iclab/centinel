@@ -197,6 +197,7 @@ class BaselineExperiment(Experiment):
         start = time.time()
         logging.info("Running DNS requests...")
         if self.exclude_nameservers:
+            logging.info("Excluding nameservers: %s" % ", ".join(self.exclude_nameservers))
             result["dns"] = dnslib.lookup_domains(dns_inputs,
                                                   exclude_nameservers=self.exclude_nameservers)
         else:
