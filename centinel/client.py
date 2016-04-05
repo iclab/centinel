@@ -254,7 +254,10 @@ class Client:
                             input_files[filename] = file_handle
                 # otherwise, fall back to [schedule name].txt (deprecated)
                 else:
-                    input_files = self.load_input_file("%s.txt" % name)
+                    filename = "%s.txt" % name
+                    file_handle = self.load_input_file(filename)
+                    if file_handle is not None:
+                        input_files[filename] = file_handle
 
             try:
                 # instantiate the experiment
@@ -356,9 +359,10 @@ class Client:
             logging.debug("Closing input files for %s" % name)
             if type(input_files) is dict:
                 for file_name, file_handle in input_files.items():
-                    file_handle.close()
-            else:
-                input_files.close()
+                    try:
+                        file_handle.close()
+                    except AttributeError:
+                        logging.warning("Closing %s failed" % file_name)
             logging.debug("Input files closed for %s" % name)
 
             logging.debug("Storing results for %s" % name)

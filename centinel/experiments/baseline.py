@@ -41,6 +41,8 @@ class BaselineExperiment(Experiment):
             # process parameters
             if "traceroute_methods" in self.params:
                 self.traceroute_methods = self.params['traceroute_methods']
+            if "exclude_nameservers" in self.params:
+                self.exclude_nameservers = self.params['exclude_nameservers']
 
         if os.geteuid() != 0:
             logging.info("Centinel is not running as root, "
@@ -157,8 +159,7 @@ class BaselineExperiment(Experiment):
             http_inputs.append({"host": http_netloc,
                                 "path": http_path,
                                 "ssl": http_ssl,
-                                "url": url
-                                })
+                                "url": url})
 
             # TLS certificate
             # this will only work if the URL starts with https://
@@ -195,7 +196,12 @@ class BaselineExperiment(Experiment):
         shuffle(dns_inputs)
         start = time.time()
         logging.info("Running DNS requests...")
-        result["dns"] = dnslib.lookup_domains(dns_inputs)
+        if self.exclude_nameservers:
+            logging.info("Excluding nameservers: %s" % ", ".join(self.exclude_nameservers))
+            result["dns"] = dnslib.lookup_domains(dns_inputs,
+                                                  exclude_nameservers=self.exclude_nameservers)
+        else:
+            result["dns"] = dnslib.lookup_domains(dns_inputs)
         elapsed = time.time() - start
         logging.info("DNS requests took "
                      "%d seconds for %d domains." % (elapsed,
@@ -205,7 +211,7 @@ class BaselineExperiment(Experiment):
             shuffle(traceroute_inputs)
             start = time.time()
             logging.info("Running %s traceroutes..." % (method.upper()))
-            result["traceroute.%s" % (method)] = (
+            result["traceroute.%s" % method] = (
                 traceroute.traceroute_batch(traceroute_inputs, method))
             elapsed = time.time() - start
             logging.info("Traceroutes took %d seconds for %d "
@@ -216,8 +222,8 @@ class BaselineExperiment(Experiment):
         if index_row is not None:
             indexed_url_metadata = {}
             for url, meta in url_metadata_results.items():
+                indexed_meta = {}
                 try:
-                    indexed_meta = {}
                     for i in range(1, len(index_row)):
                         indexed_meta[index_row[i]] = meta[i - 1]
                     indexed_url_metadata[url] = indexed_meta
@@ -233,5 +239,5 @@ class BaselineExperiment(Experiment):
         run_finish_time = time.time()
         elapsed = run_finish_time - run_start_time
         result["total_time"] = elapsed
-        logging.info("Testing took a total of %d seconds." % (elapsed))
+        logging.info("Testing took a total of %d seconds." % elapsed)
         return result
