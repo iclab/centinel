@@ -131,9 +131,6 @@ class HeadlessBrowser:
                     results[i]['response']['redirect'] = raw_data[i]['response']['redirectURL']
                     results[i]['response']['body'] = raw_data[i]['response']['content']
 
-                    sys.stdout.write("\rstart parsing %s %d%%" % (url, int(100 * (i + 1) / len(results))))
-                    sys.stdout.flush()
-
             self.parsed += 1  # increment the number of parsed har files
         else:
             logging.warning("Cannot find har file for %s" % url)
@@ -185,13 +182,13 @@ class HeadlessBrowser:
 
             time.sleep(2)
 
-            if url[-1] == "/":
-                f_name = url.split('/')[-2]
-            else:
-                f_name = url.split('/')[-1]
+            # if url[-1] == "/":
+            #     f_name = url.split('/')[-2]
+            # else:
+            #     f_name = url.split('/')[-1]
 
-            fc.save_html(self.driver, f_name, capture_path + "htmls/")
-            fc.save_screenshot(self.driver, f_name, capture_path + "screenshots/")
+            # fc.save_html(self.driver, f_name, os.path.join(capture_path, "htmls/"))
+            # fc.save_screenshot(self.driver, f_name, os.path.join(capture_path, "screenshots/"))
 
             result = self.wrap_results(url=http_url, files_count=files_count, fd=har_file_path)
 
@@ -327,9 +324,6 @@ class HeadlessBrowser:
             self.driver.quit()
             self.close_virtual_display()
 
-        # with open("./hb_results.json", "w") as f:
-        #     json.dump(results, f, indent=4)
-
-        logging.info("Deleting har folder")
+        logging.debug("Deleting har folder")
         shutil.rmtree(os.path.join(self.cur_path, 'har'))
         return results

@@ -3,6 +3,7 @@ __author__ = 'rishabn'
 import signal
 import errno
 import sys
+import logging
 
 from foctor_misc import *
 from foctor_search import *
@@ -36,7 +37,7 @@ def timing(f):
         time1 = time.time()
         ret = f(*args)
         time2 = time.time()
-        print '%s : %0.5f s' % (f.func_name, (time2 - time1))
+        logging.debug('%s : %0.5f s' % (f.func_name, (time2 - time1)))
         return ret
     return wrap
 
@@ -90,7 +91,7 @@ def save_screenshot(driver, filename, path):
             done = False
             time.sleep(1)
         except (TimeoutError, TimeoutException):
-            print "save_screenshot() timed out"
+            logging.warning("save_screenshot() timed out")
             return "Timed-out"
     return "No Error"
 
@@ -109,7 +110,7 @@ def save_html(driver, filename, path):
             done = False
             time.sleep(1)
         except (TimeoutError, TimeoutException):
-            print "save_html() timed out"
+            logging.warning("save_html() timed out")
             return "Timed-out"
     f.close()
     return "No Error"
@@ -214,12 +215,11 @@ def restart_driver(driver_, display_, tor=False, tor_call="", display_mode=0, ca
     teardown_driver(driver_, display_, display_mode)
     time.sleep(5)
     if tor is True:
-        print "Killing old Tor process..."
+        logging.info("Killing old Tor process...")
         for i in range(0, 10):
             command = "ps -ef | grep \"" + tor_call + "\" | grep -v \"grep\" | awk '{print $2}' | xargs kill"
             os.system(command)
             time.sleep(1)
-        print command
     return crawl_setup(tor=tor, capture_path=capture_path, display_mode=display_mode, port=port,
                        process_tag=process_tag, exits=exits)
 
@@ -270,7 +270,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
     for c in credentials:
         status_code = load_page(driver=driver, url=c[1], cookies=0)
         str_status = "Loading URL: " + str(c[1]) + " \t Index: " + str(c[0]) + " \t " + str(status_code)
-        print str_status
+        logging.debug(str_status)
         sf = open(status_file, "w")
         sf.write(str(c[0]))
         sf.flush()
@@ -281,7 +281,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
         if str(status_code) == "No Error":
             actions = load_login_actions(playback_file=playback_file, website=c[1])
             if len(actions) == 0:
-                print "Unable to find a playback log for " + c[1]
+                logging.warning("Unable to find a playback log for " + c[1])
             for a in actions:
                 save_name = str(c[0]) + "-" + str(process_tag)
                 make_folder(capture_path)
@@ -290,7 +290,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
                 time.sleep(1)
                 e = find_element_by_record(driver, a)
                 if e is None:
-                    print "EE. Playback Failed. Site: " + c[1]
+                    logging.warning("EE. Playback Failed. Site: " + c[1])
                     driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, port,
                                                  exits)
                     break
@@ -299,7 +299,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
                         e.click()
                     except (StaleElementReferenceException, NoSuchElementException, ElementNotSelectableException,
                             ElementNotVisibleException):
-                        print "CE. Playback Failed. Site: " + c[1]
+                        logging.warning("CE. Playback Failed. Site: " + c[1])
                         driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, port,
                                                      exits)
                         break
@@ -311,7 +311,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
                         e.send_keys(c[2])
                     except (StaleElementReferenceException, NoSuchElementException, ElementNotSelectableException,
                             ElementNotVisibleException):
-                        print "UN. Playback Failed. Site: " + c[1]
+                        logging.warning("UN. Playback Failed. Site: " + c[1])
                         driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, port,
                                                      exits)
                         break
@@ -321,7 +321,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
                         e.send_keys(Keys.RETURN)
                     except (StaleElementReferenceException, NoSuchElementException, ElementNotSelectableException,
                             ElementNotVisibleException):
-                        print "PW. Playback Failed. Site: " + c[1]
+                        logging.warning("PW. Playback Failed. Site: " + c[1])
                         driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, port,
                                                      exits)
                         break
@@ -337,7 +337,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
             time.sleep(1)
         if (str(status_code) != "No Error") or (str(ss_status) != "No Error") or (str(html_status) != "No Error"):
             driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, process_tag, port, exits)
-            print str_status
+            logging.debug(str_status)
             slf.write("Restarting driver (tor call: " + tor_call + ")\n")
             continue
     sf = open(status_file, "w")
@@ -349,7 +349,7 @@ def do_playback(credentials, playback_file, driver, display, capture_path="", pr
 
 
 def abort_load(driver, display, tor, tor_call, display_mode, capture_path, process_tag, port, exits):
-    print "Aborting page load..."
+    logging.debug("Aborting page load...")
     not_closed = True
     while not_closed:
         try:
@@ -365,31 +365,21 @@ def abort_load(driver, display, tor, tor_call, display_mode, capture_path, proce
 def do_crawl(sites, driver, display, capture_path="", tor=False, tor_call="", search=False, search_log="",
              login_full=False, login_part=False, login_log="", display_mode=0, process_tag="1", port="9000",
              exits="US", callback=None, **kwargs):
-    status_file = capture_path + "/status-" + process_tag
-    status_log_file = capture_path + "/log-" + process_tag
-    slf = open(status_log_file, "a")
     for s in sites:
         status_code = load_page(driver=driver, url=s[1], cookies=0)
         str_status = "Loading URL: " + str(s[1]) + " \t Index: " + str(s[0]) + " \t " + str(status_code) + "\n"
-        print str_status
-        sf = open(status_file, "w")
-        sf.write(str(s[0]))
-        sf.flush()
-        sf.close()
+        logging.debug(str_status)
         html_status, ss_status = "No Error", "No Error"
         if str(status_code) == "No Error":
-            save_name = str(s[0]) + "-" + str(process_tag)
-            make_folder(capture_path)
-            html_status = save_html(driver, save_name, capture_path+'htmls/')
-            ss_status = save_screenshot(driver, save_name, capture_path+'screenshots/')
+            # save_name = str(s[0]) + "-" + str(process_tag)
+            # html_status = save_html(driver, save_name, os.path.join(capture_path, 'htmls/'))
+            # ss_status = save_screenshot(driver, save_name, os.path.join(capture_path, 'screenshots/'))
             time.sleep(1)
             if search is True:
                 rule = find_search_rule(driver)
                 f = open(search_log, "a")
                 f.write(str(s[0]) + ", \t" + str(s[1]) + ", \t" + str(rule) + "\n")
                 f.flush()
-                slf.write(str(s[0]) + ", \t" + str(s[1]) + ", \t" + str(rule) + "\n")
-                slf.flush()
                 f.close()
             elif login_full is True:
                 login_elements = record_login_elements(driver, uname=str(s[2]), password=str(s[3]))
@@ -403,27 +393,14 @@ def do_crawl(sites, driver, display, capture_path="", tor=False, tor_call="", se
                 if front_page_login(driver) is True:
                     f = open(login_log, "a")
                     f.write(str(s[0]) + ", \t" + str(s[1]) + "\n")
-                    slf.write(str(s[0]) + ", \t" + str(s[1]) + "\n")
-                    slf.flush()
                     f.flush()
                     f.close()
-            else:
-                slf.write(str_status)
-                slf.flush()
         if (str(status_code) != "No Error") or (str(ss_status) != "No Error") or (str(html_status) != "No Error"):
             driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, process_tag, port, exits)
-            print str_status
-            sys.stdout.flush()
-            slf.write("Restarting driver (tor call: " + tor_call + ")\n")
+            logging.debug(str_status)
             continue
         if callback is not None:
             callback(index=s[0], url=s[1], **kwargs)
-
-    sf = open(status_file, "w")
-    sf.write(str("C"))
-    sf.flush()
-    sf.close()
-    slf.close()
     return driver, display
 
 
@@ -436,7 +413,7 @@ def switch_tab(driver):
     body_tab = driver.find_element_by_tag_name("body")
     time.sleep(.5)
     if body == body_tab:
-        print "switch tab failed"
+        logging.warning("Switch tab failed")
     else:
         body_tab.send_keys(Keys.CONTROL + Keys.TAB)
         driver.switch_to_window(main_window)
@@ -447,17 +424,12 @@ def switch_tab(driver):
         body_tab.send_keys(Keys.CONTROL + Keys.TAB)
         driver.switch_to_window(main_window)
         body = driver.find_element_by_tag_name("body")
-        if body == body_tab:
-                print "previous tab closed successfully"
-                print "tab switched"
-                print ""
-        else:
-                print "failed to switch tab\nswitch back to previous tab"
+        if body != body_tab:
+            logging.warning("Failed to switch tab, switch back to previous tab")
 
 
 @timeout(60)
 def load_page(driver, url, cookies=0):
-    sys.stdout.flush()
     try:
         if cookies == 0:
             driver.delete_all_cookies()
@@ -468,11 +440,9 @@ def load_page(driver, url, cookies=0):
         switch_tab(driver)
         driver.get(url)
 
-        print "driver.get(" + url + ") returned successfully"
-        sys.stdout.flush()
+        logging.debug("driver.get(%s) returned successfully" % url)
     except (TimeoutException, TimeoutError) as te:
-        print "Timeout Exception occurred while loading page: " + url
-        sys.stdout.flush()
+        logging.warning("Loading %s timed out" % url)
         return str(te)
     # try:
     #     element = WebDriverWait(driver, .5).until(EC.alert_is_present())
@@ -496,8 +466,7 @@ def load_page(driver, url, cookies=0):
     try:
         windows = driver.window_handles
         if len(windows) > 1:
-            print "Pop up detected on page: " + url + ". Closing driver instance. "
-            sys.stdout.flush()
+            logging.debug("Pop up detected on page: %s. Closing driver instance." % url)
             raise TimeoutError
             # for window in windows:
             #     if window != main_handle:
@@ -509,10 +478,8 @@ def load_page(driver, url, cookies=0):
         #     print "wait_for_ready_state() timed out."
         #     raise TimeoutError
     except (TimeoutException, TimeoutError) as te:
-        print "Timeout Exception occurred while loading page: " + url
-        sys.stdout.flush()
+        logging.warning("Loading %s timed out" % url)
         return str(te)
-    sys.stdout.flush()
     return "No Error"
 
 
@@ -524,7 +491,7 @@ def do_search(rules, driver, display, capture_path="", tor=False, tor_call="", d
     for r in rules:
         status_code = load_page(driver=driver, url=r['url'], cookies=0)
         str_status = "Loading URL: " + str(r['url']) + " \t Index: " + str(r['index']) + " \t " + str(status_code)
-        print str_status
+        logging.debug(str_status)
         slf.write(str_status)
         slf.flush()
         sf = open(status_file, "w")
@@ -541,7 +508,7 @@ def do_search(rules, driver, display, capture_path="", tor=False, tor_call="", d
                 time.sleep(3)
             except (ElementNotVisibleException, NoSuchElementException, StaleElementReferenceException,
                     TimeoutError, TimeoutException) as exception:
-                print "Could not complete search: " + str(exception)
+                logging.warning("Could not complete search: " + str(exception))
             save_name = str(r['index']) + "-" + str(process_tag)
             make_folder(capture_path)
             html_status = save_html(driver, save_name, capture_path)
@@ -549,7 +516,7 @@ def do_search(rules, driver, display, capture_path="", tor=False, tor_call="", d
             time.sleep(.5)
         if (str(status_code) != "No Error") or (str(ss_status) != "No Error") or (str(html_status) != "No Error"):
             driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, process_tag, port, exits)
-            print str_status
+            logging.debug(str_status)
             slf.write("Restarting driver (tor call: " + tor_call + ")\n")
             continue
     sf = open(status_file, "w")
