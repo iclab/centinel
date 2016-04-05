@@ -22,7 +22,8 @@ setup(
                       "trparse >= 0.2.1",
                       "pycurl >= 7.19.5",
                       "urllib3 == 1.9.1",
-                      "dnspython == 1.12.0"],
+                      "dnspython == 1.12.0",
+                      "BeautifulSoup == 3.2.1"],
     include_package_data=True,
     entry_points={
         'console_scripts': ['centinel=centinel.cli:run',

@@ -2,10 +2,30 @@ import logging
 import threading
 import time
 import random
+import BeautifulSoup
+import re
 from urlparse import urlparse
 
 from http_helper import ICHTTPConnection
 from centinel.utils import user_agent_pool
+
+
+def meta_redirect(content):
+    """
+    Returns redirecting URL if there is a HTML refresh meta tag,
+    returns None otherwise
+
+    :param content: HTML content
+    """
+    soup = BeautifulSoup.BeautifulSoup(content)
+    result = soup.find("meta", attrs={"http-equiv": re.compile("^refresh$", re.I)})
+    if result:
+        wait, text = result["content"].split(";")
+        text = text.strip()
+        if text.lower().startswith("url="):
+            url = text[4:]
+            return url
+    return None
 
 
 def _get_http_request(host, path="/", headers=None, ssl=False):
@@ -74,7 +94,18 @@ def get_request(host, path="/", headers=None, ssl=False,
     stat_starts_with_3 = str(first_response["response"]["status"]).startswith("3")
     response_headers_contains_location = "location" in first_response["response"]["headers"]
 
-    is_redirecting = stat_starts_with_3 and response_headers_contains_location
+    # check meta redirect
+    meta_redirect_url = None
+    is_meta_redirect = False
+    if "body" in first_response["response"]:
+        meta_redirect_url = meta_redirect(first_response["response"]["body"])
+    elif "body.b64" in first_response["response"]:
+        meta_redirect_url = meta_redirect(first_response["response"]["body.b64"])
+
+    if meta_redirect_url is not None:
+        is_meta_redirect = True
+
+    is_redirecting = (stat_starts_with_3 and response_headers_contains_location) or is_meta_redirect
 
     if is_redirecting:
         http_results["request"] = first_response["request"]
@@ -85,10 +116,12 @@ def get_request(host, path="/", headers=None, ssl=False,
         http_results["redirects"]["0"] = first_response_information
         redirect_http_result = None
         redirect_number = 1
-        while redirect_http_result is None or (stat_starts_with_3 and response_headers_contains_location) and\
+        while redirect_http_result is None or is_redirecting and\
                 redirect_number < 6:  # While there are more redirects...
             # Usually, redirects that redirect more than 5 times are infinite loops
-            if redirect_http_result is None:  # If it is the first redirect, get url from original http response
+            if is_meta_redirect:
+                redirect_url = meta_redirect_url
+            elif redirect_http_result is None:  # If it is the first redirect, get url from original http response
                 redirect_url = first_response["response"]["headers"]["location"]
             else:  # Otherwise, get the url from the previous redirect
                 redirect_url = redirect_http_result["response"]["headers"]["location"]
@@ -110,8 +143,21 @@ def get_request(host, path="/", headers=None, ssl=False,
             stat_starts_with_3 = str(redirect_http_result["response"]["status"]).startswith("3")
             response_headers_contains_location = "location" in redirect_http_result["response"]["headers"]
 
+            # check meta redirect
+            meta_redirect_url = None
+            is_meta_redirect = False
+            if "body" in redirect_http_result["response"]:
+                meta_redirect_url = meta_redirect(redirect_http_result["response"]["body"])
+            elif "body.b64" in redirect_http_result["response"]:
+                meta_redirect_url = meta_redirect(redirect_http_result["response"]["body.b64"])
+
+            if meta_redirect_url is not None:
+                is_meta_redirect = True
+
+            is_redirecting = (stat_starts_with_3 and response_headers_contains_location) or is_meta_redirect
+
             # If this is the final response, put this in the first request and response json
-            if not stat_starts_with_3 or not response_headers_contains_location:
+            if not is_redirecting:
                 http_results["response"] = redirect_http_result["response"]
             else:  # Otherwise, put this in the redirects section
                 redirect_information = {"host": parsed_url.netloc,
