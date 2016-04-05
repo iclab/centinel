@@ -10,6 +10,8 @@ import os
 import time
 import sys
 import signal
+import dns.resolver
+import json
 
 import centinel.backend
 import centinel.client
@@ -110,6 +112,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     # iterate over each VPN
     vpn_dir = return_abs_path(directory, "vpns")
     conf_dir = return_abs_path(directory, "configs")
+    home_dir = return_abs_path(directory, "home")
     if auth_file is not None:
         auth_file = return_abs_path(directory, auth_file)
     if crt_file is not None:
@@ -169,6 +172,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     if external_ip is None:
         logging.error("No network connection, exiting...")
         return
+
+    # getting namesevers that should be excluded
+    local_nameservers = dns.resolver.Resolver().nameservers
 
     for filename in conf_list:
         # Check network connection first
@@ -246,6 +252,21 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             except Exception as exp:
                 logging.exception("Failed to set VPN info: %s" % exp)
             continue
+
+        # add exclude_nameservers to scheduler
+        sched_path = os.path.join(home_dir, filename, "experiments", "scheduler.info")
+        if os.path.exists(sched_path):
+            with open(sched_path, 'r+') as f:
+                sched_info = json.load(f)
+                for task in sched_info:
+                    if "python_exps" in sched_info[task] and "baseline" in sched_info[task]["python_exps"]:
+                        if "params" in sched_info[task]["python_exps"]["baseline"]:
+                            sched_info[task]["python_exps"]["baseline"]["params"]["exclude_nameservers"] = \
+                                local_nameservers
+                        else:
+                            sched_info[task]["python_exps"]["baseline"]["params"] = \
+                                {"exclude_nameservers": local_nameservers}
+                json.dump(sched_info, f, indent=2)
 
         logging.info("%s: Starting VPN." % filename)
 

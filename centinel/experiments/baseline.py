@@ -41,6 +41,8 @@ class BaselineExperiment(Experiment):
             # process parameters
             if "traceroute_methods" in self.params:
                 self.traceroute_methods = self.params['traceroute_methods']
+            if "exclude_nameservers" in self.params:
+                self.exclude_nameservers = self.params['exclude_nameservers']
 
         if os.geteuid() != 0:
             logging.info("Centinel is not running as root, "
@@ -194,7 +196,11 @@ class BaselineExperiment(Experiment):
         shuffle(dns_inputs)
         start = time.time()
         logging.info("Running DNS requests...")
-        result["dns"] = dnslib.lookup_domains(dns_inputs)
+        if self.exclude_nameservers:
+            result["dns"] = dnslib.lookup_domains(dns_inputs,
+                                                  exclude_nameservers=self.exclude_nameservers)
+        else:
+            result["dns"] = dnslib.lookup_domains(dns_inputs)
         elapsed = time.time() - start
         logging.info("DNS requests took "
                      "%d seconds for %d domains." % (elapsed,
