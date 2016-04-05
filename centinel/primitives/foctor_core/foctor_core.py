@@ -396,7 +396,8 @@ def do_crawl(sites, driver, display, capture_path="", tor=False, tor_call="", se
                     f.flush()
                     f.close()
         if (str(status_code) != "No Error") or (str(ss_status) != "No Error") or (str(html_status) != "No Error"):
-            driver, display = abort_load(driver, display, tor, tor_call, display_mode, capture_path, process_tag, port, exits)
+            driver, display = abort_load(driver, display, tor, tor_call,
+                                         display_mode, capture_path, process_tag, port, exits)
             logging.debug(str_status)
             continue
         if callback is not None:
@@ -407,7 +408,7 @@ def do_crawl(sites, driver, display, capture_path="", tor=False, tor_call="", se
 def switch_tab(driver):
     main_window = driver.current_window_handle
     body = driver.find_element_by_tag_name("body")
-    #body.send_keys(Keys.CONTROL + 't')
+    # body.send_keys(Keys.CONTROL + 't')
     body.send_keys(Keys.CONTROL + 't')
     driver.switch_to_window(main_window)
     body_tab = driver.find_element_by_tag_name("body")

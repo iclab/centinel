@@ -16,16 +16,18 @@ def get_ips(host, nameserver=None, record="A"):
     return lookup_domain(host, nameservers=nameservers, rtype=record)
 
 
-def lookup_domain(domain, nameservers=[], rtype="A", timeout=2):
+def lookup_domain(domain, nameservers=[], rtype="A",
+                  exclude_nameservers=[], timeout=2):
     """Wrapper for DNSQuery method"""
     dns_exp = DNSQuery(domains=[domain], nameservers=nameservers, rtype=rtype,
-                       timeout=timeout)
+                       exclude_nameservers=exclude_nameservers, timeout=timeout)
     return dns_exp.lookup_domain(domain)
 
 
-def lookup_domains(domains, nameservers=[], rtype="A", timeout=4):
+def lookup_domains(domains, nameservers=[], exclude_nameservers=[],
+                   rtype="A", timeout=4):
     dns_exp = DNSQuery(domains=domains, nameservers=nameservers, rtype=rtype,
-                       timeout=timeout)
+                       exclude_nameservers=exclude_nameservers, timeout=timeout)
     return dns_exp.lookup_domains()
 
 
@@ -37,8 +39,8 @@ def send_chaos_queries():
 class DNSQuery:
     """Class to store state for all of the DNS queries"""
 
-    def __init__(self, domains=[], nameservers=[], rtype="A", timeout=10,
-                 max_threads=100):
+    def __init__(self, domains=[], nameservers=[], exclude_nameservers=[],
+                 rtype="A", timeout=10, max_threads=100):
         """Constructor for the DNS query class
 
         Params:
@@ -53,6 +55,11 @@ class DNSQuery:
         self.max_threads = max_threads
         if len(nameservers) == 0:
             nameservers = dns.resolver.Resolver().nameservers
+        # remove excluded nameservers
+        if len(exclude_nameservers) > 0:
+            for nameserver in exclude_nameservers:
+                if nameserver in nameservers:
+                    nameservers.remove(nameserver)
         self.nameservers = nameservers
         self.results = {}
         self.threads = []
@@ -88,7 +95,7 @@ class DNSQuery:
         return self.results
 
     def lookup_domains(self):
-        """More complex DNS primitive that lookups domains concurrently
+        """More complex DNS primitive that looks up domains concurrently
 
         Note: if you want to lookup multiple domains, you should use
         this function
@@ -126,7 +133,7 @@ class DNSQuery:
         return self.results
 
     def lookup_domain(self, domain, nameserver=None, log_prefix=''):
-        """Most basic DNS primitive that lookups a domain, waits for a
+        """Most basic DNS primitive that looks up a domain, waits for a
         second response, then returns all of the results
 
         :param domain: the domain to lookup
