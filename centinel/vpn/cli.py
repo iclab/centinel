@@ -266,7 +266,11 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                         else:
                             sched_info[task]["python_exps"]["baseline"]["params"] = \
                                 {"exclude_nameservers": local_nameservers}
+
+                # write back to same file
+                f.seek(0)
                 json.dump(sched_info, f, indent=2)
+                f.truncate()
 
         logging.info("%s: Starting VPN." % filename)
 
