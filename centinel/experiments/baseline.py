@@ -36,6 +36,7 @@ class BaselineExperiment(Experiment):
     def __init__(self, input_files):
         self.input_files = input_files
         self.results = []
+        self.exclude_nameservers = []
 
         if self.params is not None:
             # process parameters
@@ -196,7 +197,7 @@ class BaselineExperiment(Experiment):
         shuffle(dns_inputs)
         start = time.time()
         logging.info("Running DNS requests...")
-        if self.exclude_nameservers:
+        if len(self.exclude_nameservers) > 0:
             logging.info("Excluding nameservers: %s" % ", ".join(self.exclude_nameservers))
             result["dns"] = dnslib.lookup_domains(dns_inputs,
                                                   exclude_nameservers=self.exclude_nameservers)
