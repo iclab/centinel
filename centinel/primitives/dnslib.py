@@ -60,6 +60,9 @@ class DNSQuery:
             for nameserver in exclude_nameservers:
                 if nameserver in nameservers:
                     nameservers.remove(nameserver)
+        # include google nameserver
+        if "8.8.8.8" not in nameservers:
+            nameservers.append("8.8.8.8")
         self.nameservers = nameservers
         self.results = {}
         self.threads = []
