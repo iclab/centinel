@@ -20,11 +20,16 @@ def meta_redirect(content):
     soup = BeautifulSoup.BeautifulSoup(content)
     result = soup.find("meta", attrs={"http-equiv": re.compile("^refresh$", re.I)})
     if result:
-        wait, text = result["content"].split(";")
-        text = text.strip()
-        if text.lower().startswith("url="):
-            url = text[4:]
-            return url
+        try:
+            wait, text = result["content"].split(";")
+            text = text.strip()
+            if text.lower().startswith("url="):
+                url = text[4:]
+                return url
+        except:
+            # there are normal meta tag with refresh that are not
+            # redirect and don't have a URL in it
+            pass
     return None
 
 
