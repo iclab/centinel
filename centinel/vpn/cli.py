@@ -121,6 +121,19 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         tls_auth = return_abs_path(directory, tls_auth)
     conf_list = sorted(os.listdir(conf_dir))
 
+    # determine VPN provider
+    vpn_provider = None
+    if "hma" in directory:
+        vpn_provider = "hma"
+    elif "ipvanish" in directory:
+        vpn_provider = "ipvanish"
+    elif "purevpn" in directory:
+        vpn_provider = "purevpn"
+    if vpn_provider:
+        logging.info("Detected VPN provider is %s" % vpn_provider)
+    else:
+        logging.warning("Cannot determine VPN provider!")
+
     # reduce size of list if reduce_vp is true
     if reduce_vp:
         logging.info("Reducing list size. Original size: %d" % len(conf_list))
@@ -286,7 +299,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         logging.info("%s: Running Centinel." % filename)
         try:
-            client = centinel.client.Client(config.params)
+            client = centinel.client.Client(config.params, vpn_provider)
             centinel.conf = config.params
             # do not use client logging config
             # client.setup_logging()

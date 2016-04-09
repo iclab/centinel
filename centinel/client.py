@@ -19,10 +19,11 @@ loaded_modules = set()
 
 
 class Client:
-    def __init__(self, config):
+    def __init__(self, config, vpn_provider=None):
         self.config = config
         self.experiments = self.load_experiments()
         self._meta = None
+        self.vpn_provider = vpn_provider
 
     def setup_logging(self):
 
@@ -185,12 +186,12 @@ class Client:
 
             # backward compatibility with older-style scheduler
             if 'python_exps' not in sched_info[name]:
-                self.run_exp(name)
+                self.run_exp(name=name)
             else:
                 exps = sched_info[name]['python_exps'].items()
                 for python_exp, exp_config in exps:
                     logging.debug("Running %s." % python_exp)
-                    self.run_exp(python_exp, exp_config, schedule_name=name)
+                    self.run_exp(name=python_exp, exp_config=exp_config, schedule_name=name)
                     logging.debug("Finished running %s." % python_exp)
             sched_info[name]['last_run'] = time.time()
 
@@ -229,6 +230,11 @@ class Client:
             results["meta"]["client_time"] = start_time.isoformat()
 
             results["meta"]["centinel_version"] = centinel.__version__
+
+            # include vpn provider in metadata
+            if self.vpn_provider:
+                results["meta"]["vpn_provider"] = self.vpn_provider
+
             input_files = {}
             if exp_config is not None:
                 if (('input_files' in exp_config) and
@@ -386,11 +392,10 @@ class Client:
             try:
                 # Pretty printing results will increase file size, but files are
                 # compressed before sending.
-                result_file_path = self.get_result_file(name,
-                                                        start_time.strftime("%Y-%m-%dT%H%M%S.%f"))
+                result_file_path = self\
+                    .get_result_file(name, start_time.strftime("%Y-%m-%dT%H%M%S.%f"))
                 result_file = bz2.BZ2File(result_file_path, "w")
-                json.dump(results, result_file, indent=2,
-                          separators=(',', ': '))
+                json.dump(results, result_file, indent=2, separators=(',', ': '))
                 result_file.close()
             except Exception as exception:
                 logging.exception("Error saving results for "
