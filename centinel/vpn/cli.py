@@ -133,6 +133,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         vpn_provider = "ipvanish"
     elif "purevpn" in directory:
         vpn_provider = "purevpn"
+    elif "vpngate" in directory:
+        vpn_provider = "vpngate"
     if vpn_provider:
         logging.info("Detected VPN provider is %s" % vpn_provider)
     else:
