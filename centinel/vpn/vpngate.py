@@ -16,6 +16,9 @@ def create_config_files(directory):
     # Some constant strings
     vpn_gate_url = "http://www.vpngate.net/api/iphone/"
 
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     # get csv into memory
     csv_str = ""
     logging.info("Downloading info from VPN Gate API...")
