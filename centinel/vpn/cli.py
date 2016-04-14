@@ -20,6 +20,7 @@ import centinel.vpn.openvpn as openvpn
 import centinel.vpn.hma as hma
 import centinel.vpn.ipvanish as ipvanish
 import centinel.vpn.purevpn as purevpn
+import centinel.vpn.vpngate as vpngate
 
 
 def parse_args():
@@ -49,6 +50,9 @@ def parse_args():
     g1.add_argument('--create-purevpn-configs', dest='create_PUREVPN',
                     action='store_true',
                     help='Create the openvpn config files for PureVPN')
+    g1.add_argument('--create-vpngate-configs', dest='create_VPNGATE',
+                    action='store_true',
+                    help='Create the openvpn config files for VPN Gate')
     parser.add_argument('--shuffle', '-s', dest='shuffle_lists',
                         action="store_true", default=False,
                         help='Randomize the order of vantage points')
@@ -129,6 +133,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         vpn_provider = "ipvanish"
     elif "purevpn" in directory:
         vpn_provider = "purevpn"
+    elif "vpngate" in directory:
+        vpn_provider = "vpngate"
     if vpn_provider:
         logging.info("Detected VPN provider is %s" % vpn_provider)
     else:
@@ -473,6 +479,9 @@ def run():
         elif args.create_PUREVPN:
             purevpn_dir = return_abs_path(args.create_conf_dir, 'vpns')
             purevpn.create_config_files(purevpn_dir)
+        elif args.create_VPNGATE:
+            vpngate_dir = return_abs_path(args.create_conf_dir, 'vpns')
+            vpngate.create_config_files(vpngate_dir)
         # create the config files for the openvpn config files
         create_config_files(args.create_conf_dir)
     else:
