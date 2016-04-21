@@ -25,7 +25,7 @@ def lookup_domain(domain, nameservers=[], rtype="A",
 
 
 def lookup_domains(domains, nameservers=[], exclude_nameservers=[],
-                   rtype="A", timeout=4):
+                   rtype="A", timeout=2):
     dns_exp = DNSQuery(domains=domains, nameservers=nameservers, rtype=rtype,
                        exclude_nameservers=exclude_nameservers, timeout=timeout)
     return dns_exp.lookup_domains()
@@ -158,7 +158,6 @@ class DNSQuery:
         results = {'domain': domain, 'nameserver': nameserver}
         # construct the socket to use
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.settimeout(self.timeout)
 
         logging.debug("%sQuerying DNS enteries for "
@@ -171,36 +170,58 @@ class DNSQuery:
         sock.sendto(request.to_wire(), (nameserver, 53))
 
         # read the first response from the socket
-        reads, _, _ = select.select([sock], [], [], self.timeout)
-        # if we didn't get anything, then set the results to nothing
-        if len(reads) == 0:
+        try:
+            response = sock.recvfrom(4096)[0]
+            results['response1'] = b64encode(response)
+            resp = dns.message.from_wire(response)
+            results['response1-ips'] = parse_out_ips(resp)
+
+            # first domain name in response should be the same with query
+            # domain name
+            for entry in resp.answer:
+                if domain.lower() != entry.name.to_text().lower()[:-1]:
+                    logging.debug("%sWrong domain name %s for %s!"
+                                  % (log_prefix, entry.name.to_text().lower()[:-1], domain))
+                    results['response1-domain'] = entry.name.to_text().lower()[:-1]
+                break
+        except socket.timeout:
+            # if we didn't get anything, then set the results to nothing
+            logging.debug("%sQuerying DNS enteries for "
+                          "%s (nameserver: %s) timed out!" % (log_prefix, domain, nameserver))
+            sock.close()
             results['response1'] = None
             self.results[domain].append(results)
             return results
-        response = reads[0].recvfrom(4096)[0]
-        results['response1'] = b64encode(response)
-        resp = dns.message.from_wire(response)
-        results['response1-ips'] = self.parse_out_ips(resp)
 
         # if we have made it this far, then wait for the next response
-        reads, _, _ = select.select([sock], [], [], self.timeout)
-        # if we didn't get anything, then set the results to nothing
-        if len(reads) == 0:
+        try:
+            response2 = sock.recvfrom(4096)[0]
+            results['response2'] = b64encode(response2)
+            resp2 = dns.message.from_wire(response2)
+            results['response2-ips'] = parse_out_ips(resp2)
+
+            # first domain name in response should be the same with query
+            # domain name
+            for entry in resp2.answer:
+                if domain.lower != entry.name.to_text().lower()[:-1]:
+                    logging.debug("%sWrong domain name %s for %s!"
+                                  % (log_prefix, entry.name.to_text().lower()[:-1], domain))
+                    results['response2-domain'] = entry.name.to_text().lower()[:-1]
+                break
+        except socket.timeout:
+            # no second response
             results['response2'] = None
-            self.results[domain].append(results)
-            return results
-        response = reads[0].recvfrom(4096)[0]
-        results['response2'] = b64encode(response)
-        resp = dns.message.from_wire(response)
-        results['response2-ips'] = self.parse_out_ips(resp)
+
+        sock.close()
         self.results[domain].append(results)
         return results
 
-    def parse_out_ips(self, message):
-        """Given a message, parse out the ips in the answer"""
 
-        ips = []
-        for entry in message.answer:
-            for rdata in entry.items:
-                ips.append(rdata.to_text())
-        return ips
+def parse_out_ips(message):
+    """Given a message, parse out the ips in the answer"""
+
+    ips = []
+    for entry in message.answer:
+        for rdata in entry.items:
+            ips.append(rdata.to_text())
+    return ips
