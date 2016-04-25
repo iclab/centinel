@@ -66,6 +66,10 @@ class DNSQuery:
         self.nameservers = nameservers
         self.results = {}
         self.threads = []
+        # start point of port number to be used
+        self.port = 30000
+        # create thread lock for port number index
+        self.port_lock = threading.Lock()
 
     def send_chaos_queries(self):
         """Send chaos queries to identify the DNS server and its manufacturer
@@ -159,6 +163,10 @@ class DNSQuery:
         # construct the socket to use
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(self.timeout)
+        # set port number and increment index:
+        with self.port_lock:
+            sock.bind(('', self.port))
+            self.port += 1
 
         logging.debug("%sQuerying DNS enteries for "
                       "%s (nameserver: %s)." % (log_prefix, domain, nameserver))
