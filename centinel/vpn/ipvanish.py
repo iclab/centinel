@@ -28,6 +28,8 @@ def create_config_files(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
+    server_country = {}
+
     # Download certificate and configs
     url_opener = urllib.URLopener()
     url_opener.retrieve(crt_url, os.path.join(directory, '../ca.ipvanish.com.crt'))
@@ -43,6 +45,7 @@ def create_config_files(directory):
 
     # rename all config files using their ip address
     for filename in os.listdir(directory):
+        country = filename.split('-')[1]
         file_path = os.path.join(directory, filename)
         lines = [line.rstrip('\n') for line in open(file_path)]
 
@@ -57,9 +60,14 @@ def create_config_files(directory):
         if len(ip) > 0:
             new_path = os.path.join(directory, ip + '.ovpn')
             os.rename(file_path, new_path)
+            server_country[ip] = country
         else:
             logging.warn("Unable to resolve hostname and remove %s" % filename)
             os.remove(file_path)
+
+    with open(os.path.join(directory, 'servers.txt'), 'w') as f:
+        for ip in server_country:
+            f.write('|'.join([ip, server_country[ip]]) + '\n')
 
 
 if __name__ == "__main__":

@@ -40,8 +40,14 @@ def create_config_files(directory):
                     os.path.join(directory, '../Wdc.key'))
     # move all config files to /vpns
     orig_path = os.path.join(directory, '../Linux OpenVPN Updated files/TCP')
+
+    server_country = {}
     for filename in os.listdir(orig_path):
         if filename.endswith('.ovpn'):
+            country = filename.split('-')[0]
+            if '(V)' in country:
+                country = country[:country.find('(V)')]
+
             file_path = os.path.join(orig_path, filename)
             lines = [line.rstrip('\n') for line in open(file_path)]
 
@@ -56,6 +62,7 @@ def create_config_files(directory):
             if len(ip) > 0:
                 new_path = os.path.join(directory, ip + '.ovpn')
                 shutil.copyfile(file_path, new_path)
+                server_country[ip] = country
 
     # remove extracted folder
     shutil.rmtree(os.path.join(directory, '../Linux OpenVPN Updated files'))
@@ -68,6 +75,11 @@ def create_config_files(directory):
             f.write("\n")
             f.write("up /etc/openvpn/update-resolv-conf\n")
             f.write("down /etc/openvpn/update-resolv-conf\n")
+
+    print os.path.join(directory, 'servers.txt'), len(server_country)
+    with open(os.path.join(directory, 'servers.txt'), 'w') as f:
+        for ip in server_country:
+            f.write('|'.join([ip, server_country[ip]]) + '\n')
 
 
 if __name__ == "__main__":
