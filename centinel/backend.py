@@ -135,8 +135,14 @@ class User:
                 json.dump(server_sched, file_p)
             return
 
-        with open(sched_filename, 'r') as file_p:
-            client_sched = json.load(file_p)
+        client_sched = {}
+        try:
+            with open(sched_filename, 'r') as file_p:
+                client_sched = json.load(file_p)
+        except Exception as exp:
+            client_sched = {}
+            logging.exception("Error loading scheduler file: %s" % exp)
+            logging.info("Making an empty scheduler")
 
         # delete any scheduled tasks as necessary
         #
