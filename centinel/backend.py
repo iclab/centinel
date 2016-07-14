@@ -161,7 +161,8 @@ class User:
 
         # write out the results
         with open(sched_filename, 'w') as file_p:
-            json.dump(client_sched, file_p)
+            json.dump(client_sched, file_p, indent=2,
+                      separators=(',', ': '))
 
     def download_experiment(self, name):
         logging.info("Downloading experiment - %s", name)
