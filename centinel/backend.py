@@ -127,7 +127,12 @@ class User:
             logging.exception("Error trying to download scheduler.info: %s" % exp)
             raise exp
 
-        server_sched = json.loads(req.content)
+        try:
+            server_sched = json.loads(req.content)
+        except Exception as exp:
+            logging.exception("Error parsing server scheduler: %s" % exp)
+            raise exp
+
         sched_filename = os.path.join(self.config['dirs']['experiments_dir'],
                                       'scheduler.info')
         if not os.path.exists(sched_filename):
