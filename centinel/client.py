@@ -346,6 +346,7 @@ class Client:
                 time.sleep(5)
                 td.stop()
                 logging.info("tcpdump stopped.")
+                bz2_successful = False
                 try:
                     pcap_file_name = ("pcap_%s-%s.pcap"
                                       ".bz2" % (name, start_time.strftime("%Y-%m-%dT%H%M%S.%f")))
@@ -357,9 +358,30 @@ class Client:
                         file_p.write(data)
                         logging.info("Saved pcap to "
                                      "%s." % pcap_file_path)
+                        bz2_successful = True
                 except Exception as exception:
-                    logging.exception("Failed to write pcap file: %s" %
-                                      exception)
+                    logging.exception("Failed to compress and write "
+                                      "pcap file: %s" % exception)
+                if not bz2_successful:
+                    logging.info("Writing pcap file uncompressed")
+                    try:
+                        pcap_file_name = ("pcap_%s-%s"
+                                          ".pcap" % (name, start_time.strftime("%Y-%m-%dT%H%M%S.%f")))
+                        pcap_file_path = os.path.join(results_dir,
+                                                      pcap_file_name)
+
+                        with open(pcap_file_path, 'w') as file_p:
+                            data = td.pcap()
+                            file_p.write(data)
+                            logging.info("Saved pcap to "
+                                         "%s." % pcap_file_path)
+                    except Exception as exception:
+                        logging.exception("Failed to write "
+                                          "pcap file: %s" % exception)
+                # delete pcap data to free up some memory
+                logging.debug("Removing pcap data from memory")
+                del data
+                del td
 
             # close input file handle(s)
             logging.debug("Closing input files for %s" % name)
@@ -390,13 +412,17 @@ class Client:
 
             logging.debug("Saving %s results to file" % name)
             try:
-                # Pretty printing results will increase file size, but files are
+                # pretty printing results will increase file size, but files are
                 # compressed before sending.
                 result_file_path = self\
                     .get_result_file(name, start_time.strftime("%Y-%m-%dT%H%M%S.%f"))
                 result_file = bz2.BZ2File(result_file_path, "w")
                 json.dump(results, result_file, indent=2, separators=(',', ': '))
                 result_file.close()
+
+                # free up memory by deleting results from memory
+                del results
+                del result_file
             except Exception as exception:
                 logging.exception("Error saving results for "
                                   "%s to file: %s" % (name, exception))
