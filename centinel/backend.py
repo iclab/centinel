@@ -132,7 +132,8 @@ class User:
                                       'scheduler.info')
         if not os.path.exists(sched_filename):
             with open(sched_filename, 'w') as file_p:
-                json.dump(server_sched, file_p)
+                json.dump(server_sched, file_p, indent=2,
+                      separators=(',', ': '))
             return
 
         client_sched = {}
@@ -263,7 +264,8 @@ class User:
                                  'password': self.password}
                 if self.typeable_handle is not None:
                     login_details['typeable_handle'] = self.typeable_handle
-                json.dump(login_details, login_fh)
+                json.dump(login_details, login_fh, indent=2,
+                      separators=(',', ': '))
         except Exception as exp:
             logging.exception("Unable to register: %s" % str(exp))
             raise exp
