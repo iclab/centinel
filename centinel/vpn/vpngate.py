@@ -48,6 +48,8 @@ def create_config_files(directory):
             })
     f.close()
 
+    server_country = {}
+
     # write config files
     for country in vpn_dict:
         for data in vpn_dict[country]:
@@ -57,6 +59,12 @@ def create_config_files(directory):
                 f.write(data['openvpn_config'])
                 f.write("up /etc/openvpn/update-resolv-conf\n")
                 f.write("down /etc/openvpn/update-resolv-conf\n")
+
+            server_country[data['ip']] = country
+
+    with open(os.path.join(directory, 'servers.txt'), 'w') as f:
+        for ip in server_country:
+            f.write('|'.join([ip, server_country[ip]]) + '\n')
 
 
 if __name__ == "__main__":
