@@ -165,7 +165,13 @@ class DNSQuery:
         sock.settimeout(self.timeout)
         # set port number and increment index:
         with self.port_lock:
-            sock.bind(('', self.port))
+            while True:
+                try:
+                    sock.bind(('', self.port))
+                    break
+                except socket.error:
+                    logging.debug("Port {} already in use, try next one".format(self.port))
+                    self.port += 1
             self.port += 1
 
         logging.debug("%sQuerying DNS enteries for "
