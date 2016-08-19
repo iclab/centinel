@@ -164,9 +164,28 @@ class DNSQuery:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(self.timeout)
         # set port number and increment index:
+        interrupt = False
         with self.port_lock:
-            sock.bind(('', self.port))
+            counter = 1
+            while True:
+                if counter > 100:
+                    logging.warning("Stop trying to get an available port")
+                    interrupt = True
+                    break
+                try:
+                    sock.bind(('', self.port))
+                    break
+                except socket.error:
+                    logging.debug("Port {} already in use, try next one".format(self.port))
+                    self.port += 1
+                    counter += 1
             self.port += 1
+
+        if interrupt:
+            sock.close()
+            results['error'] = 'Failed to run DNS test'
+            self.results[domain].append(results)
+            return results
 
         logging.debug("%sQuerying DNS enteries for "
                       "%s (nameserver: %s)." % (log_prefix, domain, nameserver))
