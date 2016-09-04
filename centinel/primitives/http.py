@@ -18,7 +18,8 @@ def meta_redirect(content):
 
     :param content: HTML content
     """
-    soup = BeautifulSoup.BeautifulSoup(content)
+    decoded = content.decode("utf-8", errors="replace")
+    soup = BeautifulSoup.BeautifulSoup(decoded)
     result = soup.find("meta", attrs={"http-equiv": re.compile("^refresh$", re.I)})
     if result:
         try:
