@@ -62,7 +62,7 @@ class Configuration:
         # server
         servers = {'server_url': "https://server.iclab.cs.stonybrook.edu:8082",
                    'login_file': os.path.join(self.params['user']['centinel_home'], 'login'),
-                   # the entire transaction should take less than 5 min
+                   # the entire transaction should take less than 30 min
                    'total_timeout': 60*30,
                    # set a socket timeout of 15 seconds (no way to do per request
                    # platform independently)
