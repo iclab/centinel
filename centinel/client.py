@@ -417,7 +417,9 @@ class Client:
                 result_file_path = self\
                     .get_result_file(name, start_time.strftime("%Y-%m-%dT%H%M%S.%f"))
                 result_file = bz2.BZ2File(result_file_path, "w")
-                json.dump(results, result_file, indent=2, separators=(',', ': '))
+                json.dump(results, result_file, indent=2, separators=(',', ': '),
+                    # ignore encoding errors, these will be dealt with on the server
+                    ensure_ascii=False)
                 result_file.close()
 
                 # free up memory by deleting results from memory
