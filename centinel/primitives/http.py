@@ -1,3 +1,4 @@
+import base64
 import logging
 import threading
 import time
@@ -105,7 +106,8 @@ def get_request(host, path="/", headers=None, ssl=False,
     if "body" in first_response["response"]:
         meta_redirect_url = meta_redirect(first_response["response"]["body"])
     elif "body.b64" in first_response["response"]:
-        meta_redirect_url = meta_redirect(first_response["response"]["body.b64"])
+        body_decoded = base64.b64decode(first_response["response"]["body.b64"])
+        meta_redirect_url = meta_redirect(body_decoded)
 
     if meta_redirect_url is not None:
         is_meta_redirect = True
@@ -154,7 +156,8 @@ def get_request(host, path="/", headers=None, ssl=False,
             if "body" in redirect_http_result["response"]:
                 meta_redirect_url = meta_redirect(redirect_http_result["response"]["body"])
             elif "body.b64" in redirect_http_result["response"]:
-                meta_redirect_url = meta_redirect(redirect_http_result["response"]["body.b64"])
+                body_decoded = base64.b64decode(first_response["response"]["body.b64"])
+                meta_redirect_url = meta_redirect(body_decoded)
 
             if meta_redirect_url is not None:
                 is_meta_redirect = True
