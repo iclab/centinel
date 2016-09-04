@@ -97,9 +97,13 @@ def get_request(host, path="/", headers=None, ssl=False,
 
     logging.debug("%sSending HTTP GET request for %s." % (log_prefix, url))
 
+    response_headers_contains_location = False
+    location_url = None
     # Checks HTTP Status code and location header to see if the webpage calls for a redirect
-    stat_starts_with_3 = str(first_response["response"]["status"]).startswith("3")
-    response_headers_contains_location = "location" in first_response["response"]["headers"]
+    for header, header_value in first_response["response"]["headers"].items():
+        if header.lower() == "location":
+            response_headers_contains_location = True
+            location_url = header_value
 
     # check meta redirect
     meta_redirect_url = None
@@ -113,43 +117,59 @@ def get_request(host, path="/", headers=None, ssl=False,
     if meta_redirect_url is not None:
         is_meta_redirect = True
 
-    is_redirecting = (stat_starts_with_3 and response_headers_contains_location) or is_meta_redirect
+    is_redirecting = response_headers_contains_location or is_meta_redirect
 
+
+    previous_url = ""
+    previous_host = host
     if is_redirecting:
         http_results["request"] = first_response["request"]
         http_results["redirects"] = {}
-        first_response_information = {"response": first_response["response"],
-                                      "host": host,
-                                      "path": path}
+        first_response_information = {"full_url": url,
+                                      "response": first_response["response"],
+                                      "request": first_response["request"]}
         http_results["redirects"]["0"] = first_response_information
         redirect_http_result = None
         redirect_number = 1
         while redirect_http_result is None or is_redirecting and\
                 redirect_number < 6:  # While there are more redirects...
             # Usually, redirects that redirect more than 5 times are infinite loops
-            if is_meta_redirect:
+            if response_headers_contains_location:
+                redirect_url = location_url
+            elif is_meta_redirect:
                 redirect_url = meta_redirect_url
-            elif redirect_http_result is None:  # If it is the first redirect, get url from original http response
-                redirect_url = first_response["response"]["headers"]["location"]
-            else:  # Otherwise, get the url from the previous redirect
-                redirect_url = redirect_http_result["response"]["headers"]["location"]
+
+            # prevent looping on the same URL
+            if previous_url == redirect_url:
+                break
+            previous_url = redirect_url
+
             use_ssl = redirect_url.startswith("https://")  # If redirect url starts with https, use ssl
 
             # Scheme, query, and fragment aren't used. Urlparse is used here to split the url into the host and path
             # Useful for httplib since it requires this
             parsed_url = urlparse(redirect_url)
-            redirect_http_result = _get_http_request(parsed_url.netloc, parsed_url.path, ssl=use_ssl)
-            # The request data is basically repeated throughout each redirect and is the same as in the first
-            # request, so it's therefore not needed
-            del redirect_http_result["request"]
+
+            netloc = parsed_url.netloc
+            # if host is not specified, use the last one
+            if netloc is None or netloc == "":
+                netloc = previous_host
+
+            previous_host = netloc
+
+            redirect_http_result = _get_http_request(netloc, parsed_url.path, ssl=use_ssl)
 
             # If there is an error in the redirects, break the loop and stop there
             if "failure" in redirect_http_result["response"]:
                 http_results["response"] = redirect_http_result["response"]  # This will count as the final response
                 break
 
-            stat_starts_with_3 = str(redirect_http_result["response"]["status"]).startswith("3")
-            response_headers_contains_location = "location" in redirect_http_result["response"]["headers"]
+            response_headers_contains_location = False
+            location_url = None
+            for header, header_value in redirect_http_result["response"]["headers"].items():
+                if header.lower() == "location":
+                    response_headers_contains_location = True
+                    location_url = header_value
 
             # check meta redirect
             meta_redirect_url = None
@@ -163,17 +183,17 @@ def get_request(host, path="/", headers=None, ssl=False,
             if meta_redirect_url is not None:
                 is_meta_redirect = True
 
-            is_redirecting = (stat_starts_with_3 and response_headers_contains_location) or is_meta_redirect
+            is_redirecting = response_headers_contains_location or is_meta_redirect
 
             # If this is the final response, put this in the first request and response json
             if not is_redirecting:
                 http_results["response"] = redirect_http_result["response"]
-            else:  # Otherwise, put this in the redirects section
-                redirect_information = {"host": parsed_url.netloc,
-                                        "path": parsed_url.path,
-                                        "full_url": redirect_url,
-                                        "response": redirect_http_result["response"]}
-                http_results["redirects"][str(redirect_number)] = redirect_information
+                http_results["request"] = redirect_http_result["request"]
+
+            redirect_information = {"full_url": redirect_url,
+                                    "response": redirect_http_result["response"],
+                                    "request": redirect_http_result["request"]}
+            http_results["redirects"][str(redirect_number)] = redirect_information
 
             redirect_number += 1
     else:
