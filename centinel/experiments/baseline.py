@@ -32,6 +32,7 @@ class BaselineExperiment(Experiment):
     # country-specific, world baseline
     # this can be overridden by the main thread
     input_files = ['country.csv', 'world.csv']
+    tls_for_all = True
 
     def __init__(self, input_files):
         self.input_files = input_files
@@ -44,6 +45,8 @@ class BaselineExperiment(Experiment):
                 self.traceroute_methods = self.params['traceroute_methods']
             if "exclude_nameservers" in self.params:
                 self.exclude_nameservers = self.params['exclude_nameservers']
+            if "tls_for_all" in self.params:
+                self.tls_for_all = self.params['tls_for_all']
 
         if os.geteuid() != 0:
             logging.info("Centinel is not running as root, "
@@ -163,8 +166,9 @@ class BaselineExperiment(Experiment):
                                 "url": url})
 
             # TLS certificate
-            # this will only work if the URL starts with https://
-            if http_ssl:
+            # this will only work if the URL starts with https://, or
+            # if tls_for_all config parameter is set
+            if self.tls_for_all or http_ssl:
                 tls_inputs.append("%s:%s" % (domain_name, ssl_port))
 
             # DNS Lookup
