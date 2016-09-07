@@ -32,6 +32,8 @@ def get_fingerprint(host, port=443, external=None, log_prefix=''):
     except ssl.SSLError:
         # exception could also happen here
         try:
+            # this uses the highest version SSL or TLS that both 
+            # endpoints support
             cert = ssl.get_server_certificate((host, port),
                                               ssl_version=ssl.PROTOCOL_SSLv23)
         except Exception as exp:
