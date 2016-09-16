@@ -7,7 +7,7 @@ online information controls, and Internet censorship."""
 
 setup(
     name="centinel",
-    version="0.1.5.5.1",
+    version="0.1.5.6",
     author="ICLab Developers",
     author_email="info@iclab.org",
     description=DESCRIPTION,
