@@ -101,7 +101,6 @@ class User:
                     os.remove(file_name)
             except Exception as exp:
                 logging.exception("Error trying to submit result: %s" % exp)
-                raise exp
 
     def sync_scheduler(self):
         """Download the scheduler.info file and perform a smart comparison
