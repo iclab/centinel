@@ -109,7 +109,10 @@ def get_request(host, path="/", headers=None, ssl=False,
     meta_redirect_url = None
     is_meta_redirect = False
     if "body" in first_response["response"]:
-        meta_redirect_url = meta_redirect(first_response["response"]["body"])
+        try:
+            meta_redirect_url = meta_redirect(first_response["response"]["body"])
+        except:
+            logging.warning("%sError looking for redirects in: %s." % (log_prefix, url))
     elif "body.b64" in first_response["response"]:
         body_decoded = base64.b64decode(first_response["response"]["body.b64"])
         meta_redirect_url = meta_redirect(body_decoded)
