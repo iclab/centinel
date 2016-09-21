@@ -40,7 +40,7 @@ def create_config_files(directory):
     os.remove(zip_path)
     # copy ca and key to root path
     shutil.copyfile(os.path.join(unzip_path, 'ca.ipvanish.com.crt'),
-                    os.path.join(directory, '../ca.crt'))
+                    os.path.join(directory, '../ca.ipvanish.com.crt'))
 
     # move all config files to /vpns
 
