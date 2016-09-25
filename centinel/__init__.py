@@ -1,6 +1,6 @@
 #!/usr/bin/python
 __title__ = 'centinel'
-__version__ = '0.1.5.6.1'
+__version__ = '0.1.5.6.2'
 
 import centinel.backend
 import centinel.client
