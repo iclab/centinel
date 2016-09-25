@@ -268,11 +268,22 @@ class Client:
             try:
                 # instantiate the experiment
                 logging.debug("Initializing the experiment class for %s" % name)
+
+                # these constants can be useful for some experiments, but it is not
+                # encouraged to use these directly
+                global_constants = {'experiments_dir': self.config['dirs']['experiments_dir'],
+                                    'results_dir': self.config['dirs']['results_dir'],
+                                    'data_dir': self.config['dirs']['data_dir']}
+
+                exp_class.global_constants = global_constants
+
                 exp = exp_class(input_files)
             except Exception as exception:
                 logging.exception("Error initializing %s: %s" % (name, exception))
                 results["init_exception"] = str(exception)
                 return
+
+            exp.global_constants = global_constants
 
             run_tcpdump = True
 
