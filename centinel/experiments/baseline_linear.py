@@ -38,6 +38,7 @@ class LinearBaselineExperiment(Experiment):
     def __init__(self, input_files):
         self.input_files = input_files
         self.results = []
+        self.traceroute_methods = []
 
         # should we do tcpdump?
         if os.geteuid() != 0:
