@@ -207,6 +207,8 @@ class Client:
                      "Look in %s for results." % (self.config['dirs']['results_dir']))
 
     def run_exp(self, name, exp_config=None, schedule_name=None):
+        if name[-3:] == ".py":
+            name = name[:-3]
         if name not in self.experiments:
             logging.error("Experiment file %s not found! Skipping." % name)
         else:

@@ -38,6 +38,7 @@ class BaselineExperiment(Experiment):
         self.input_files = input_files
         self.results = []
         self.exclude_nameservers = []
+        self.traceroute_methods = []
 
         if self.params is not None:
             # process parameters
