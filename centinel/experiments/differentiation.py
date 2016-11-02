@@ -7,9 +7,10 @@
 import logging
 import os
 import time
+import glob
 
 from centinel.experiment import Experiment
-from centinel.primitives import replay_client
+import replay_client
 
 
 class DifferentiationExperiment(Experiment):
@@ -17,9 +18,23 @@ class DifferentiationExperiment(Experiment):
 
     def __init__(self, input_file):
         self.input_file = input_file
+        self.results = []
+        self.external_results = {}
 
     def run(self):
-       for line in self.input_file:
-            self.pcapFolder = line.strip()
-            replay_client.initialSetup(self.pcapFolder)
-            replay_client.run()
+       for filename, file in self.input_file.items():
+
+            for pcapFolder in file.readlines():
+                replay_client.initialSetup(pcapFolder)
+                replay_client.run()
+                jitter_folder = Configs().get('jitterFolder')
+                result_files = [path for path in glob.glob(
+                    os.path.join(jitter_folder, '*.txt'))]
+                for file in result_files:
+                    f = open(file)
+                    contents = f.read()
+                    name, ext = os.path.splitext(os.path.basename(file))
+                    self.external_results[name] = contents
+
+
+

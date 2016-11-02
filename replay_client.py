@@ -83,9 +83,6 @@ DEBUG = 4
 activityQ = Queue.Queue()
 errorQ    = Queue.Queue()
 
-class python_lib(object):
-    pass
-
 def getIPofInterface(interface, VPN=False):
     if VPN:
         interface = 'tun0'
@@ -652,7 +649,6 @@ def load_Q(serialize='pickle', skipTCP=False):
 def run():
     #initialSetup(pcapFolder)
     configs = Configs()
-    pythonlib = python_lib()
     
     PRINT_ACTION('Server IP address: {}'.format(configs.get('serverInstanceIP')), 0)
     
