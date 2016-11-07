@@ -24,6 +24,7 @@ import centinel.primitives.http as http
 import centinel.primitives.traceroute as traceroute
 from centinel.experiment import Experiment
 from centinel.primitives import dnslib
+from centinel.primitives import tcp_connect
 from centinel.primitives import tls
 
 
@@ -70,6 +71,7 @@ class BaselineExperiment(Experiment):
         result = {"file_name": file_name}
         run_start_time = time.time()
 
+        tcp_connect_inputs = []
         http_inputs = []
         tls_inputs = []
         dns_inputs = []
@@ -125,6 +127,7 @@ class BaselineExperiment(Experiment):
             meta = row[1:]
             http_ssl = False
             ssl_port = 443
+            port = 80
 
             # parse the URL to extract netlocation, HTTP path, domain name,
             # and HTTP method (SSL or plain)
@@ -152,13 +155,26 @@ class BaselineExperiment(Experiment):
                     if len(http_netloc.split(':')) == 2:
                         ssl_port = http_netloc.split(':')[1]
 
+                if len(http_netloc.split(':')) == 2:
+                    port = int(http_netloc.split(':')[1])
+
             except Exception as exp:
                 logging.exception("%s: failed to parse URL: %s" % (url, exp))
                 http_netloc = url
                 http_ssl = False
+                port = 80
                 ssl_port = 443
                 http_path = '/'
                 domain_name = url
+
+            # TCP connect
+            if http_ssl:
+                if (domain_name, ssl_port) not in tcp_connect_inputs:
+                    tcp_connect_inputs.append((domain_name, ssl_port))
+            else:
+                if (domain_name, port) not in tcp_connect_inputs:
+                    tcp_connect_inputs.append((domain_name, port))
+
 
             # HTTP GET
             http_inputs.append({"host": http_netloc,
@@ -170,18 +186,31 @@ class BaselineExperiment(Experiment):
             # this will only work if the URL starts with https://, or
             # if tls_for_all config parameter is set
             if self.tls_for_all or http_ssl:
-                tls_inputs.append("%s:%s" % (domain_name, ssl_port))
+                key = "%s:%s" % (domain_name, ssl_port)
+                if key not in tls_inputs:
+                    tls_inputs.append(key)
 
             # DNS Lookup
-            dns_inputs.append(domain_name)
+            if domain_name not in dns_inputs:
+                dns_inputs.append(domain_name)
 
             # Traceroute
-            traceroute_inputs.append(domain_name)
+            if domain_name not in traceroute_inputs:
+                traceroute_inputs.append(domain_name)
 
             # Meta-data
             url_metadata_results[url] = meta
 
         # the actual tests are run concurrently here
+
+        shuffle(tcp_connect_inputs)
+        start = time.time()
+        logging.info("Running TCP connect tests...")
+        result["tcp_connect"] = tcp_connect.tcp_connect_batch(tcp_connect_inputs)
+        elapsed = time.time() - start
+        logging.info("Running TCP requests took "
+                     "%d seconds for %d hosts and ports." % (elapsed,
+                                                  len(tcp_connect_inputs)))
 
         shuffle(http_inputs)
         start = time.time()
