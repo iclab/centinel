@@ -49,7 +49,7 @@ def tcp_connect(host, port, external=None, log_prefix=''):
 
     return result
 
-def tcp_connect_batch(input_list, delay_time=0.1, max_threads=100):
+def tcp_connect_batch(input_list, results={}, delay_time=0.1, max_threads=100):
     """
     This is a parallel version of the TCP connect primitive.
 
@@ -58,7 +58,6 @@ def tcp_connect_batch(input_list, delay_time=0.1, max_threads=100):
     :param max_threads: maximum number of concurrent threads
     :return:
     """
-    results = {}
     threads = []
     thread_error = False
     thread_wait_timeout = 200
