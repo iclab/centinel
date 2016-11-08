@@ -10,6 +10,7 @@ from urlparse import urlparse
 from http_helper import ICHTTPConnection
 from centinel.utils import user_agent_pool
 
+REDIRECT_LOOP_THRESHOLD = 5
 
 def meta_redirect(content):
     """
@@ -35,7 +36,7 @@ def meta_redirect(content):
     return None
 
 
-def _get_http_request(host, path="/", headers=None, ssl=False):
+def _get_http_request(netloc, path="/", headers=None, ssl=False):
     """
     Actually gets the http. Moved this to it's own private method since
     it is called several times for following redirects
@@ -46,7 +47,18 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
     :param ssl:
     :return:
     """
+    if ssl:
+        port = 443
+    else:
+        port = 80
+
+    host = netloc
+
+    if len(netloc.split(":")) == 2:
+        host, port = netloc.split(":")
+
     request = {"host": host,
+               "port": port,
                "path": path,
                "ssl": ssl,
                "method": "GET"}
@@ -56,7 +68,7 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
     response = {}
 
     try:
-        conn = ICHTTPConnection(host=host, timeout=10)
+        conn = ICHTTPConnection(host=host, port=port, timeout=10)
 
         conn.request(path, headers, ssl, timeout=10)
         response["status"] = conn.status
@@ -79,7 +91,7 @@ def _get_http_request(host, path="/", headers=None, ssl=False):
     return result
 
 
-def get_request(host, path="/", headers=None, ssl=False,
+def get_request(netloc, path="/", headers=None, ssl=False,
                 external=None, url=None, log_prefix=''):
     http_results = {}
 
@@ -89,11 +101,18 @@ def get_request(host, path="/", headers=None, ssl=False,
     elif type(headers) is dict and "User-Agent" not in headers:
         headers["user-Agent"] = random.choice(user_agent_pool)
 
-    first_response = _get_http_request(host, path, headers, ssl)
+    first_response = _get_http_request(netloc, path, headers, ssl)
     if "failure" in first_response["response"]:  # If there was an error, just ignore redirects and return
+        first_response_information = {"redirect_count": 0,
+                                      "redirect_loop": False,
+                                      "full_url": url,
+                                      "response": first_response["response"],
+                                      "request": first_response["request"]}
+        http_results = first_response_information
+
         if external is not None and type(external) is dict:
-            external[url] = first_response
-        return first_response
+            external[url] = http_results
+        return http_results
 
     logging.debug("%sSending HTTP GET request for %s." % (log_prefix, url))
 
@@ -124,18 +143,17 @@ def get_request(host, path="/", headers=None, ssl=False,
 
 
     previous_url = ""
-    previous_host = host
+    previous_netloc = netloc
     if is_redirecting:
-        http_results["request"] = first_response["request"]
         http_results["redirects"] = {}
         first_response_information = {"full_url": url,
                                       "response": first_response["response"],
                                       "request": first_response["request"]}
-        http_results["redirects"]["0"] = first_response_information
+        http_results["redirects"][0] = first_response_information
         redirect_http_result = None
         redirect_number = 1
         while redirect_http_result is None or is_redirecting and\
-                redirect_number < 6:  # While there are more redirects...
+                redirect_number <= REDIRECT_LOOP_THRESHOLD:  # While there are more redirects...
             # Usually, redirects that redirect more than 5 times are infinite loops
             if response_headers_contains_location:
                 redirect_url = location_url
@@ -156,9 +174,9 @@ def get_request(host, path="/", headers=None, ssl=False,
             netloc = parsed_url.netloc
             # if host is not specified, use the last one
             if netloc is None or netloc == "":
-                netloc = previous_host
+                netloc = previous_netloc
 
-            previous_host = netloc
+            previous_netloc = netloc
 
             redirect_http_result = _get_http_request(netloc, parsed_url.path, ssl=use_ssl)
 
@@ -189,20 +207,26 @@ def get_request(host, path="/", headers=None, ssl=False,
             is_redirecting = response_headers_contains_location or is_meta_redirect
 
             # If this is the final response, put this in the first request and response json
-            if not is_redirecting:
-                http_results["response"] = redirect_http_result["response"]
-                http_results["request"] = redirect_http_result["request"]
+            if not is_redirecting or redirect_number == REDIRECT_LOOP_THRESHOLD:
+                http_results["redirect_loop"] = (is_redirecting and redirect_number ==  REDIRECT_LOOP_THRESHOLD)
+                http_results["redirect_count"] = redirect_number
+                http_results["full_url"] = redirect_url
 
             redirect_information = {"full_url": redirect_url,
                                     "response": redirect_http_result["response"],
                                     "request": redirect_http_result["request"]}
-            http_results["redirects"][str(redirect_number)] = redirect_information
+            http_results["redirects"][redirect_number] = redirect_information
 
             redirect_number += 1
+
     else:
-        if external is not None and type(external) is dict:
-            external[url] = first_response
-        return first_response
+        first_response_information = {"redirect_count": 0,
+                                      "redirect_loop": False,
+                                      "full_url": url,
+                                      "response": first_response["response"],
+                                      "request": first_response["request"]}
+        http_results = first_response_information
+
     # the external result is used when threading to store
     # the results in the list container provided.
     if external is not None and type(external) is dict:
@@ -253,7 +277,7 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
                 path = row["path"]
 
             if "headers" in row:
-                if type(row["headers"]) is list:
+                if type(row["headers"]) is dict:
                     headers = row["headers"]
 
             if "ssl" in row:
