@@ -3,11 +3,14 @@ import argparse
 import logging
 import getpass
 import os
+import os.path
 import sys
 
 import centinel
 import centinel.config
 import centinel.daemonize
+
+PID_FILE = "/tmp/centinel.lock"
 
 # Constants
 DEFAULT_CONFIG_FILE = os.path.expanduser('~' + getpass.getuser() +
@@ -74,6 +77,38 @@ def parse_args():
 
 
 def run():
+    if os.path.isfile(PID_FILE):
+        with open(PID_FILE) as f:
+            pid = f.read()
+            print "Centinel already running (PID = %s)" % pid
+            print "Lock file address: %s" % PID_FILE
+        sys.exit(1)
+
+    try:
+        f = open(PID_FILE, "w")
+        f.write("%d" % os.getpid())
+        f.close()
+    except Exception as exp:
+        sys.stderr.write('Error to writing the'
+                         ' lock file: %s\n' % exp)
+        sys.exit(1)
+
+    try:
+        _run()
+    except SystemExit:
+        pass
+    except KeyboardInterrupt:
+        print "Keyboard interrupt received, exiting..."
+    except Exception as exp:
+        sys.stderr.write("%s" % exp)
+
+    try:
+        os.remove(PID_FILE)
+    except Exception as exp:
+        sys.stderr.write("Failed to remove lock file %s: %s" % (PID_FILE, exp))
+
+
+def _run():
     """Entry point for package and cli uses"""
 
     args = parse_args()

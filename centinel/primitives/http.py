@@ -234,7 +234,7 @@ def get_request(netloc, path="/", headers=None, ssl=False,
     return http_results
 
 
-def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
+def get_requests_batch(input_list, results={}, delay_time=0.5, max_threads=100):
     """
     This is a parallel version of the HTTP GET primitive.
 
@@ -255,7 +255,6 @@ def get_requests_batch(input_list, delay_time=0.5, max_threads=100):
         ...
     ]
     """
-    results = {}
     threads = []
     thread_error = False
     thread_wait_timeout = 200

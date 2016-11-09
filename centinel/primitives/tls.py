@@ -79,7 +79,7 @@ def get_fingerprint(host, port=443, external=None, log_prefix=''):
         return fingerprint_error, tls_error
 
 
-def get_fingerprint_batch(input_list, default_port=443,
+def get_fingerprint_batch(input_list, results={}, default_port=443,
                           delay_time=0.5, max_threads=100):
     """
     This is a parallel version of the TLS fingerprint primitive.
@@ -90,7 +90,6 @@ def get_fingerprint_batch(input_list, default_port=443,
     :param max_threads: maximum number of concurrent threads
     :return:
     """
-    results = {}
     threads = []
     thread_error = False
     thread_wait_timeout = 200

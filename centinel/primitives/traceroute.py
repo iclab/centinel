@@ -143,7 +143,7 @@ def traceroute(domain, method="udp", cmd_arguments=None,
     return results
 
 
-def traceroute_batch(input_list, method="udp", cmd_arguments=None,
+def traceroute_batch(input_list, results={}, method="udp", cmd_arguments=None,
                      delay_time=0.1, max_threads=100):
     """
     This is a parallel version of the traceroute primitive.
@@ -156,7 +156,6 @@ def traceroute_batch(input_list, method="udp", cmd_arguments=None,
     :param max_threads: maximum number of concurrent threads
     :return:
     """
-    results = {}
     threads = []
     thread_error = False
     thread_wait_timeout = 200

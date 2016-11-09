@@ -24,10 +24,11 @@ def lookup_domain(domain, nameservers=[], rtype="A",
     return dns_exp.lookup_domain(domain)
 
 
-def lookup_domains(domains, nameservers=[], exclude_nameservers=[],
+def lookup_domains(domains, results={}, nameservers=[], exclude_nameservers=[],
                    rtype="A", timeout=2):
-    dns_exp = DNSQuery(domains=domains, nameservers=nameservers, rtype=rtype,
-                       exclude_nameservers=exclude_nameservers, timeout=timeout)
+    dns_exp = DNSQuery(domains=domains, results=results, nameservers=nameservers, 
+                       rtype=rtype, exclude_nameservers=exclude_nameservers, 
+                       timeout=timeout)
     return dns_exp.lookup_domains()
 
 
@@ -39,7 +40,7 @@ def send_chaos_queries():
 class DNSQuery:
     """Class to store state for all of the DNS queries"""
 
-    def __init__(self, domains=[], nameservers=[], exclude_nameservers=[],
+    def __init__(self, domains=[], results={}, nameservers=[], exclude_nameservers=[],
                  rtype="A", timeout=10, max_threads=100):
         """Constructor for the DNS query class
 
@@ -50,6 +51,7 @@ class DNSQuery:
 
         """
         self.domains = domains
+        self.results = results
         self.rtype = rtype
         self.timeout = timeout
         self.max_threads = max_threads
@@ -64,7 +66,6 @@ class DNSQuery:
         if "8.8.8.8" not in nameservers:
             nameservers.append("8.8.8.8")
         self.nameservers = nameservers
-        self.results = {}
         self.threads = []
         # start point of port number to be used
         self.port = 30000

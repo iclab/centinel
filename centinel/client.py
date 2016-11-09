@@ -5,6 +5,8 @@ import json
 import logging
 import logging.config
 import os
+import signal
+import sys
 import tarfile
 import time
 from datetime import datetime
@@ -16,7 +18,20 @@ from experiment import ExperimentList
 from centinel.vpn.cli import get_external_ip
 
 loaded_modules = set()
+# we need a global reference to stop it if we receive an interrupt.
+tds = []
 
+def signal_handler(signal, frame):
+        logging.warn('Interrupt signal received.')
+        if len(tds) > 0:
+            logging.warn('Stopping TCP dump...')
+            for td in tds:
+                td.stop()
+                td.delete()
+        logging.warn('Exiting...')
+        sys.exit(0)
+
+signal.signal(signal.SIGTERM, signal_handler)
 
 class Client:
     def __init__(self, config, vpn_provider=None):
@@ -305,11 +320,12 @@ class Client:
                 logging.info("Experiment overrides tcpdump recording.")
                 run_tcpdump = False
 
-            td = Tcpdump()
             tcpdump_started = False
 
             try:
                 if run_tcpdump:
+                    td = Tcpdump()
+                    tds.append(td)
                     td.start()
                     tcpdump_started = True
                     logging.info("tcpdump started...")
@@ -324,6 +340,9 @@ class Client:
             except Exception as exception:
                 logging.exception("Error running %s: %s" % (name, exception))
                 results["runtime_exception"] = str(exception)
+            except KeyboardInterrupt:
+                logging.warn("Keyboard interrupt received, stopping experiment...")
+
 
             # save any external results that the experiment has generated
             # they could be anything that doesn't belong in the json file
@@ -393,6 +412,7 @@ class Client:
                                           "pcap file: %s" % exception)
                 # delete pcap data to free up some memory
                 logging.debug("Removing pcap data from memory")
+                td.delete()
                 del data
                 del td
 
