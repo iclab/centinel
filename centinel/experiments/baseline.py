@@ -24,7 +24,13 @@ import centinel.primitives.http as http
 import centinel.primitives.traceroute as traceroute
 from centinel.experiment import Experiment
 from centinel.primitives import dnslib
-from centinel.primitives import tcp_connect
+
+try:
+    from centinel.primitives import tcp_connect
+except ImportError:
+    # we should disable this if the primitive doesn't exist
+    tcp_connect = None
+
 from centinel.primitives import tls
 
 
@@ -209,20 +215,28 @@ class BaselineExperiment(Experiment):
 
         # the actual tests are run concurrently here
 
-        shuffle(tcp_connect_inputs)
-        start = time.time()
-        logging.info("Running TCP connect tests...")
-        result["tcp_connect"] = tcp_connect.tcp_connect_batch(tcp_connect_inputs)
-        elapsed = time.time() - start
-        logging.info("Running TCP requests took "
-                     "%d seconds for %d hosts and ports." % (elapsed,
-                                                  len(tcp_connect_inputs)))
+        if tcp_connect is not None:
+            shuffle(tcp_connect_inputs)
+            start = time.time()
+            logging.info("Running TCP connect tests...")
+            result["tcp_connect"] = {}
+            tcp_connect.tcp_connect_batch(tcp_connect_inputs, results=result["tcp_connect"])
+            elapsed = time.time() - start
+            logging.info("Running TCP requests took "
+                         "%d seconds for %d hosts and ports." % (elapsed,
+                                                      len(tcp_connect_inputs)))
 
         shuffle(http_inputs)
         start = time.time()
         logging.info("Running HTTP GET requests...")
         result["http"] = {}
-        http.get_requests_batch(http_inputs, result["http"])
+
+        try:
+            http.get_requests_batch(http_inputs, results=result["http"])
+        # backward-compatibility with verions that don't support this
+        except TypeError:
+            result["http"] = http.get_requests_batch(http_inputs)
+
         elapsed = time.time() - start
         logging.info("HTTP GET requests took "
                      "%d seconds for %d URLs." % (elapsed,
@@ -231,7 +245,13 @@ class BaselineExperiment(Experiment):
         start = time.time()
         logging.info("Running TLS certificate requests...")
         result["tls"] = {}
-        tls.get_fingerprint_batch(tls_inputs, result["tls"])
+
+        try:
+            tls.get_fingerprint_batch(tls_inputs, results=result["tls"])
+        # backward-compatibility with verions that don't support this
+        except TypeError:
+            result["tls"] = tls.get_fingerprint_batch(tls_inputs)
+
         elapsed = time.time() - start
         logging.info("TLS certificate requests took "
                      "%d seconds for %d domains." % (elapsed,
@@ -242,10 +262,21 @@ class BaselineExperiment(Experiment):
         result["dns"] = {}
         if len(self.exclude_nameservers) > 0:
             logging.info("Excluding nameservers: %s" % ", ".join(self.exclude_nameservers))
-            dnslib.lookup_domains(dns_inputs, result["dns"],
-                                  exclude_nameservers=self.exclude_nameservers)
+
+            try:
+                dnslib.lookup_domains(dns_inputs, results=result["dns"],
+                                      exclude_nameservers=self.exclude_nameservers)
+            # backward-compatibility with verions that don't support this
+            except TypeError:
+                result["dns"] = dnslib.lookup_domains(dns_inputs,
+                        exclude_nameservers=self.exclude_nameservers)
         else:
-            dnslib.lookup_domains(dns_inputs, result["dns"])
+            try:
+                dnslib.lookup_domains(dns_inputs, results=result["dns"])
+            # backward-compatibility with verions that don't support this
+            except TypeError:
+                result["dns"] = dnslib.lookup_domains(dns_inputs)
+
         elapsed = time.time() - start
         logging.info("DNS requests took "
                      "%d seconds for %d domains." % (elapsed,
@@ -256,7 +287,13 @@ class BaselineExperiment(Experiment):
             start = time.time()
             logging.info("Running %s traceroutes..." % (method.upper()))
             result["traceroute.%s" % method] = {}
-            traceroute.traceroute_batch(traceroute_inputs, result["traceroute.%s" % method], method)
+
+            try:
+                traceroute.traceroute_batch(traceroute_inputs, results=result["traceroute.%s" % method], method=method)
+            # backward-compatibility with verions that don't support this
+            except TypeError:
+                result["traceroute.%s" % method] = traceroute.traceroute_batch(traceroute_inputs, method)
+
             elapsed = time.time() - start
             logging.info("Traceroutes took %d seconds for %d "
                          "domains." % (elapsed, len(traceroute_inputs)))
