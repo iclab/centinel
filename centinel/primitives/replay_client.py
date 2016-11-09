@@ -1,82 +1,321 @@
-'''
-#######################################################################################################
-#######################################################################################################
-Arash Molavi Kakhki (arash@ccs.neu.edu)
-Northeastern University
-
-Goal: client replay script
-
-Usage:
-    python replay_client.py --serverInstance=[] --pcap_folder=[]
-
-Mandatory arguments:
-    pcap_folder: This is the folder containing parsed files necessary for the replay
-    
-    serverInstance: This is the name of the machine that's running replay server script.
-              It should be added to Instance() class in python_lib.py
-    
-Optional arguments:
-    
-    tcpdump_int: This is the interface which tcpdump runs on. 
-                 Mandatory if doTCPDUMP=True
-    
-    doTCPDUMP: set to True if you want to run tcpdump on client side
-    
-    publicIP: This is the public IP of the client. It's only important when the client has multiple IP
-              addresses and --multipleInterface=True. Default is ''.
-              Mandatory if --multipleInterface=True.
-    
-    iperf: if True, runs an iperf test before replay.
-    
-    result: if True, receives results from server at the end of replay --> currently server has no results,
-            so if True, server just send a dummy file.
-    
-    jitter: if True, sends jitter info to server once replay is done.
-    
-    multipleInterface: see above.
-    
-    serialize: parser serialized client/server object using both pickle and JSON.
-            This tells the client which one to use. Apparantly for the android app
-            we need to use JSON.
-    
-    resultsFolder: the folder where all tcpdump and jitter files are stored in.
-    
-    jitterFolder: the folder made inside resultsFolder to store jitter files.
-    
-    tcpdumpFolder: the folder made inside resultsFolder to store tcpdump files.  
-    
-Do not change:
-    sidechannel_port: the port that servers side channel is running on.
-            ONLY change this if you've changed it on the server side. Otherwise client won't 
-            be able to contact the server.
-    
-    timing: if True, client preserves inner packet timing when sending out packets to server.
-            Server uses gevent, meaning overwhelming the server can cause bad behavior.
-            Need more testing to see if it's ok to set timing to False.
-
-IMPORTANT!!! KNOWN ISSUE:
-    multipleInterface should always be false when doing tests over VPN, otherwise it goes 
-    around the VPN (this is at least the case in Mac OS X)
-    
-    Solutions:
-        1- Set --multipleInterface=False (--publicIP does not matter anymore)
-        2- Make sure python picks the intended interface by:
-            i)  disconnecting all other interfaces, or
-            ii) change the interfaces order in Network Preferences and have your intended
-                interface rank one, so the kernel picks it.
-                
-                
-Exit codes:
-    0:    Finished successfully with no errors 
-    1:    maxIdleTime has reached (i.e. there hasn't been any packet send/recv activity on any socket for maxIdleTime secs)
-    2:    IP flipping occurred
-    
-#######################################################################################################
-#######################################################################################################
-'''
-
 import sys, commands, socket, time, numpy, threading, select, pickle, Queue
-from python_lib import *
+
+import sys, os, ConfigParser, math, json, time, subprocess, commands, random, string, logging, logging.handlers, socket, StringIO
+
+try:
+    import gevent.subprocess
+except:
+    import subprocess
+
+try:
+    import dpkt
+except:
+    pass
+
+def PRINT_ACTION(message, indent, action=True, exit=False):
+    if action:
+        print ''.join(['\t']*indent), '[' + str(Configs().action_count) + ']' + message
+        Configs().action_count = Configs().action_count + 1
+    elif exit is False:
+        print ''.join(['\t']*indent) + message
+    else:
+        print '\n***** Exiting with error: *****\n', message, '\n***********************************\n'
+        sys.exit()
+
+
+class PermaData(object):
+    def __init__(self, path='', fileName='uniqID.txt', size=10):
+        if path != '':
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+        self.path = path + fileName
+
+        try:
+            with open(self.path, 'r') as f:
+                [self.id, self.historyCount] = f.readline().split('\t')
+                self.historyCount = int(self.historyCount)
+        except IOError:
+            self.id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(size))
+            self.historyCount = 0
+            self._update()
+
+    def updateHistoryCount(self):
+        self.historyCount += 1
+        self._update()
+
+    def _update(self):
+        with open(self.path, 'w') as f:
+            f.write((self.id + '\t' + str(self.historyCount)))
+
+
+def dir_list(dir_name, subdir, *args):
+    '''
+    Return a list of file names in directory 'dir_name'
+    If 'subdir' is True, recursively access subdirectories under 'dir_name'.
+    Additional arguments, if any, are file extensions to add to the list.
+    Example usage: fileList = dir_list(r'H:\TEMP', False, 'txt', 'py', 'dat', 'log', 'jpg')
+    '''
+    fileList = []
+    for file in os.listdir(dir_name):
+        dirfile = os.path.join(dir_name, file)
+        if os.path.isfile(dirfile):
+            if len(args) == 0:
+                fileList.append(dirfile)
+            else:
+                if os.path.splitext(dirfile)[1][1:] in args:
+                    fileList.append(dirfile)
+        # recursively access file names in subdirectories
+        elif os.path.isdir(dirfile) and subdir:
+            # print "Accessing directory:", dirfile
+            fileList += dir_list(dirfile, subdir, *args)
+    return fileList
+
+class UDPset(object):
+    def __init__(self, payload, timestamp, c_s_pair, end=False):
+        self.payload = payload
+        self.timestamp = timestamp
+        self.c_s_pair = c_s_pair
+        self.end = end
+
+    def __str__(self):
+        return '{}--{}--{}--{}'.format(self.payload, self.timestamp, self.c_s_pair, self.end)
+
+    def __repr__(self):
+        return '{}--{}--{}--{}'.format(self.payload, self.timestamp, self.c_s_pair, self.end)
+
+
+class RequestSet(object):
+    '''
+    NOTE: These objects are created in the parser and the payload is encoded in HEX.
+          However, before replaying, the payload is decoded, so for hash and length,
+          we need to use the decoded payload.
+    '''
+
+    def __init__(self, payload, c_s_pair, response, timestamp):
+        self.payload = payload
+        self.c_s_pair = c_s_pair
+        self.timestamp = timestamp
+
+        if response is None:
+            self.response_hash = None
+            self.response_len = 0
+        else:
+            self.response_hash = hash(response.decode('hex'))
+            self.response_len = len(response.decode('hex'))
+
+    def __str__(self):
+        return '{} -- {} -- {} -- {}'.format(self.payload, self.timestamp, self.c_s_pair, self.response_len)
+
+
+class ResponseSet(object):
+    '''
+    NOTE: These objects are created in the parser and the payload is encoded in HEX.
+          However, before replaying, the payload is decoded, so for hash and length,
+          we need to use the decoded payload.
+    '''
+
+    def __init__(self, request, response_list):
+        self.request_len = len(request.decode('hex'))
+        self.request_hash = hash(request.decode('hex'))
+        self.response_list = response_list
+
+    def __str__(self):
+        return '{} -- {}'.format(self.request_len, self.response_list)
+
+
+class OneResponse(object):
+    def __init__(self, payload, timestamp):
+        self.payload = payload
+        self.timestamp = timestamp
+
+
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class Configs(object):
+    '''
+    This object holds all configs
+
+    BE CAREFUL: it's a singleton!
+    '''
+    __metaclass__ = Singleton
+    _Config = None
+    _configs = {}
+
+    def __init__(self, config_file=None):
+        self._Config = ConfigParser.ConfigParser()
+        self.action_count = 1
+        self._maxlen = 0
+        if config_file != None:
+            read_config_file(config_file)
+
+    def read_config_file(self, config_file):
+        with open(config_file, 'r') as f:
+            while True:
+                try:
+                    l = f.readline().strip()
+                    if l == '':
+                        break
+                except:
+                    break
+
+                a = l.partition('=')
+
+                if a[2] in ['True', 'true']:
+                    self.set(a[0], True)
+                elif a[2] in ['False', 'false']:
+                    self.set(a[0], False)
+                else:
+                    try:
+                        self.set(a[0], int(a[2]))
+                    except ValueError:
+                        try:
+                            self.set(a[0], float(a[2]))
+                        except ValueError:
+                            self.set(a[0], a[2])
+
+    def read_args(self, args):
+        self.set('000-scriptName', args[0])
+        for arg in args[1:]:
+            a = ((arg.strip()).partition('--')[2]).partition('=')
+
+            if a[0] == 'ConfigFile':
+                self.read_config_file(a[2])
+
+            if a[2] in ['True', 'true']:
+                self.set(a[0], True)
+
+            elif a[2] in ['False', 'false']:
+                self.set(a[0], False)
+
+            else:
+                try:
+                    self.set(a[0], int(a[2]))
+                except ValueError:
+                    try:
+                        self.set(a[0], float(a[2]))
+                    except ValueError:
+                        self.set(a[0], a[2])
+                        #         if 'ConfigFile' in self._configs:
+                        #             self.read_config_file(self._configs['ConfigFile'])
+
+    def check_for(self, list_of_mandotary):
+        try:
+            for l in list_of_mandotary:
+                self.get(l)
+        except:
+            print '\nYou should provide \"--{}=[]\"\n'.format(l)
+            sys.exit(-1)
+
+    def get(self, key):
+        return self._configs[key]
+
+    def is_given(self, key):
+        try:
+            self._configs[key]
+            return True
+        except:
+            return False
+
+    def set(self, key, value):
+        if value == 'True':
+            self._configs[key] = True
+        elif value == 'False':
+            self._configs[key] = False
+        else:
+            self._configs[key] = value
+        if len(key) > self._maxlen:
+            self._maxlen = len(key)
+
+    def show(self, key):
+        print key, ':\t', value
+
+    def show_all(self):
+        for key in sorted(self._configs):
+            print '\t', key.ljust(self._maxlen), ':', self._configs[key]
+
+    def __str__(self):
+        return str(self._configs)
+
+    def reset_action_count(self):
+        self._configs['action_count'] = 0
+
+    def reset(self):
+        _configs = {}
+        self._configs['action_count'] = 0
+
+
+class tcpdump(object):
+    '''
+    Class for taking tcpdump
+
+    Everything is self-explanatory
+    '''
+
+    def __init__(self, dump_name=None, targetFolder='./', interface=None):
+        self._interface = interface
+        self._running = False
+        self._p = None
+        self.bufferSize = 131072
+
+        if dump_name is None:
+            self.dump_name = 'dump_' + time.strftime('%Y-%b-%d-%H-%M-%S', time.gmtime()) + '.pcap'
+        else:
+            self.dump_name = 'dump_' + dump_name + '.pcap'
+
+        self.dump_name = targetFolder + self.dump_name
+
+    def start(self, host=None):
+
+        command = ['tcpdump', '-nn', '-B', str(self.bufferSize), '-w', self.dump_name]
+
+        if self._interface is not None:
+            command += ['-i', self._interface]
+
+        if host is not None:
+            command += ['host', host]
+        print command
+        try:
+            self._p = gevent.subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except NameError:
+            self._p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        self._running = True
+
+        return ' '.join(command)
+
+    def stop(self):
+        output = ['-1', '-1', '-1']
+        try:
+            self._p.terminate()
+            output = self._p.communicate()
+            output = map(lambda x: x.partition(' ')[0], output[1].split('\n')[1:4])
+        except AttributeError:
+            return 'None'
+        self._running = False
+        return output
+
+    def status(self):
+        return self._running
+
+
+def java_byte_hashcode(s):
+    if len(s) == 0:
+        return 0
+    hashCode = 1
+    for b in s:
+        i = ord(b)
+        if i > 127:
+            i = i - 256
+        hashCode = (31 * hashCode + i) & 0xFFFFFFFF
+    return hashCode
 
 DEBUG = 4
 
@@ -163,12 +402,13 @@ class tcpClient(object):
         
         if addInfo and self.addHeader:
             if self.replayName.endswith('-random'):
-                info = 'X-rr;{};{};{};X-rr'.format(self.publicIP, name2code(self.replayName, 'name'), self.csp)
+                info = 'X-rr;{};{};{};X-rr'.format(self.publicIP, Configs().get('replayCode'), self.csp)
                 tcp.payload = info + tcp.payload[len(info):]
                 
             elif tcp.payload[:3] == 'GET':
+                print name2code(self.replayName)
                 tcp.payload = (  tcp.payload.partition('\r\n')[0] 
-                               + '\r\nX-rr: {};{};{}\r\n'.format(self.publicIP, name2code(self.replayName, 'name'), self.csp) 
+                               + '\r\nX-rr: {};{};{}\r\n'.format(self.publicIP, Configs().get('replayCode'), self.csp)
                                + tcp.payload.partition('\r\n')[2])
             
         try:
@@ -193,8 +433,8 @@ class tcpClient(object):
                     data = self.sock.recv( min(self.buff_size, tcp.response_len-buffer_len) )
                     buffer_len += len(data)
                 
-                if tcp.response_len - buffer_len > 0:
-                    print '\nBREAKING EARLY:', tcp.response_len - buffer_len, tcp.c_s_pair
+                #if tcp.response_len - buffer_len > 0:
+                    #print '\nBREAKING EARLY:', tcp.response_len - buffer_len, tcp.c_s_pair
                 
                 break
 
@@ -255,7 +495,6 @@ class Sender(object):
         self.sent_jitter = []
         
     def run(self, Q, clientMapping, udpSocketList, udpServerMapping, timing):
-        progress_bar          = print_progress(len(Q))
         self.timing           = timing
         self.clientMapping    = clientMapping
         self.udpServerMapping = udpServerMapping
@@ -267,7 +506,6 @@ class Sender(object):
         tcpCount = 0
         
         for p in Q:
-            if DEBUG == 4: progress_bar.next()
             '''
             For every TCP packet:
                 1- Determine on which client is should be sent out.
@@ -304,9 +542,7 @@ class Sender(object):
             self.send_event.clear()
         
         map(lambda x: x.join(), threads)
-        
-        PRINT_ACTION('Done sending! (sent TCP: {}, UDP: {} packets)'.format(tcpCount, udpCount), 1, action=False)
-        
+
     def nextTCP(self, client, tcp):
         '''
         It fires off a thread to sends a single tcp packet and receive it's response.
@@ -373,8 +609,7 @@ class Receiver(object):
                 if DEBUG == 2: print '\tGot: ', data
                 if DEBUG == 3: print '\tGot: ', len(data), 'on', sock.getsockname(), 'from', address
                 
-        PRINT_ACTION('Done receiving! (received {} UDP packets)'.format(count), 1, action=False)
-        
+
 class SideChannel(object):
     '''
     Client uses SideChannel to:
@@ -451,13 +686,10 @@ class SideChannel(object):
             
             iperfRes  = subprocess.check_output(command)
             iperfRate = ' '.join(iperfRes.strip().rpartition('\n')[2].strip().split()[-2:])
-            
-            PRINT_ACTION('result: '+iperfRate, 1, action=False)
-            
+
             self.send_object(iperfRate)
         
         else:
-            PRINT_ACTION('No iperf', 1, action=False)
             self.send_object('NoIperf')
     
     def sendMobileStats(self, mobileStats):
@@ -508,7 +740,6 @@ class SideChannel(object):
                 
             if self.doneSending is True:
                 if inProcess == 0:
-                    PRINT_ACTION('Done notifier! ({}/{})'.format(total, udpSenderCount), 1, action=False)
                     break
     
     def receive_server_port_mapping(self):
@@ -542,7 +773,6 @@ class SideChannel(object):
         and can result in permission deny by server when doing back2back replays. 
         '''
         if not jitter:
-            PRINT_ACTION('NoJitter', 1, action=False)
             self.send_object(';'.join(['NoJitter', id]))
         
         else:
@@ -620,7 +850,6 @@ def load_Q(serialize='pickle', skipTCP=False):
             break
     
     if serialize == 'pickle':
-        print pickle_file
         Q, udpClientPorts, tcpCSPs, replayName = pickle.load(open(pickle_file, 'r'))
     elif serialize == 'json':
         Q, udpClientPorts, tcpCSPs, replayName = json.load(open(pickle_file, 'r'), cls=TCPjsonDecoder_client)
@@ -647,22 +876,14 @@ def load_Q(serialize='pickle', skipTCP=False):
     return Q, udpClientPorts, tcpCSPs, replayName
 
 def run():
-    #initialSetup(pcapFolder)
     configs = Configs()
     
-    PRINT_ACTION('Server IP address: {}'.format(configs.get('serverInstanceIP')), 0)
-    
-    PRINT_ACTION('Loading the queue', 0)
     Q, udpClientPorts, tcpCSPs, replayName = load_Q(configs.get('serialize'), skipTCP=configs.get('skipTCP'))
     
-    PRINT_ACTION('Creating side channel', 0)
     sideChannel = SideChannel((configs.get('serverInstanceIP'), configs.get('sidechannel_port')))
 
-    PRINT_ACTION('Identifying', 1, action=False)
     sideChannel.identify(replayName, configs.get('endOfTest'), extraString=configs.get('extraString'))
-    PRINT_ACTION('id: {}, historyCount: {}'.format(sideChannel.id, sideChannel.historyCount), 2, action=False)
-    
-    PRINT_ACTION('Asking for permission', 0)
+
     permission = sideChannel.ask4Permision()
     if not int(permission[0]):
         if permission[1] == '1':
@@ -672,12 +893,9 @@ def run():
             os._exit(3)
     else:
         sideChannel.publicIP = permission[1]
-        PRINT_ACTION('Permission granted. My public IP: {}'.format(sideChannel.publicIP), 1, action=False)
-        
-    PRINT_ACTION('Running iperf test', 0)
+
     sideChannel.sendIperf()
     
-    PRINT_ACTION('Sending mobile stats', 0)
     try:
         mobileStatsFile = configs.get('mobileStats')
         with open (mobileStatsFile, "r") as f:
@@ -687,7 +905,6 @@ def run():
     
     sideChannel.sendMobileStats(mobileStats)
     
-    PRINT_ACTION('Receiving server port mapping and UDP sender count', 0)
     serverMapping  = sideChannel.receive_server_port_mapping()
     udpSenderCount = sideChannel.receive_sender_count()
     for protocol in serverMapping:
@@ -696,45 +913,35 @@ def run():
                 if serverMapping[protocol][ip][port][0] == '':
                     serverMapping[protocol][ip][port] = (configs.get('serverInstanceIP'), serverMapping[protocol][ip][port][1])
     
-    PRINT_ACTION('Creating all TCP client sockets', 0)
     clientMapping = {'tcp':{}, 'udp':{}}
     for csp in tcpCSPs:
         dstIP        = csp.partition('-')[2].rpartition('.')[0]
         dstPort      = csp.partition('-')[2].rpartition('.')[2]
         dst_instance = serverMapping['tcp'][dstIP][dstPort]
         clientMapping['tcp'][csp] = tcpClient(dst_instance, csp, replayName, sideChannel.publicIP)
-    PRINT_ACTION('Created {} TCP sockets.'.format(str(len(clientMapping['tcp']))), 1, action=False)
 
-    PRINT_ACTION('Creating all UDP client sockets', 0)
-    udpSocketList = []    
+    udpSocketList = []
     for original_client_port in udpClientPorts:
         clientMapping['udp'][original_client_port] = udpClient()
-    PRINT_ACTION('Created {} UDP sockets.'.format(str(len(clientMapping['udp']))), 1, action=False)
-    
-    PRINT_ACTION('Running TCPDUMP', 0)
+
     configs.set('dumpName', '_'.join(['client', sideChannel.id, sideChannel.publicIP, replayName, sideChannel.publicIP, time.strftime('%Y-%b-%d-%H-%M-%S', time.gmtime()), configs.get('testID'), configs.get('extraString'), str(sideChannel.historyCount), 'out']))
     if not configs.get('doTCPDUMP'):
-        PRINT_ACTION('No TCPDUMP', 1, action=False)
         replayObj = None
     else:
         replayObj = ReplayObj(sideChannel.id, replayName, sideChannel.publicIP, configs.get('tcpdump_int'), sideChannel.id, dumpName=configs.get('dumpName'))
         replayObj.dump.start(host=configs.get('serverInstanceIP'))
         time.sleep(1)
     
-    PRINT_ACTION('Running side channel notifier', 0)
     pNotf = threading.Thread( target=sideChannel.notifier, args=(udpSenderCount,) )
     pNotf.start()
     
-    PRINT_ACTION('Running the Receiver process', 0)
     receiverObj = Receiver()
     pRecv = threading.Thread( target=receiverObj.run, args=(udpSocketList,) )
     pRecv.start()
     
-    PRINT_ACTION('Running activity monitor process', 0)
     pactv = threading.Thread( target=sideChannel.activityMonitor, args=(activityQ, errorQ, configs.get('maxIdleTime'), replayObj) )
     pactv.start()
     
-    PRINT_ACTION('Running the Sender process', 0)
     senderObj = Sender()
     startTime = time.time()
     pSend = threading.Thread( target=senderObj.run, args=(Q, clientMapping, udpSocketList, serverMapping['udp'], configs.get('timing'), ) )
@@ -763,57 +970,24 @@ def run():
     
     duration = str(time.time() - startTime)
     
-    PRINT_ACTION('Telling server done with replaying', 0)
     sideChannel.sendDone(duration)
     
-    PRINT_ACTION('Sending the jitter results on client...', 0)
     sideChannel.send_jitter(sideChannel.id, senderObj.sent_jitter, receiverObj.rcvd_jitter, jitter=configs.get('jitter'))
 
-    PRINT_ACTION('Receiving results ...', 0)
     sideChannel.get_result('result.jpg', result=configs.get('result'))
     
-    PRINT_ACTION('Fin', 0)
     PRINT_ACTION('The process took {} seconds'.format(duration), 1, action=False)
     
     return True
    
-def initialSetup(pcapFolder):
-    PRINT_ACTION('Reading configs file and args)', 0)
+def initialSetup():
     configs = Configs()
-    configs.set('sidechannel_port' , 55555)
-    configs.set('serialize'        , 'pickle')
-    configs.set('timing'           , True)
-    configs.set('jitter'           , True)
-    configs.set('doTCPDUMP'        , False)
-    configs.set('result'           , False)
-    configs.set('iperf'            , False)
-    configs.set('multipleInterface', False)
-    configs.set('resultsFolder'    , 'Results')
-    configs.set('jitterFolder'     , 'jitterResults')
-    configs.set('tcpdumpFolder'    , 'tcpdumpsResults')
-    configs.set('extraString'      , 'extraString')
-    configs.set('byExternal'       , False)
-    configs.set('skipTCP'          , False)
-    configs.set('addHeader'        , False)
-    configs.set('maxIdleTime'      , 30)
-    configs.set('endOfTest'        , True)
-    configs.set('testID'           , 'SINGLE')   #options: VPN, NOVPN, RANDOM, SINGLE -- we need this for the vpn_no_vpn wrapper
-    configs.set('pcap_folder'      , pcapFolder) 
-    configs.set('serverInstance'   , 'server')
-    configs.read_args(sys.argv)
-    configs.check_for(['pcap_folder'])
-    
+
     #The following does a DNS lookup and resolves server's IP address
-    try:
-        configs.get('serverInstanceIP')
-    except KeyError:
-        configs.check_for(['serverInstance'])
-        configs.set('serverInstanceIP', Instance().getIP(configs.get('serverInstance')))
+    configs.set('serverInstanceIP', socket.gethostbyname(configs.get('serverInstanceIP')))
     
     if configs.get('doTCPDUMP'):
         configs.check_for(['tcpdump_int'])
-
-    configs.show_all()
 
     if not configs.get('multipleInterface'):
         configs.set('publicIP', '')
@@ -824,7 +998,6 @@ def initialSetup(pcapFolder):
         except KeyError:
             configs.check_for(['publicIP'])
     
-    PRINT_ACTION('Creating results folders', 0)
     if not os.path.isdir(configs.get('resultsFolder')):
         os.makedirs(configs.get('resultsFolder'))
     

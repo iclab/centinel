@@ -10,7 +10,8 @@ import time
 import glob
 
 from centinel.experiment import Experiment
-import replay_client
+from centinel.primitives import replay_client
+from centinel.primitives.replay_client import *
 
 
 class DifferentiationExperiment(Experiment):
@@ -20,21 +21,28 @@ class DifferentiationExperiment(Experiment):
         self.input_file = input_file
         self.results = []
         self.external_results = {}
+        self.configs = Configs()
+
+        self.configs.set('pcap_folder', self.global_constants['data_dir'])
+
+        if self.params is not None:
+            for key in self.params:
+                self.configs.set(key,self.params[key])
+
+
 
     def run(self):
-       for filename, file in self.input_file.items():
 
-            for pcapFolder in file.readlines():
-                replay_client.initialSetup(pcapFolder)
-                replay_client.run()
-                jitter_folder = Configs().get('jitterFolder')
-                result_files = [path for path in glob.glob(
-                    os.path.join(jitter_folder, '*.txt'))]
-                for file in result_files:
-                    f = open(file)
-                    contents = f.read()
-                    name, ext = os.path.splitext(os.path.basename(file))
-                    self.external_results[name] = contents
+        replay_client.initialSetup()
+        replay_client.run()
+        jitter_folder = Configs().get('jitterFolder')
+        result_files = [path for path in glob.glob(
+                os.path.join(jitter_folder, '*.txt'))]
+        for file in result_files:
+           f = open(file)
+           contents = f.read()
+           name, ext = os.path.splitext(os.path.basename(file))
+           self.external_results[name] = contents
 
 
 
