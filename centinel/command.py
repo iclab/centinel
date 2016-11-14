@@ -70,9 +70,12 @@ class Command():
             timeout = self.timeout
         self.kill_switch()
         # Send the signal to all the process groups
-        os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         self.process.kill()
         self.thread.join(timeout)
+        try:
+            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+        except:
+            pass
         if self.stopped:
             return True
         else:
