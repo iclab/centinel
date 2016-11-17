@@ -191,6 +191,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     if external_ip is None:
         logging.error("No network connection, exiting...")
         return
+    logging.info("Current external IP: %s" % (external_ip))
 
     # getting namesevers that should be excluded
     local_nameservers = dns.resolver.Resolver().nameservers
