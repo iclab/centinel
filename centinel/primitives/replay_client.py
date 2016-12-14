@@ -1,4 +1,4 @@
-import sys, commands, socket, time, numpy, threading, select, pickle, Queue
+import sys, commands, socket, time, numpy, threading, select, pickle, Queue, logging
 
 import sys, os, ConfigParser, math, json, time, subprocess, commands, random, string, logging, logging.handlers, socket, StringIO
 
@@ -155,6 +155,24 @@ class Configs(object):
         self._maxlen = 0
         if config_file != None:
             read_config_file(config_file)
+        self.set('sidechannel_port', 55555)
+        self.set('serialize', 'pickle')
+        self.set('timing', True)
+        self.set('jitter', True)
+        self.set('doTCPDUMP', False)
+        self.set('result', False)
+        self.set('iperf', False)
+        self.set('multipleInterface', False)
+        self.set('resultsFolder', 'Results')
+        self.set('jitterFolder', 'jitterResults')
+        self.set('tcpdumpFolder', 'tcpdumpsResults')
+        self.set('extraString', 'extraString')
+        self.set('byExternal', False)
+        self.set('skipTCP', False)
+        self.set('addHeader', False)
+        self.set('maxIdleTime', 30)
+        self.set('endOfTest', True)
+        self.set('testID', 'SINGLE')
 
     def read_config_file(self, config_file):
         with open(config_file, 'r') as f:
@@ -879,11 +897,13 @@ def run():
     configs = Configs()
     
     Q, udpClientPorts, tcpCSPs, replayName = load_Q(configs.get('serialize'), skipTCP=configs.get('skipTCP'))
-    
+
+    logging.debug('Creating side channel')
     sideChannel = SideChannel((configs.get('serverInstanceIP'), configs.get('sidechannel_port')))
 
     sideChannel.identify(replayName, configs.get('endOfTest'), extraString=configs.get('extraString'))
 
+    logging.debug('Asking for permission')
     permission = sideChannel.ask4Permision()
     if not int(permission[0]):
         if permission[1] == '1':
@@ -893,7 +913,9 @@ def run():
             os._exit(3)
     else:
         sideChannel.publicIP = permission[1]
+        PRINT_ACTION('Permission granted. My public IP: {}'.format(sideChannel.publicIP), 1, action=False)
 
+    logging.debug('Running iperf test')
     sideChannel.sendIperf()
     
     try:
@@ -902,9 +924,11 @@ def run():
             mobileStats = f.read().strip()
     except:
         mobileStats = None
-    
+
+    logging.debug('Sending mobile stats')
     sideChannel.sendMobileStats(mobileStats)
-    
+
+    logging.debug('Receiving server port mapping and UDP sender count')
     serverMapping  = sideChannel.receive_server_port_mapping()
     udpSenderCount = sideChannel.receive_sender_count()
     for protocol in serverMapping:
@@ -912,7 +936,8 @@ def run():
             for port in serverMapping[protocol][ip]:
                 if serverMapping[protocol][ip][port][0] == '':
                     serverMapping[protocol][ip][port] = (configs.get('serverInstanceIP'), serverMapping[protocol][ip][port][1])
-    
+
+    logging.debug('Creating all TCP client sockets')
     clientMapping = {'tcp':{}, 'udp':{}}
     for csp in tcpCSPs:
         dstIP        = csp.partition('-')[2].rpartition('.')[0]
@@ -920,6 +945,7 @@ def run():
         dst_instance = serverMapping['tcp'][dstIP][dstPort]
         clientMapping['tcp'][csp] = tcpClient(dst_instance, csp, replayName, sideChannel.publicIP)
 
+    logging.debug('Creating all UDP client sockets')
     udpSocketList = []
     for original_client_port in udpClientPorts:
         clientMapping['udp'][original_client_port] = udpClient()
@@ -931,17 +957,21 @@ def run():
         replayObj = ReplayObj(sideChannel.id, replayName, sideChannel.publicIP, configs.get('tcpdump_int'), sideChannel.id, dumpName=configs.get('dumpName'))
         replayObj.dump.start(host=configs.get('serverInstanceIP'))
         time.sleep(1)
-    
+
+    logging.debug('Running side channel notifier')
     pNotf = threading.Thread( target=sideChannel.notifier, args=(udpSenderCount,) )
     pNotf.start()
-    
+
+    logging.debug('Running receiver process')
     receiverObj = Receiver()
     pRecv = threading.Thread( target=receiverObj.run, args=(udpSocketList,) )
     pRecv.start()
-    
+
+    logging.debug('Running activity monitor process')
     pactv = threading.Thread( target=sideChannel.activityMonitor, args=(activityQ, errorQ, configs.get('maxIdleTime'), replayObj) )
     pactv.start()
-    
+
+    logging.debug('Running the sender process')
     senderObj = Sender()
     startTime = time.time()
     pSend = threading.Thread( target=senderObj.run, args=(Q, clientMapping, udpSocketList, serverMapping['udp'], configs.get('timing'), ) )
@@ -969,11 +999,14 @@ def run():
     sideChannel.monitor = False
     
     duration = str(time.time() - startTime)
-    
+
+    logging.debug('telling server done with replaying')
     sideChannel.sendDone(duration)
-    
+
+    logging.debug('sending jitter results on client')
     sideChannel.send_jitter(sideChannel.id, senderObj.sent_jitter, receiverObj.rcvd_jitter, jitter=configs.get('jitter'))
 
+    logging.debug('Receiving results')
     sideChannel.get_result('result.jpg', result=configs.get('result'))
     
     PRINT_ACTION('The process took {} seconds'.format(duration), 1, action=False)
@@ -997,7 +1030,8 @@ def initialSetup():
             configs.set('publicIP', getIPofInterface( publicIPInterface, VPN=(configs.get('testID').startswith('VPN')) ))
         except KeyError:
             configs.check_for(['publicIP'])
-    
+
+    logging.debug('creating result folders')
     if not os.path.isdir(configs.get('resultsFolder')):
         os.makedirs(configs.get('resultsFolder'))
     
