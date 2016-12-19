@@ -1,4 +1,4 @@
-import sys, commands, socket, time, numpy, threading, select, pickle, Queue, logging
+import sys, commands, socket, time, numpy, threading, select, pickle, Queue, logging, multiprocessing, psutil, urllib2, urllib
 
 import sys, os, ConfigParser, math, json, time, subprocess, commands, random, string, logging, logging.handlers, socket, StringIO
 
@@ -11,6 +11,217 @@ try:
     import dpkt
 except:
     pass
+
+
+def getIPofInterface(interface):
+    output = commands.getoutput('ifconfig')
+    lines = output.split('\n')
+
+    for i in range(len(lines)):
+        if lines[i].startswith(interface + ':'):
+            break
+
+    l = lines[i + 3].strip()
+    assert (l.startswith('inet'))
+
+    return l.split(' ')[1]
+
+
+class UI(object):
+    '''
+    This class contains all the methods to interact with the analyzerServer
+    '''
+
+    def __init__(self, ip, port):
+        self.path = ('http://'
+                     + ip
+                     + ':'
+                     + str(port)
+                     + '/Results')
+
+    def ask4analysis(self, id, historyCount):
+        '''
+        Send a POST request to tell analyzer server to analyze results for a (userID, historyCount)
+
+        server will send back 'True' if it could successfully schedule the job. It will
+        return 'False' otherwise.
+
+        This is how and example request look like:
+            method: POST
+            url:    http://54.160.198.73:56565/Results
+            data:   userID=KSiZr4RAqA&command=analyze&historyCount=9
+        '''
+        data = {'userID': id, 'command': 'analyze', 'historyCount': historyCount}
+        res = self.sendRequest('POST', data=data)
+        return res
+
+    def getSingleResult(self, id, historyCount=None):
+        '''
+        Send a GET request to get result for a historyCount
+
+        This is how an example url looks like:
+            method: GET
+            http://54.160.198.73:56565/Results?userID=KSiZr4RAqA&command=singleResult&historyCount=9
+        '''
+        data = {'userID': id, 'command': 'singleResult'}
+
+        if isinstance(historyCount, int):
+            data['historyCount'] = historyCount
+
+        res = self.sendRequest('GET', data=data)
+        return res
+
+    def getMultiResults(self, id, maxHistoryCount=None, limit=None):
+        '''
+        Send a GET request to get maximum of 10 result.
+
+        if maxHistoryCount not provided, returns the most recent results
+
+        This is how an example url looks like:
+            method: GET
+            http://54.160.198.73:56565/Results?userID=KSiZr4RAqA&command=multiResults&maxHistoryCount=9
+        '''
+        data = {'userID': id, 'command': 'multiResults'}
+
+        if isinstance(maxHistoryCount, int):
+            data['maxHistoryCount'] = maxHistoryCount
+
+        if isinstance(limit, int):
+            data['limit'] = limit
+
+        res = self.sendRequest('GET', data=data)
+        return res
+
+    def sendRequest(self, method, data=''):
+        '''
+        Sends a single request to analyzer server
+        '''
+        data = urllib.urlencode(data)
+
+        if method.upper() == 'GET':
+            req = urllib2.Request(self.path + '?' + data)
+
+        elif method.upper() == 'POST':
+            req = urllib2.Request(self.path, data)
+
+        res = urllib2.urlopen(req).read()
+        return json.loads(res)
+
+
+def run_one(round, tries, vpn=False):
+    '''
+    Runs the client script once.
+        - if vpn == True: use vpn, else do directly
+    '''
+    #if vpn:
+    #    toggleVPN('connect')
+    #else:
+    #    toggleVPN('disconnect')
+
+    #time.sleep(2)  # wait for VPN to toggle
+
+    tryC = 1
+    while tryC <= tries:
+
+        startNetUsage = psutil.net_io_counters(pernic=True)
+
+        p = multiprocessing.Process(target=run)
+        p.start()
+        p.join()
+
+        endNetUsage = psutil.net_io_counters(pernic=True)
+
+        logging.info('Done with {}. Exit code: {}'.format(Configs().get('testID'), p.exitcode))
+        tryC += 1
+
+        # If:  successful: exitCode == 0
+        # or   no permission: exitCode == 3
+        if p.exitcode in [0, 3]:
+            break
+        # If ipFlipping: exitCode == 2
+        elif p.exitcode == 2:
+            Configs().set('addHeader', True)
+            Configs().set('extraString', Configs().get('extraString') + '-addHeader')
+            logging.info('*****ATTENTION: there seems to be IP flipping happening. Will addHeader from now on.*****\n\n')
+
+    netStats = {}
+    for interface in endNetUsage:
+        netStats[interface] = {'bytesSent': endNetUsage[interface].bytes_sent - startNetUsage[interface].bytes_sent,
+                               'bytesRcvd': endNetUsage[interface].bytes_recv - startNetUsage[interface].bytes_recv}
+
+    return p.exitcode, netStats
+
+
+def runSet():
+
+    configs = Configs()
+    netStats = {}
+
+    for i in range(configs.get('rounds')):
+        netStats[i + 1] = {}
+
+        if (i == configs.get('rounds') - 1) and (not configs.get('doVPNs')) and (not configs.get('doRANDOMs')):
+            configs.set('endOfTest', True)
+
+        if configs.get('doNOVPNs'):
+            configs.set('testID', 'NOVPN_' + str(i + 1))
+            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_folder')))
+            exitCode, netStats[i + 1]['NOVPN'] = run_one(i, configs.get('tries'), vpn=False)
+
+            if exitCode == 3:
+                os._exit(3)
+
+            time.sleep(2)
+
+        if configs.get('doRANDOMs'):
+
+            if (i == configs.get('rounds') - 1) and (not configs.get('doVPNs')):
+                configs.set('endOfTest', True)
+
+            configs.set('testID', 'RANDOM_' + str(i + 1))
+
+            configs.set('pcap_folder', configs.get('pcap_folder') + '_random')
+            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_folder')))
+
+            # Every set of replays MUST start with testID=NOVPN_1, this is a server side thing!
+            # If NOVPN is False, we use RANDOMs are NOVPN.
+            if not configs.get('doNOVPNs'):
+                logging.debug('\n\tdoNOVPNs is False --> changing testID from RANDOM to NOVPN for server compatibility!\n')
+                configs.set('testID', 'NOVPN_' + str(i + 1))
+
+            exitCode, netStats[i + 1]['RANDOM'] = run_one(i, configs.get('tries'), vpn=False)
+            configs.set('pcap_folder', configs.get('pcap_folder').replace('_random', ''))
+            time.sleep(2)
+
+        if configs.get('doVPNs'):
+            if i == configs.get('rounds') - 1:
+                configs.set('endOfTest', True)
+
+            configs.set('testID', 'VPN_' + str(i + 1))
+
+            if configs.get('sameInstance'):
+                serverInstanceIP = configs.get('serverInstanceIP')
+                #configs.set('serverInstanceIP', Instance().getIP('VPN'))
+
+            if configs.get('doTCPDUMP'):
+                tcpdump_int = configs.get('tcpdump_int')
+                configs.set('tcpdump_int', configs.get('tcpdump_int'))
+            # configs.set('tcpdump_int', 'en0')
+            #                 configs.set('tcpdump_int', None)
+
+            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_folder')))
+            exitCode, netStats[i + 1]['VPN'] = run_one(i, configs.get('tries'), vpn=True)
+
+            if configs.get('sameInstance') is True:
+                configs.set('serverInstanceIP', serverInstanceIP)
+
+            if configs.get('doTCPDUMP'):
+                configs.set('tcpdump_int', tcpdump_int)
+
+        logging.debug('Done with round :{}\n'.format(i + 1))
+
+
+    return netStats
 
 def PRINT_ACTION(message, indent, action=True, exit=False):
     if action:
@@ -171,8 +382,16 @@ class Configs(object):
         self.set('skipTCP', False)
         self.set('addHeader', False)
         self.set('maxIdleTime', 30)
-        self.set('endOfTest', True)
+        self.set('endOfTest', False)
         self.set('testID', 'SINGLE')
+        self.set('sameInstance', True)
+        self.set('tries', 1)
+        self.set('rounds', 3)
+        self.set('doNOVPNs', True)
+        self.set('doVPNs', False)
+        self.set('doRANDOMs', True)
+        self.set('ask4analysis', False)
+        self.set('analyzerPort', 56565)
 
     def read_config_file(self, config_file):
         with open(config_file, 'r') as f:
@@ -424,7 +643,7 @@ class tcpClient(object):
                 tcp.payload = info + tcp.payload[len(info):]
                 
             elif tcp.payload[:3] == 'GET':
-                print name2code(self.replayName)
+                #print name2code(self.replayName)
                 tcp.payload = (  tcp.payload.partition('\r\n')[0] 
                                + '\r\nX-rr: {};{};{}\r\n'.format(self.publicIP, Configs().get('replayCode'), self.csp)
                                + tcp.payload.partition('\r\n')[2])
@@ -898,6 +1117,8 @@ def run():
     
     Q, udpClientPorts, tcpCSPs, replayName = load_Q(configs.get('serialize'), skipTCP=configs.get('skipTCP'))
 
+    configs.set('replayCode', configs.get('replayCodes')[replayName])
+
     logging.debug('Creating side channel')
     sideChannel = SideChannel((configs.get('serverInstanceIP'), configs.get('sidechannel_port')))
 
@@ -1042,3 +1263,18 @@ def initialSetup():
     configs.set('tcpdumpFolder', configs.get('resultsFolder') + '/' + configs.get('tcpdumpFolder'))    
     if not os.path.isdir(configs.get('tcpdumpFolder')):
         os.makedirs(configs.get('tcpdumpFolder'))
+
+def main():
+    configs = Configs()
+
+    ui = UI(configs.get('serverInstanceIP'), configs.get('analyzerPort'))
+
+    initialSetup()
+
+    netStats = {}
+
+    netStats[1] = runSet()
+
+    permaData = PermaData()
+    print ui.getSingleResult(permaData.id, permaData.historyCount)
+    permaData.updateHistoryCount()

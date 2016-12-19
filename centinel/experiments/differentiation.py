@@ -13,7 +13,6 @@ from centinel.experiment import Experiment
 from centinel.primitives import replay_client
 from centinel.primitives.replay_client import *
 
-
 class DifferentiationExperiment(Experiment):
     name = "differentiation"
 
@@ -29,12 +28,10 @@ class DifferentiationExperiment(Experiment):
             for key in self.params:
                 self.configs.set(key,self.params[key])
 
-
-
     def run(self):
 
-        replay_client.initialSetup()
-        replay_client.run()
+        replay_client.main()
+
         jitter_folder = Configs().get('jitterFolder')
         result_files = [path for path in glob.glob(
                 os.path.join(jitter_folder, '*.txt'))]
