@@ -3,7 +3,6 @@
 #
 # Input file contains a list of pcaps to replay. This list should be a subset of parsed pcaps al# already present.
 
-
 import logging
 import os
 import time
@@ -30,7 +29,8 @@ class DifferentiationExperiment(Experiment):
 
     def run(self):
 
-        replay_client.main()
+        diff_result = replay_client.main()
+        self.results.append(diff_result)
 
         jitter_folder = Configs().get('jitterFolder')
         result_files = [path for path in glob.glob(

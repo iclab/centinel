@@ -1,6 +1,13 @@
-import sys, commands, socket, time, numpy, threading, select, pickle, Queue, logging, multiprocessing, psutil, urllib2, urllib
+'''
+#######################################################################################################
+#######################################################################################################
+by: Arash Molavi Kakhki (arash@ccs.neu.edu)
+    Northeastern University
+'''
 
-import sys, os, ConfigParser, math, json, time, subprocess, commands, random, string, logging, logging.handlers, socket, StringIO
+import sys, socket, numpy, threading, select, pickle, Queue, logging, multiprocessing, psutil, urllib2, urllib
+
+import os, ConfigParser, math, json, time, subprocess, commands, random, string, logging, logging.handlers, socket, StringIO
 
 try:
     import gevent.subprocess
@@ -142,7 +149,7 @@ def run_one(round, tries, vpn=False):
         elif p.exitcode == 2:
             Configs().set('addHeader', True)
             Configs().set('extraString', Configs().get('extraString') + '-addHeader')
-            logging.info('*****ATTENTION: there seems to be IP flipping happening. Will addHeader from now on.*****\n\n')
+            logging.debug('*****ATTENTION: there seems to be IP flipping happening. Will addHeader from now on.*****\n\n')
 
     netStats = {}
     for interface in endNetUsage:
@@ -218,7 +225,7 @@ def runSet():
             if configs.get('doTCPDUMP'):
                 configs.set('tcpdump_int', tcpdump_int)
 
-        logging.debug('Done with round :{}\n'.format(i + 1))
+        logging.info('Done with round :{}\n'.format(i + 1))
 
 
     return netStats
@@ -1230,8 +1237,7 @@ def run():
     logging.debug('Receiving results')
     sideChannel.get_result('result.jpg', result=configs.get('result'))
     
-    PRINT_ACTION('The process took {} seconds'.format(duration), 1, action=False)
-    
+
     return True
    
 def initialSetup():
@@ -1276,5 +1282,6 @@ def main():
     netStats[1] = runSet()
 
     permaData = PermaData()
-    print ui.getSingleResult(permaData.id, permaData.historyCount)
+    diff_result = ui.getSingleResult(permaData.id, permaData.historyCount)
     permaData.updateHistoryCount()
+    return diff_result
