@@ -149,7 +149,7 @@ def run_one(round, tries, vpn=False):
         elif p.exitcode == 2:
             Configs().set('addHeader', True)
             Configs().set('extraString', Configs().get('extraString') + '-addHeader')
-            logging.debug('*****ATTENTION: there seems to be IP flipping happening. Will addHeader from now on.*****\n\n')
+            logging.debug('*****ATTENTION: there seems to be IP flipping happening. Will addHeader from now on.*****')
 
     netStats = {}
     for interface in endNetUsage:
@@ -193,7 +193,7 @@ def runSet():
             # Every set of replays MUST start with testID=NOVPN_1, this is a server side thing!
             # If NOVPN is False, we use RANDOMs are NOVPN.
             if not configs.get('doNOVPNs'):
-                logging.debug('\n\tdoNOVPNs is False --> changing testID from RANDOM to NOVPN for server compatibility!\n')
+                logging.debug('doNOVPNs is False --> changing testID from RANDOM to NOVPN for server compatibility!')
                 configs.set('testID', 'NOVPN_' + str(i + 1))
 
             exitCode, netStats[i + 1]['RANDOM'] = run_one(i, configs.get('tries'), vpn=False)
@@ -232,12 +232,12 @@ def runSet():
 
 def PRINT_ACTION(message, indent, action=True, exit=False):
     if action:
-        print ''.join(['\t']*indent), '[' + str(Configs().action_count) + ']' + message
+        logging.info(''.join(['\t']*indent), '[' + str(Configs().action_count) + ']' + message)
         Configs().action_count = Configs().action_count + 1
     elif exit is False:
-        print ''.join(['\t']*indent) + message
+        logging.info(''.join(['\t']*indent) + message)
     else:
-        print '\n***** Exiting with error: *****\n', message, '\n***********************************\n'
+        logging.error('***** Exiting with error: *****' + message + '***********************************')
         sys.exit()
 
 
@@ -285,7 +285,6 @@ def dir_list(dir_name, subdir, *args):
                     fileList.append(dirfile)
         # recursively access file names in subdirectories
         elif os.path.isdir(dirfile) and subdir:
-            # print "Accessing directory:", dirfile
             fileList += dir_list(dirfile, subdir, *args)
     return fileList
 
@@ -455,7 +454,7 @@ class Configs(object):
             for l in list_of_mandotary:
                 self.get(l)
         except:
-            print '\nYou should provide \"--{}=[]\"\n'.format(l)
+            logging.debug('\nYou should provide \"--{}=[]\"\n'.format(l))
             sys.exit(-1)
 
     def get(self, key):
@@ -479,11 +478,11 @@ class Configs(object):
             self._maxlen = len(key)
 
     def show(self, key):
-        print key, ':\t', value
+        logging.debug(key, ':\t', value)
 
     def show_all(self):
         for key in sorted(self._configs):
-            print '\t', key.ljust(self._maxlen), ':', self._configs[key]
+            logging.debug('\t', key.ljust(self._maxlen), ':', self._configs[key])
 
     def __str__(self):
         return str(self._configs)
@@ -525,7 +524,7 @@ class tcpdump(object):
 
         if host is not None:
             command += ['host', host]
-        print command
+        logging.debug(command)
         try:
             self._p = gevent.subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except NameError:
@@ -650,8 +649,7 @@ class tcpClient(object):
                 tcp.payload = info + tcp.payload[len(info):]
                 
             elif tcp.payload[:3] == 'GET':
-                #print name2code(self.replayName)
-                tcp.payload = (  tcp.payload.partition('\r\n')[0] 
+                tcp.payload = (  tcp.payload.partition('\r\n')[0]
                                + '\r\nX-rr: {};{};{}\r\n'.format(self.publicIP, Configs().get('replayCode'), self.csp)
                                + tcp.payload.partition('\r\n')[2])
             
@@ -659,7 +657,7 @@ class tcpClient(object):
             self.sock.sendall(tcp.payload)
             activityQ.put(1)
         except:
-            print "\n\nUnexpected error happened 1:", sys.exc_info()[1], tcp.c_s_pair
+            logging.error("\n\nUnexpected error happened 1:" + str(sys.exc_info()[1]) + str(tcp.c_s_pair))
             send_event.set()
             self.event.set()
             return
@@ -691,7 +689,7 @@ class tcpClient(object):
                     #replay proceed, but the replay results might not be acceptable !
                     #Need to figure out a better way to deal with this !
                     if len(data) == 0:
-                        print "\n\nUnexpected error happened 2:", sys.exc_info()[1], tcp.c_s_pair
+                        logging.debug("Unexpected error happened 2:" + str(sys.exc_info()[1]) + str(tcp.c_s_pair))
                         break
                     
                     activityQ.put(1)
@@ -704,7 +702,7 @@ class tcpClient(object):
                         pass
     
                 except:
-                    print "\n\nUnexpected error happened 3:", sys.exc_info()[1], tcp.c_s_pair
+                    logging.debug("Unexpected error happened 3:" + str(sys.exc_info()[1]) + str(tcp.c_s_pair))
                     self.event.set()
                     return
                 
@@ -727,8 +725,7 @@ class udpClient(object):
     def send_udp_packet(self, udp, dstAddress):
         self.sock.sendto(udp.payload, dstAddress)
         activityQ.put(1)
-        if DEBUG == 2: print "sent:", udp.payload     , 'to', dstAddress, 'from', self.sock.getsockname()
-        if DEBUG == 3: print "sent:", len(udp.payload), 'to', dstAddress, 'from', self.sock.getsockname()
+        #logging.debug("sent:" + str(udp.payload) + 'to' + str(dstAddress) + 'from' + str(self.sock.getsockname()))
 
 class Sender(object):
     '''
@@ -850,8 +847,7 @@ class Receiver(object):
                 self.rcvd_jitter.append( (str(currentTime - self.jitterTimeOrigin), data) )
                 self.jitterTimeOrigin = currentTime
                 
-                if DEBUG == 2: print '\tGot: ', data
-                if DEBUG == 3: print '\tGot: ', len(data), 'on', sock.getsockname(), 'from', address
+                #logging.debug('Got: ' + str(len(data)) + 'on' + str(sock.getsockname()) + 'from' + str(address))
                 
 
 class SideChannel(object):
@@ -905,10 +901,10 @@ class SideChannel(object):
                 pass
         
         if exitCode == 1:
-            print '\n\n*****Too much idle time! Killing the replay {}*****\n\n'.format(inactiveTime)
+            logging.debug('*****Too much idle time! Killing the replay {}*****\n\n'.format(inactiveTime))
             self.send_object('timeout')
         elif exitCode == 2:
-            print '\n\n*****IP flipping detected (sideChannel: {}, flipped:{}, destination: {})*****\n\n'.format(self.publicIP, flippedIP, dstInstance)
+            logging.debug('*****IP flipping detected (sideChannel: {}, flipped:{}, destination: {})*****\n\n'.format(self.publicIP, flippedIP, dstInstance))
             self.send_object('ipFlip')
 
         if Configs().get('doTCPDUMP'):
@@ -979,7 +975,7 @@ class SideChannel(object):
                 elif data[0] == 'DONE':
                     inProcess -= 1
                 else:
-                    print 'WTF???'
+                    logging.debug('Unknown code. Expected STARTED OR DONE')
                     sys.exit()
                 
             if self.doneSending is True:
