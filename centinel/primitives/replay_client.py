@@ -176,7 +176,7 @@ def runSet():
             exitCode, netStats[i + 1]['NOVPN'] = run_one(i, configs.get('tries'), vpn=False)
 
             if exitCode == 3:
-                os._exit(3)
+                raise RuntimeError('Exit code 3 in runSet')
 
             time.sleep(2)
 
@@ -238,7 +238,7 @@ def PRINT_ACTION(message, indent, action=True, exit=False):
         logging.info(''.join(['\t']*indent) + message)
     else:
         logging.error('***** Exiting with error: *****' + message + '***********************************')
-        sys.exit()
+        raise RuntimeError(message)
 
 
 class PermaData(object):
@@ -454,8 +454,8 @@ class Configs(object):
             for l in list_of_mandotary:
                 self.get(l)
         except:
-            logging.debug('\nYou should provide \"--{}=[]\"\n'.format(l))
-            sys.exit(-1)
+            logging.error('\nYou should provide \"--{}=[]\"\n'.format(l))
+            raise RuntimeError('Mandatory argument missing -' + l)
 
     def get(self, key):
         return self._configs[key]
@@ -657,7 +657,7 @@ class tcpClient(object):
             self.sock.sendall(tcp.payload)
             activityQ.put(1)
         except:
-            logging.error("\n\nUnexpected error happened 1:" + str(sys.exc_info()[1]) + str(tcp.c_s_pair))
+            logging.debug("\n\nUnexpected error happened 1:" + str(sys.exc_info()[1]) + str(tcp.c_s_pair))
             send_event.set()
             self.event.set()
             return
@@ -911,7 +911,7 @@ class SideChannel(object):
             replayObj.dump.stop()
             
         if exitCode != 0:
-            os._exit(exitCode)
+            raise RuntimeError('exit code not equal to 0 in activityMonitor')
       
     def sendIperf(self):
         iperfRate = None
@@ -975,8 +975,8 @@ class SideChannel(object):
                 elif data[0] == 'DONE':
                     inProcess -= 1
                 else:
-                    logging.debug('Unknown code. Expected STARTED OR DONE')
-                    sys.exit()
+                    logging.error('Unknown code. Expected STARTED or DONE')
+                    raise RuntimeError('Unknown code. Expected STARTED or DONE')
                 
             if self.doneSending is True:
                 if inProcess == 0:
@@ -1133,8 +1133,7 @@ def run():
         if permission[1] == '1':
             PRINT_ACTION('Unknown replayName!!!', 1, action=False, exit=True)
         elif permission[1] == '2':
-            PRINT_ACTION('No permission: another client with same IP address is running. Wait for them to finish!', 1, action=False, exit=False)
-            os._exit(3)
+            PRINT_ACTION('No permission: another client with same IP address is running. Wait for them to finish!', 1, action=False, exit=True)
     else:
         sideChannel.publicIP = permission[1]
         PRINT_ACTION('Permission granted. My public IP: {}'.format(sideChannel.publicIP), 1, action=False)
@@ -1240,8 +1239,9 @@ def initialSetup():
     configs = Configs()
 
     #The following does a DNS lookup and resolves server's IP address
+
     configs.set('serverInstanceIP', socket.gethostbyname(configs.get('serverInstanceIP')))
-    
+
     if configs.get('doTCPDUMP'):
         configs.check_for(['tcpdump_int'])
 
