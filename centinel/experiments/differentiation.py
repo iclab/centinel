@@ -14,21 +14,25 @@ from centinel.primitives.replay_client import *
 
 class DifferentiationExperiment(Experiment):
     name = "differentiation"
+    input_files = []
 
-    def __init__(self, input_file):
-        self.input_file = input_file
+    def __init__(self, input_files):
+        self.input_files = input_files
         self.results = []
         self.external_results = {}
         self.configs = Configs()
-
-        self.configs.set('pcap_folder', self.global_constants['data_dir'])
 
         if self.params is not None:
             for key in self.params:
                 self.configs.set(key,self.params[key])
 
     def run(self):
+        pcaps = {}
+        for input_file in self.input_files.items():
+            file_name, file_contents = input_file
+            pcaps[file_name] = file_contents
 
+        self.configs.set('pcaps', pcaps)
         diff_result = replay_client.main()
         self.results.append(diff_result)
 

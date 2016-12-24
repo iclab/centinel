@@ -172,7 +172,7 @@ def runSet():
 
         if configs.get('doNOVPNs'):
             configs.set('testID', 'NOVPN_' + str(i + 1))
-            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_folder')))
+            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_name')))
             exitCode, netStats[i + 1]['NOVPN'] = run_one(i, configs.get('tries'), vpn=False)
 
             if exitCode == 3:
@@ -187,8 +187,8 @@ def runSet():
 
             configs.set('testID', 'RANDOM_' + str(i + 1))
 
-            configs.set('pcap_folder', configs.get('pcap_folder') + '_random')
-            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_folder')))
+            configs.set('pcap_name', configs.get('pcap_name').replace('.pcap','_random.pcap'))
+            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_name')))
 
             # Every set of replays MUST start with testID=NOVPN_1, this is a server side thing!
             # If NOVPN is False, we use RANDOMs are NOVPN.
@@ -197,7 +197,7 @@ def runSet():
                 configs.set('testID', 'NOVPN_' + str(i + 1))
 
             exitCode, netStats[i + 1]['RANDOM'] = run_one(i, configs.get('tries'), vpn=False)
-            configs.set('pcap_folder', configs.get('pcap_folder').replace('_random', ''))
+            configs.set('pcap_name', configs.get('pcap_name').replace('_random', ''))
             time.sleep(2)
 
         if configs.get('doVPNs'):
@@ -216,7 +216,7 @@ def runSet():
             # configs.set('tcpdump_int', 'en0')
             #                 configs.set('tcpdump_int', None)
 
-            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_folder')))
+            logging.info('DOING ROUND: {} -- {} -- {}'.format(i + 1, configs.get('testID'), configs.get('pcap_name')))
             exitCode, netStats[i + 1]['VPN'] = run_one(i, configs.get('tries'), vpn=True)
 
             if configs.get('sameInstance') is True:
@@ -1048,15 +1048,17 @@ def load_Q(serialize='pickle', skipTCP=False):
           So we need to decode them before starting the replay, hence the loop at
           the end of this function.
     '''
-    for file in os.listdir(Configs().get('pcap_folder')):
-        if file.endswith('_client_all.' + serialize):
-            pickle_file = os.path.abspath(Configs().get('pcap_folder')) + '/' + file
-            break
-    
+    #for file in os.listdir(Configs().get('pcap_folder')):
+    #    if file.endswith('_client_all.' + serialize):
+    #        pickle_file = os.path.abspath(Configs().get('pcap_folder')) + '/' + file
+    #        break
+    pcap_name = Configs().get('pcap_name')
+    pcap_file = Configs().get('pcaps')[pcap_name]
+
     if serialize == 'pickle':
-        Q, udpClientPorts, tcpCSPs, replayName = pickle.load(open(pickle_file, 'r'))
+        Q, udpClientPorts, tcpCSPs, replayName = pickle.load(pcap_file)
     elif serialize == 'json':
-        Q, udpClientPorts, tcpCSPs, replayName = json.load(open(pickle_file, 'r'), cls=TCPjsonDecoder_client)
+        Q, udpClientPorts, tcpCSPs, replayName = json.load(pcap_file, cls=TCPjsonDecoder_client)
     
     for p in Q:
         p.payload = p.payload.decode('hex')
@@ -1072,11 +1074,7 @@ def load_Q(serialize='pickle', skipTCP=False):
             except:
                 tmpQ.append(p)
         Q = tmpQ
-        
-    #Create folder for jitter info
-    if not os.path.isdir(Configs().get('pcap_folder') + '/jitter'):
-        os.makedirs(Configs().get('pcap_folder') + '/jitter')
-    
+
     return Q, udpClientPorts, tcpCSPs, replayName
 
 def run():
@@ -1217,17 +1215,6 @@ def initialSetup():
         except KeyError:
             configs.check_for(['publicIP'])
 
-    logging.debug('creating result folders')
-    if not os.path.isdir(configs.get('resultsFolder')):
-        os.makedirs(configs.get('resultsFolder'))
-    
-    configs.set('jitterFolder', configs.get('resultsFolder') + '/' + configs.get('jitterFolder'))
-    if not os.path.isdir(configs.get('jitterFolder')):
-        os.makedirs(configs.get('jitterFolder'))
-    
-    configs.set('tcpdumpFolder', configs.get('resultsFolder') + '/' + configs.get('tcpdumpFolder'))    
-    if not os.path.isdir(configs.get('tcpdumpFolder')):
-        os.makedirs(configs.get('tcpdumpFolder'))
 
 def main():
     configs = Configs()
@@ -1238,8 +1225,14 @@ def main():
 
     netStats = {}
 
-    netStats[1] = runSet()
+    pcaps = configs.get('pcaps')
 
-    diff_result = ui.getSingleResult(permaData.id, permaData.historyCount)
-    permaData.updateHistoryCount()
+    for file_name in pcaps.keys():
+        if 'random' not in file_name:
+            configs.set('pcap_name', file_name)
+            netStats[file_name] = runSet()
+            permaData.updateHistoryCount()
+            configs.set('endOfTest', False)
+
+    diff_result = ui.getMultiResults(permaData.id, permaData.historyCount, 0)
     return diff_result
