@@ -1217,6 +1217,7 @@ def initialSetup():
 
 
 def main():
+    sys.modules['python_lib'] = sys.modules[__name__]
     configs = Configs()
     initialSetup()
     permaData = PermaData()
