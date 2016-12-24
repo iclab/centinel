@@ -242,51 +242,20 @@ def PRINT_ACTION(message, indent, action=True, exit=False):
 
 
 class PermaData(object):
-    def __init__(self, path='', fileName='uniqID.txt', size=10):
-        if path != '':
-            if not os.path.exists(path):
-                os.makedirs(path)
-
-        self.path = path + fileName
-
-        try:
-            with open(self.path, 'r') as f:
-                [self.id, self.historyCount] = f.readline().split('\t')
-                self.historyCount = int(self.historyCount)
-        except IOError:
-            self.id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(size))
-            self.historyCount = 0
-            self._update()
+    def __init__(self, size=10):
+            self.configs = Configs()
+            if self.configs.is_given('id'):
+                self.id = self.configs.get('id')
+                self.historyCount = self.configs.get('historyCount')
+            else:
+                self.id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(size))
+                self.historyCount = 0
+                self.configs.set('id',self.id)
+                self.configs.set('historyCount',self.historyCount)
 
     def updateHistoryCount(self):
         self.historyCount += 1
-        self._update()
-
-    def _update(self):
-        with open(self.path, 'w') as f:
-            f.write((self.id + '\t' + str(self.historyCount)))
-
-
-def dir_list(dir_name, subdir, *args):
-    '''
-    Return a list of file names in directory 'dir_name'
-    If 'subdir' is True, recursively access subdirectories under 'dir_name'.
-    Additional arguments, if any, are file extensions to add to the list.
-    Example usage: fileList = dir_list(r'H:\TEMP', False, 'txt', 'py', 'dat', 'log', 'jpg')
-    '''
-    fileList = []
-    for file in os.listdir(dir_name):
-        dirfile = os.path.join(dir_name, file)
-        if os.path.isfile(dirfile):
-            if len(args) == 0:
-                fileList.append(dirfile)
-            else:
-                if os.path.splitext(dirfile)[1][1:] in args:
-                    fileList.append(dirfile)
-        # recursively access file names in subdirectories
-        elif os.path.isdir(dirfile) and subdir:
-            fileList += dir_list(dirfile, subdir, *args)
-    return fileList
+        self.configs.set('historyCount',self.historyCount)
 
 class UDPset(object):
     def __init__(self, payload, timestamp, c_s_pair, end=False):
@@ -1017,20 +986,15 @@ class SideChannel(object):
         
         else:
             self.send_object(';'.join(['WillSendClientJitter', id]))
-    
-            sent_jitter_file = Configs().get('jitterFolder') + '/client_sent_jitter_'+ Configs().get('dumpName') +'.txt'
-            rcvd_jitter_file = Configs().get('jitterFolder') + '/client_rcvd_jitter_'+ Configs().get('dumpName') +'.txt'
+
+            sent_jitter_hashed = map(lambda j: j[0]+'\t'+str(java_byte_hashcode(j[1])), sent_jitter)
+            sent_jitter_hashed = '\n'.join(sent_jitter_hashed)
             
-            with open(sent_jitter_file, 'w') as f:
-                sent_jitter_hashed = map(lambda j: j[0]+'\t'+str(java_byte_hashcode(j[1])), sent_jitter)
-                f.write('\n'.join(sent_jitter_hashed))
-            
-            with open(rcvd_jitter_file, 'w') as f:
-                rcvd_jitter_hashed = map(lambda j: j[0]+'\t'+str(java_byte_hashcode(j[1])), rcvd_jitter)
-                f.write('\n'.join(rcvd_jitter_hashed))
+            rcvd_jitter_hashed = map(lambda j: j[0]+'\t'+str(java_byte_hashcode(j[1])), rcvd_jitter)
+            rcvd_jitter_hashed = '\n'.join(rcvd_jitter_hashed)
                 
-            self.send_object(open(sent_jitter_file, 'rb').read())
-            self.send_object(open(rcvd_jitter_file, 'rb').read())
+            self.send_object(sent_jitter_hashed)
+            self.send_object(rcvd_jitter_hashed)
         
         data = self.receive_object()
         assert(data == 'OK')
@@ -1231,7 +1195,6 @@ def run():
 
     logging.debug('Receiving results')
     sideChannel.get_result('result.jpg', result=configs.get('result'))
-    
 
     return True
    
@@ -1268,16 +1231,15 @@ def initialSetup():
 
 def main():
     configs = Configs()
+    initialSetup()
+    permaData = PermaData()
 
     ui = UI(configs.get('serverInstanceIP'), configs.get('analyzerPort'))
-
-    initialSetup()
 
     netStats = {}
 
     netStats[1] = runSet()
 
-    permaData = PermaData()
     diff_result = ui.getSingleResult(permaData.id, permaData.historyCount)
     permaData.updateHistoryCount()
     return diff_result

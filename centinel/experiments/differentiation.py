@@ -32,14 +32,4 @@ class DifferentiationExperiment(Experiment):
         diff_result = replay_client.main()
         self.results.append(diff_result)
 
-        jitter_folder = Configs().get('jitterFolder')
-        result_files = [path for path in glob.glob(
-                os.path.join(jitter_folder, '*.txt'))]
-        for file in result_files:
-           f = open(file)
-           contents = f.read()
-           name, ext = os.path.splitext(os.path.basename(file))
-           self.external_results[name] = contents
-
-
 
