@@ -12,6 +12,7 @@ except ImportError:
     m2crypto_imported = False
 
 import ssl
+import socket
 import threading
 import time
 
@@ -26,6 +27,9 @@ def get_fingerprint(host, port=443, external=None, log_prefix=''):
 
     logging.debug("%sGetting TLS certificate "
                   "for %s:%d." % (log_prefix, host, port))
+    # set socket timeout to 10 seconds so that we don't have
+    # to wait forever if the server doesn't respond
+    socket.setdefaulttimeout(10)
 
     try:
         cert = ssl.get_server_certificate((host, port),
@@ -35,6 +39,7 @@ def get_fingerprint(host, port=443, external=None, log_prefix=''):
     except ssl.SSLError:
         # exception could also happen here
         try:
+
             # this uses the highest version SSL or TLS that both 
             # endpoints support
             cert = ssl.get_server_certificate((host, port),
