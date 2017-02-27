@@ -65,6 +65,9 @@ def parse_args():
                         help=update_help, default="centinel")
     group.add_argument('--update-config', help='Update configuration file',
                        action='store_true')
+    meta_help = ('Add custom meta tags to results. '
+                 'Format is: key1:value1,key2:value2,... without spaces')
+    parser.add_argument('--meta', '-m', help=meta_help, dest='custom_meta')
 
     args = parser.parse_args()
     if (not args.daemonize and 
@@ -105,13 +108,26 @@ def run():
     try:
         os.remove(PID_FILE)
     except Exception as exp:
-        sys.stderr.write("Failed to remove lock file %s: %s" % (PID_FILE, exp))
+        sys.stderr.write("Failed to remove lock file %s: %s\n" % (PID_FILE, exp))
 
 
 def _run():
     """Entry point for package and cli uses"""
 
     args = parse_args()
+
+    # parse custom parameters
+    custom_meta = None
+    if args.custom_meta:
+        print "Adding custom parameters:"
+        custom_meta = {}
+        try:
+            for item in args.custom_meta.split(','):
+                key, value = item.split(':')
+                custom_meta[key] = value
+                print 'key: %s, value: %s' % (key, value)
+        except Exception as e:
+            sys.stderr.write("ERROR: Can not parse custom meta tags! %s\n" % (str(e)))
 
     # we need to store some persistent info, so check if a config file
     # exists (default location is ~/.centinel/config.ini). If the file
@@ -152,6 +168,13 @@ def _run():
         if 'log' not in configuration.params:
             configuration.params['log'] = dict()
         configuration.params['log']['log_level'] = logging.DEBUG
+
+    # add custom meta values from CLI
+    if custom_meta is not None:
+        if 'custom_meta' in configuration.params:
+            configuration.params['custom_meta'].update(custom_meta)
+        else:
+            configuration.params['custom_meta'] = custom_meta
 
     centinel.conf = configuration.params
     client = centinel.client.Client(configuration.params)

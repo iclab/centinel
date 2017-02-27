@@ -135,6 +135,8 @@ class Client:
                 self._meta = get_meta(self.config, external_ip)
             else:
                 raise Exception("Unable to get public IP")
+            if 'custom_meta' in self.config:
+                self._meta['custom_meta'] = self.config['custom_meta']
 
         return self._meta
 
