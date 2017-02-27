@@ -15,6 +15,9 @@ import ssl
 import threading
 import time
 
+MAX_THREAD_START_RETRY = 10
+THREAD_START_DELAY = 3
+
 
 def get_fingerprint(host, port=443, external=None, log_prefix=''):
     tls_error = None
@@ -127,8 +130,21 @@ def get_fingerprint_batch(input_list, results={}, default_port=443,
                                         results, log_prefix))
         ind += 1
         thread.setDaemon(1)
-        thread.start()
-        threads.append(thread)
+
+        thread_open_success = False
+        retries = 0
+        while not thread_open_success and retries < MAX_THREAD_START_RETRY:
+            try:
+                thread.start()
+                threads.append(thread)
+                thread_open_success = True
+            except:
+                retries += 1
+                time.sleep(THREAD_START_DELAY)
+                logging.error("%sThread start failed for %s, retrying... (%d/%d)" % (log_prefix, host, retries, MAX_THREAD_START_RETRY))
+
+        if retries == MAX_THREAD_START_RETRY:
+            logging.error("%sCan't start a new thread for %s after %d retries." % (log_prefix, host, retries))
 
     for thread in threads:
         thread.join(thread_wait_timeout)

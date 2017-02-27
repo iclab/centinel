@@ -16,6 +16,8 @@ import trparse
 
 from centinel import command
 
+MAX_THREAD_START_RETRY = 10
+THREAD_START_DELAY = 3
 
 def traceroute(domain, method="udp", cmd_arguments=None,
                external=None, log_prefix=''):
@@ -184,8 +186,20 @@ def traceroute_batch(input_list, results={}, method="udp", cmd_arguments=None,
                                         results, log_prefix))
         ind += 1
         thread.setDaemon(1)
-        thread.start()
-        threads.append(thread)
+        thread_open_success = False
+        retries = 0
+        while not thread_open_success and retries < MAX_THREAD_START_RETRY:
+            try:
+                thread.start()
+                threads.append(thread)
+                thread_open_success = True
+            except:
+                retries += 1
+                time.sleep(THREAD_START_DELAY)
+                logging.error("%sThread start failed for %s, retrying... (%d/%d)" % (log_prefix, domain, retries, MAX_THREAD_START_RETRY))
+
+        if retries == MAX_THREAD_START_RETRY:
+            logging.error("%sCan't start a new thread for %s after %d retries." % (log_prefix, domain, retries))
 
     for thread in threads:
         thread.join(thread_wait_timeout)

@@ -11,6 +11,8 @@ from http_helper import ICHTTPConnection
 from centinel.utils import user_agent_pool
 
 REDIRECT_LOOP_THRESHOLD = 5
+MAX_THREAD_START_RETRY = 10
+THREAD_START_DELAY = 3
 
 def meta_redirect(content):
     """
@@ -315,8 +317,21 @@ def get_requests_batch(input_list, results={}, delay_time=0.5, max_threads=100):
                                         results, url, log_prefix))
         ind += 1
         thread.setDaemon(1)
-        thread.start()
-        threads.append(thread)
+
+        thread_open_success = False
+        retries = 0
+        while not thread_open_success and retries < MAX_THREAD_START_RETRY:
+            try:
+                thread.start()
+                threads.append(thread)
+                thread_open_success = True
+            except:
+                retries += 1
+                time.sleep(THREAD_START_DELAY)
+                logging.error("%sThread start failed for %s, retrying... (%d/%d)" % (log_prefix, url, retries, MAX_THREAD_START_RETRY))
+
+        if retries == MAX_THREAD_START_RETRY:
+            logging.error("%sCan't start a new thread for %s after %d retries." % (log_prefix, url, retries))
 
     for thread in threads:
         thread.join(thread_wait_timeout)

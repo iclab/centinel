@@ -8,6 +8,8 @@ import socket
 import threading
 import time
 
+MAX_THREAD_START_RETRY = 10
+THREAD_START_DELAY = 3
 
 def get_ips(host, nameserver=None, record="A"):
     nameservers = []
@@ -130,8 +132,22 @@ class DNSQuery:
                                           args=(domain, nameserver,
                                                 log_prefix))
                 thread.setDaemon(1)
-                thread.start()
-                self.threads.append(thread)
+
+                thread_open_success = False
+                retries = 0
+                while not thread_open_success and retries < MAX_THREAD_START_RETRY:
+                    try:
+                        thread.start()
+                        self.threads.append(thread)
+                        thread_open_success = True
+                    except:
+                        retries += 1
+                        time.sleep(THREAD_START_DELAY)
+                        logging.error("%sThread start failed for %s, retrying... (%d/%d)" % (log_prefix, domain, retries, MAX_THREAD_START_RETRY))
+
+                if retries == MAX_THREAD_START_RETRY:
+                    logging.error("%sCan't start a new thread for %s after %d retries." % (log_prefix, domain, retries))
+
             if thread_error:
                 break
             ind += 1
