@@ -22,7 +22,12 @@ def meta_redirect(content):
     :param content: HTML content
     """
     decoded = content.decode("utf-8", errors="replace")
-    soup = BeautifulSoup.BeautifulSoup(decoded)
+
+    try:
+        soup = BeautifulSoup.BeautifulSoup(decoded)
+    except Exception as e:
+        return None
+
     result = soup.find("meta", attrs={"http-equiv": re.compile("^refresh$", re.I)})
     if result:
         try:
