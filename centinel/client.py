@@ -381,6 +381,7 @@ class Client:
                 td.stop()
                 logging.info("tcpdump stopped.")
                 bz2_successful = False
+                data = None
                 try:
                     pcap_file_name = ("pcap_%s-%s.pcap"
                                       ".bz2" % (name, start_time.strftime("%Y-%m-%dT%H%M%S.%f")))
