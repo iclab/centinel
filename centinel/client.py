@@ -388,12 +388,29 @@ class Client:
                     pcap_file_path = os.path.join(results_dir,
                                                   pcap_file_name)
 
-                    with open(pcap_file_path, 'w:bz2') as file_p:
-                        data = bz2.compress(td.pcap())
-                        file_p.write(data)
-                        logging.info("Saved pcap to "
-                                     "%s." % pcap_file_path)
-                        bz2_successful = True
+                    with open(pcap_file_path, 'wb') as pcap_bz2, open(td.pcap_filename(), 'rb') as pcap:
+                        compressor = bz2.BZ2Compressor()
+                        compressed_size_so_far = 0
+                        for pcap_data in iter(lambda: pcap.read(10 * 1024), b''):
+                            compressed_chunk  = compressor.compress(pcap_data)
+                            pcap_bz2.write(compressed_chunk)
+
+                            if len(compressed_chunk):
+                                compressed_size_so_far += len(compressed_chunk)
+
+                        compressed_chunk = compressor.flush()
+                        pcap_bz2.write(compressed_chunk)
+
+                        if len(compressed_chunk):
+                            compressed_size_so_far += len(compressed_chunk)
+                        uncompressed_size = os.path.getsize(td.pcap_filename())
+                        compression_ratio = 100 * (float(compressed_size_so_far) / float(uncompressed_size))
+                        logging.debug("pcap BZ2 compression: compressed/uncompressed (ratio):"
+                                      " %d/%d (%.1f%%)" % (compressed_size_so_far, uncompressed_size, compression_ratio))
+
+                    logging.info("Saved pcap to "
+                                 "%s." % pcap_file_path)
+                    bz2_successful = True
                 except Exception as exception:
                     logging.exception("Failed to compress and write "
                                       "pcap file: %s" % exception)
@@ -405,11 +422,12 @@ class Client:
                         pcap_file_path = os.path.join(results_dir,
                                                       pcap_file_name)
 
-                        with open(pcap_file_path, 'w') as file_p:
-                            data = td.pcap()
-                            file_p.write(data)
-                            logging.info("Saved pcap to "
-                                         "%s." % pcap_file_path)
+                        with open(pcap_file_path, 'wb') as pcap_out, open(td.pcap_filename(), 'rb') as pcap:
+                            for pcap_data in iter(lambda: pcap.read(10 * 1024), b''):
+                                pcap_out.write(pcap_data)
+
+                        logging.info("Saved pcap to "
+                                     "%s." % pcap_file_path)
                     except Exception as exception:
                         logging.exception("Failed to write "
                                           "pcap file: %s" % exception)
