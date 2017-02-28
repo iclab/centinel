@@ -68,6 +68,9 @@ class Tcpdump():
         with open(self.filename, 'r') as file_p:
             return file_p.read()
 
+    def pcap_filename(self):
+        return self.filename
+
     def delete(self):
         os.remove(self.filename)
 
