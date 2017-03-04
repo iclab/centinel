@@ -24,7 +24,9 @@ setup(
                       "urllib3 >= 1.9.1",
                       "dnspython >= 1.12.0",
                       "BeautifulSoup >= 3.2.1",
-                      "httplib2 >= 0.9.2"],
+                      "httplib2 >= 0.9.2",
+                      "bs4 >= 0.0.1",
+                      "geopy >= 1.11.0"],
     include_package_data=True,
     entry_points={
         'console_scripts': ['centinel=centinel.cli:run',
