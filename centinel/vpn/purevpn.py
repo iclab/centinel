@@ -56,8 +56,12 @@ def create_config_files(directory):
             for line in lines:
                 if line.startswith('remote'):
                     hostname = line.split(' ')[1]
-                    ip = socket.gethostbyname(hostname)
-                    break
+                    # added because gethostbyname will fail on some hostnames
+                    try:
+                	ip = socket.gethostbyname(hostname)
+                	break
+            	    except socket.gaierror:
+            		continue
 
             if len(ip) > 0:
                 new_path = os.path.join(directory, ip + '.ovpn')
