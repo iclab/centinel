@@ -62,6 +62,7 @@ def create_config_files(directory):
                 	ip = socket.gethostbyname(hostname)
                 	break
             	    except socket.gaierror:
+            	        logging.info("Hostname %s failed" %hostname)
             		continue
 
             if len(ip) > 0:
