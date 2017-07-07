@@ -6,7 +6,7 @@ import socket
 import sys
 import urllib
 import zipfile
-
+import urllib2
 
 def unzip(source_filename, dest_dir):
     with zipfile.ZipFile(source_filename) as zf:
@@ -26,13 +26,16 @@ def create_config_files(directory):
         os.makedirs(directory)
 
     logging.info("Starting to download IPVanish config file zip")
-    url_opener = urllib.URLopener()
+    zip_response = urllib2.urlopen(config_zip_url)
+    zip_content = zip_response.read()
     zip_path = os.path.join(directory, '../configs.zip')
     unzip_path = os.path.join(directory, '../unzipped')
+
     if not os.path.exists(unzip_path):
         os.makedirs(unzip_path)
+    with open(zip_path, 'w') as f:
+	f.write(zip_content)
 
-    url_opener.retrieve(config_zip_url, zip_path)
     logging.info("Extracting zip file")
     unzip(zip_path, unzip_path)
 
