@@ -59,6 +59,7 @@ def create_config_files(directory):
     # remove zip file
     os.remove(zip_path)
     
+
     # move all config files to /vpns
     orig_path = os.path.join(directory, '../TCP')
     

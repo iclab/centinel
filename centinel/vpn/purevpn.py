@@ -33,6 +33,7 @@ def create_config_files(directory):
 
     # remove zip file
     os.remove(zip_path)
+
     # copy ca and key to root path
     shutil.copyfile(os.path.join(directory, '../Linux OpenVPN Updated files', 'ca.crt'),
                     os.path.join(directory, '../ca.crt'))
