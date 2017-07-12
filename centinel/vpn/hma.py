@@ -78,7 +78,7 @@ def create_config_files(directory):
 		    ip = socket.gethostbyname(hostname)
 		    break
 		except socket.gaierror:
-		    logging.info("Failed to resolve %s" %hostname)
+		    logging.exception("Failed to resolve %s" %hostname)
 		    continue
 	if len(ip) > 0:
 	    new_path = os.path.join(directory, ip + '.ovpn')

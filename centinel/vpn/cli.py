@@ -22,6 +22,9 @@ import centinel.vpn.ipvanish as ipvanish
 import centinel.vpn.purevpn as purevpn
 import centinel.vpn.vpngate as vpngate
 
+import country_module as convertor
+import probe as probe
+
 PID_FILE = "/tmp/centinel.lock"
 
 
@@ -241,10 +244,27 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # and use it to geolocate and fetch experiments before connecting
         # to VPN.
         vpn_address, extension = os.path.splitext(filename)
+        lines = [line.rstrip('\n') for line in open(centinel_config)]
+
+        # get country for this vpn
+        country_in_config = ""
+	# reading the server.txt file in vpns folder
+        for line in lines:
+            if "country" in line:
+                (key, country_in_config) = line.split(': ')
+                country_in_config = country_in_config.replace('\"','').replace(',','')
+
+
         country = None
         try:
+	    # we still might need some info from the Maximind query
             meta = centinel.backend.get_meta(config.params,
                                              vpn_address)
+
+	    # send country name to be converted to alpha2 code
+	    if(len(country_in_config) > 2):
+	    	meta['country'] = convertor.country_to_a2(country_in_config)
+	    # some vpn config files already contain the alpha2 code (length == 2)
             if 'country' in meta:
                 country = meta['country']
         except:
@@ -257,6 +277,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # try setting the VPN info (IP and country) to get appropriate
         # experiemnts and input data.
         try:
+	    logging.info("country is %s" % country)
             centinel.backend.set_vpn_info(config.params, vpn_address, country)
         except Exception as exp:
             logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
@@ -294,7 +315,27 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 json.dump(sched_info, f, indent=2)
                 f.truncate()
 
+        # before starting the vpn do the sanity check
+	# create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
+        sanity_path = os.path.join(directory,'../sanitycheck')
+        if not os.path.exists(sanity_path):
+            os.makedirs(sanity_path)
+	
+	# fetch the list of RIPE anchors
+        anchors = probe.get_anchor_list(sanity_path)
+
+        logging.info("Anchors list fetched")
+	# sending ping to the anchors
+        ping_result = probe.perform_probe(sanity_path, vpn_provider,vpn_provider,country,anchors)
+	
+	# have to do this sanity check if timestamp is a certain value, needs changing
+        timestamp = time.time()
+        ping_result['timestamp'] = timestamp
+
+	#Shinyoung, you can add the sanity check module here
+
         logging.info("%s: Starting VPN." % filename)
+
 
         vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
                               crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
@@ -393,8 +434,19 @@ def create_config_files(directory):
     :param directory:
     """
     logging.info("Starting to create config files from openvpn files")
-
+    server_country = {}
     vpn_dir = return_abs_path(directory, "vpns")
+
+    # read servers.txt to find the country associated with the ip
+    with open (vpn_dir+ '/servers.txt') as server_file:
+        servers = server_file.readlines()
+
+    for server_line in servers:
+        server_line = (server_line.split('|'))
+        server_country[server_line[0]] = server_line[1].replace('\n','')
+
+
+
     conf_dir = return_abs_path(directory, "configs")
     os.mkdir(conf_dir)
     home_dirs = return_abs_path(directory, "home")
@@ -423,6 +475,8 @@ def create_config_files(directory):
 
         configuration.params['server']['verify'] = True
         configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
+
+        configuration.params['country'] = server_country[filename.replace('.ovpn','')]
 
         conf_file = os.path.join(conf_dir, filename)
         configuration.write_out_config(conf_file)
