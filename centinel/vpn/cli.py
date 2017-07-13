@@ -156,8 +156,84 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             config.parse_config(centinel_config)
             vp_ip = os.path.splitext(filename)[0]
 
+	    vpn_config = os.path.join(vpn_dir, filename)
+	    centinel_config = os.path.join(conf_dir, filename)
+
+	    # assuming that each VPN config file has a name like:
+	    # [ip-address].ovpn, we can extract IP address from filename
+	    # and use it to geolocate and fetch experiments before connecting
+	    # to VPN.
+	    vpn_address, extension = os.path.splitext(filename)
+	    lines = [line.rstrip('\n') for line in open(centinel_config)]
+
+ 	    # get country for this vpn
+	    country_in_config = ""
+	    # reading the server.txt file in vpns folder
+	    for line in lines:
+	        if "country" in line:
+	            (key, country_in_config) = line.split(': ')
+	            country_in_config = country_in_config.replace('\"','').replace(',','')
+
+
+	    country = None
+
+
+
             try:
                 meta = centinel.backend.get_meta(config.params, vp_ip)
+	        # send country name to be converted to alpha2 code
+	        if(len(country_in_config) > 2):
+	    	    meta['country'] = convertor.country_to_a2(country_in_config)
+	        # some vpn config files already contain the alpha2 code (length == 2)
+                if 'country' in meta:
+                    country = meta['country']
+	
+	        # try setting the VPN info (IP and country) to get appropriate
+	        # experiemnts and input data.
+	        try:
+		    logging.info("country is %s" % country)
+	            centinel.backend.set_vpn_info(config.params, vpn_address, country)
+	        except Exception as exp:
+	            logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
+
+		# sanity check
+		# create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
+		sanity_path = os.path.join(directory,'../sanitycheck')
+		if not os.path.exists(sanity_path):
+		    os.makedirs(sanity_path)
+	
+		# fetch the list of RIPE anchors
+		anchors = probe.get_anchor_list(sanity_path)
+
+		logging.info("Anchors list fetched")
+		logging.info("%s: Starting VPN." % filename)
+
+
+		vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
+		                      crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
+
+		vpn.start()
+		if not vpn.started:
+		    logging.error("%s: Failed to start VPN!" % filename)
+		    vpn.stop()
+		    time.sleep(5)
+		    continue
+
+
+		# sending ping to the anchors
+		ping_result = probe.perform_probe(sanity_path, vpn_provider,vpn_provider,country,anchors)
+	
+		# have to do this sanity check if timestamp is a certain value, needs changing
+		timestamp = time.time()
+		ping_result['timestamp'] = timestamp
+
+		#Shinyoung, you can add the sanity check module here
+		
+		logging.info("%s: Stopping VPN." % filename)
+		vpn.stop()
+		time.sleep(5)
+
+
                 if 'country' in meta and 'as_number' in meta \
                         and meta['country'] and meta['as_number']:
                     country_asn = '_'.join([meta['country'], meta['as_number']])
@@ -317,23 +393,14 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         # before starting the vpn do the sanity check
 	# create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
-        sanity_path = os.path.join(directory,'../sanitycheck')
-        if not os.path.exists(sanity_path):
-            os.makedirs(sanity_path)
+        # sanity_path = os.path.join(directory,'../sanitycheck')
+        # if not os.path.exists(sanity_path):
+        #    os.makedirs(sanity_path)
 	
 	# fetch the list of RIPE anchors
-        anchors = probe.get_anchor_list(sanity_path)
+        # anchors = probe.get_anchor_list(sanity_path)
 
-        logging.info("Anchors list fetched")
-	# sending ping to the anchors
-        ping_result = probe.perform_probe(sanity_path, vpn_provider,vpn_provider,country,anchors)
-	
-	# have to do this sanity check if timestamp is a certain value, needs changing
-        timestamp = time.time()
-        ping_result['timestamp'] = timestamp
-
-	#Shinyoung, you can add the sanity check module here
-
+        # logging.info("Anchors list fetched")
         logging.info("%s: Starting VPN." % filename)
 
 
@@ -346,6 +413,16 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             vpn.stop()
             time.sleep(5)
             continue
+
+
+	# sending ping to the anchors
+        # ping_result = probe.perform_probe(sanity_path, vpn_provider,vpn_provider,country,anchors)
+	
+	# have to do this sanity check if timestamp is a certain value, needs changing
+        # timestamp = time.time()
+        # ping_result['timestamp'] = timestamp
+
+
 
         logging.info("%s: Running Centinel." % filename)
         try:

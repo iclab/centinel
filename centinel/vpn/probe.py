@@ -157,7 +157,9 @@ def perform_probe(sanity_directory,vpn_provider, target_name, target_cnt, anchor
     final[target_name]['pings'] = times
     final[target_name]['cnt'] = target_cnt
     logging.info("Creating pickle file")
-    with open(pickle_path + '/' + target_name + '-' + target_cnt + '.pickle', 'w') as f:
+    # putting time as a part of the filename
+    time_unique = time.time()
+    with open(pickle_path + '/' + target_name + '-' + target_cnt + '-' + str(time_unique) + '.pickle', 'w') as f:
         pickle.dump(final, f)
     	logging.info("Pickle file successfully created.")
     return final
