@@ -41,6 +41,10 @@ def parse_args():
     parser.add_argument('--key-direction', '-k', dest='key_direction', default=None,
                         help=("Key direction for tls auth, must specify when "
                               "tls-auth is used"))
+    parser.add_argument('--geo-sanity-check', dest='sanity_check',
+                        action="store_true", default=False,
+                        help=("Run sanity check module to remove lying VP servers "
+                              "from our vantage point list"))
     parser.add_argument('--reduce-endpoint', dest='reduce_vp',
                         action="store_true", default=False,
                         help="Reduce the number of vantage points by only connect to "
@@ -89,7 +93,7 @@ def parse_args():
 
 
 def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
-              exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp):
+              exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp, sanity_check):
     """
     For each VPN, check if there are experiments and scan with it if
     necessary
@@ -144,6 +148,10 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         logging.info("Detected VPN provider is %s" % vpn_provider)
     else:
         logging.warning("Cannot determine VPN provider!")
+
+    # geolocation sanity check
+    if sanity_check:
+        pass
 
     # reduce size of list if reduce_vp is true
     if reduce_vp:
@@ -662,7 +670,8 @@ def _run():
                   crt_file=args.crt_file, tls_auth=args.tls_auth,
                   key_direction=args.key_direction, exclude_list=args.exclude_list,
                   shuffle_lists=args.shuffle_lists, vm_num=args.vm_num,
-                  vm_index=args.vm_index, reduce_vp=args.reduce_vp)
+                  vm_index=args.vm_index, reduce_vp=args.reduce_vp,
+                  sanity_check=args.sanity_check)
 
 if __name__ == "__main__":
     run()
