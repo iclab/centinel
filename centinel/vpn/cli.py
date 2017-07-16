@@ -24,6 +24,7 @@ import centinel.vpn.vpngate as vpngate
 
 import country_module as convertor
 import probe as probe
+import geosanity as san
 
 PID_FILE = "/tmp/centinel.lock"
 
@@ -152,6 +153,10 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     # geolocation sanity check
     if sanity_check:
         sanity_checked_set = set()
+        # get a world map from shapefile
+        shapefile = 'map/ne_10m_admin_0_countries.shp'
+        map = san.load_map_from_shapefile(shapefile)
+
         for filename in conf_list:
             centinel_config = os.path.join(conf_dir, filename)
             config = centinel.config.Configuration()
@@ -201,6 +206,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
                 # fetch the list of RIPE anchors
                 anchors = probe.get_anchor_list(sanity_path)
+                # get anchor's gps
+                anchors_gps = san.get_gps_of_anchors(anchors)
 
                 logging.info("Anchors list fetched")
                 logging.info("%s: Starting VPN." % filename)
@@ -223,6 +230,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 ping_result['timestamp'] = timestamp
 
                 # Shinyoung, you can add the sanity check module here
+                tag = sanity_check(vp_ip, country, ping_result[vpn_provider]['pings'], anchors_gps, map)
+                if tag:
+                    sanity_checked_set.add(filename)
 
                 logging.info("%s: Stopping VPN." % filename)
                 vpn.stop()
@@ -230,6 +240,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
             except:
                 logging.warning("Failed to geolocate %s" % vp_ip)
+
+        conf_list = list(sanity_checked_set)
+        logging.info("List size after sanity check. New size: %d" %len(conf_list))
 
 
     # reduce size of list if reduce_vp is true
