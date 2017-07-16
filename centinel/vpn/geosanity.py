@@ -1,6 +1,7 @@
 """ Class for sanity check for vpn location"""
 import datetime
 import logging
+import os
 import pickle
 from geopandas import *
 from geopy.distance import vincenty
@@ -48,12 +49,13 @@ def load_map_from_shapefile(shapefile):
     return map
 
 
-def get_gps_of_anchors(anchors):
+def get_gps_of_anchors(anchors, directory):
     """
     Get gps of all anchors
     Note: geopy library has a limitation for query in a certain time.
           While testing, better to store the query results so that we can reduce the number of query.
     """
+    logging.info("Starting to get RIPE anchors' gps")
     anchors_gps = dict()
     count = 0
     try:
@@ -62,16 +64,16 @@ def get_gps_of_anchors(anchors):
     except:
         for anchor, item in anchors.iteritems():
             count += 1
-            logging.debug(
+            logging.info(
                 "Retrieving... %s(%s/%s): %s" % (anchor, count, len(anchors), item['city'] + ' ' + item['country']))
             geolocator = Nominatim()
             location = geolocator.geocode(item['city'] + ' ' + item['country'])
             if location == None:
                 location = geolocator.geocode(item['country'])
             if location == None:
-                logging.debug("Fail to read gps of %s" %anchor)
+                logging.info("Fail to read gps of %s" %anchor)
             anchors_gps[anchor] = (location.latitude, location.longitude)
-        with open("gps_of_anchors.pickle", "w") as f:
+        with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
             pickle.dump(anchors_gps, f)
     return anchors_gps
 

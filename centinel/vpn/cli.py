@@ -153,8 +153,19 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     # geolocation sanity check
     if sanity_check:
         sanity_checked_set = set()
+        # create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
+        sanity_path = os.path.join(directory, '../sanitycheck')
+        if not os.path.exists(sanity_path):
+            os.makedirs(sanity_path)
+        # fetch the list of RIPE anchors
+        anchors = probe.get_anchor_list(sanity_path)
+        logging.info("Anchors list fetched")
+        # get anchor's gps
+        anchors_gps = san.get_gps_of_anchors(anchors, sanity_path)
+        logging.info("Anchors gps fetched")
         # get a world map from shapefile
-        shapefile = 'map/ne_10m_admin_0_countries.shp'
+        # Todo: download a shapefile from server
+        shapefile = os.path.join(sanity_path, '/ne_10m_admin_0_countries.shp')
         map = san.load_map_from_shapefile(shapefile)
 
         for filename in conf_list:
@@ -199,17 +210,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                     logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
 
                 # sanity check
-                # create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
-                sanity_path = os.path.join(directory, '../sanitycheck')
-                if not os.path.exists(sanity_path):
-                    os.makedirs(sanity_path)
-
-                # fetch the list of RIPE anchors
-                anchors = probe.get_anchor_list(sanity_path)
-                # get anchor's gps
-                anchors_gps = san.get_gps_of_anchors(anchors)
-
-                logging.info("Anchors list fetched")
                 logging.info("%s: Starting VPN." % filename)
 
                 vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
