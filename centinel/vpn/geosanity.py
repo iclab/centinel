@@ -2,6 +2,7 @@
 import datetime
 import logging
 import os
+import time
 import pickle
 from geopandas import *
 from geopy.distance import vincenty
@@ -13,7 +14,7 @@ from shapely.geometry import Point, Polygon, box as Box
 
 
 
-def sanity_check(proxy_id, iso_cnt, ping_results, anchors_gps, map):
+def sanity_check(proxy_id, iso_cnt, ping_results, anchors_gps, map, directory):
     """
     :param proxy_id:(str)
     :param iso_cnt:(str)
@@ -22,16 +23,16 @@ def sanity_check(proxy_id, iso_cnt, ping_results, anchors_gps, map):
     :param map:(dataframe)
     :return:
     """
-    checker = Checker(proxy_id, iso_cnt)
+    checker = Checker(proxy_id, iso_cnt, directory)
     # points = checker.check_ping_results(results, anchors_gps)
     points = checker.check_ping_results(ping_results, anchors_gps)
     if len(points) == 0:
-        logging.debug("No valid ping results for %s" % proxy_id)
+        logging.info("No valid ping results for %s" % proxy_id)
         return -1
     circles = checker.get_anchors_region(points)
     proxy_region = checker.get_vpn_region(map)
     if proxy_region.empty:
-        logging.debug("Fail to get proxy region: %s" % iso_cnt)
+        logging.info("Fail to get proxy region: %s" % iso_cnt)
         return -1
     results = checker.check_overlap(proxy_region, circles)
     return checker.is_valid(results)
@@ -44,6 +45,7 @@ def load_map_from_shapefile(shapefile):
     Load all countries from shapefile
     (e.g.,  shapefile = 'map/ne_10m_admin_0_countries.shp')
     """
+    logging.info("Loading a shapefile for the world map")
     temp = GeoDataFrame.from_file(shapefile)
     map = temp[['ISO_A2', 'NAME', 'SUBREGION', 'geometry']]
     return map
@@ -79,15 +81,17 @@ def get_gps_of_anchors(anchors, directory):
 
 
 class Checker:
-    def __init__(self, proxy_id, iso):
+    def __init__(self, proxy_id, iso, path):
         self.proxy_id = proxy_id
         self.iso = iso
         self.gps = self._get_gps_of_proxy()
+        self.path = path
 
     def get_vpn_region(self, map):
         """
         Get a region of given iso country
         """
+        logging.info("Getting vpn region from a map")
         region = map[map.ISO_A2 == self.iso].geometry
         if region.empty:
             logging.info("Fail to read country region: %s" % self.iso)
@@ -104,11 +108,11 @@ class Checker:
             geolocator = Nominatim()
             location = geolocator.geocode(self.iso)
             if location == None:
-                logging.debug("Fail to get gps of location %s" %self.iso)
+                logging.info("Fail to get gps of location %s" %self.iso)
                 return None
             vpn_gps = (location.latitude, location.longitude)
         except:
-            logging.debug("Fail to get gps of proxy")
+            logging.info("Fail to get gps of proxy")
         return vpn_gps
 
     def _disk(self, x, y, radius):
@@ -121,6 +125,7 @@ class Checker:
         Note that pyproj takes distances in meters & lon/lat order.
 
         """
+        logging.info("Starting to draw anchors region")
         wgs_proj = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
         ## Sort based on distance. if there is no distance, then sort with min delay
         if points[0][0] != 0:
@@ -179,6 +184,7 @@ class Checker:
         :return results(list): if True: the percentage of overlapped area to a country
                                  False: the distance (km) between a country and expected range
         """
+        logging.info("Starting to check overlap")
         results = list()
         for lat, lon, radi, this_circle in circles:
             df_anchor = geopandas.GeoDataFrame({'geometry': [this_circle]})
@@ -203,6 +209,15 @@ class Checker:
                 area_overlap = sum(area_overlap.tolist())
                 stack = area_overlap/area_cnt
                 results.append((True, stack))
+
+        pickle_path = os.path.join(self.path, 'sanity')
+        if not os.path.exists(pickle_path):
+            os.makedirs(pickle_path)
+        time_unique = time.time()
+        with open(pickle_path + '/' + self.proxy_id + '-' + self.iso + '-' + str(time_unique) + '.pickle', 'w') as f:
+            pickle.dump(results, f)
+            logging.info("Pickle file successfully created.")
+
         return results
 
     def _calculate_radius(self, time_ms):
@@ -224,8 +239,8 @@ class Checker:
         If there are anomalies pings (<3.0ms or >130.0ms), remove.
         Otherwise, return latitude and longitude of vps, radius derived from ping delay.
         Return points(list): (lat, lon, radius)
-        Todo: points (distance, lat, long, radius)
         """
+        logging.info("Starting checking ping results")
         points = list()
         for anchor, pings in results.iteritems():
             valid_pings = list()
@@ -258,6 +273,7 @@ class Checker:
         Need reasonable threshold to answer the validation of location
         For now, we say it is valid if 90% of 30 nearest anchors are True
         """
+        logging.info("checking validation")
         total = 0
         count_valid = 0
         limit = 30

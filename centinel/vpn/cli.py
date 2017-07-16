@@ -165,7 +165,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         logging.info("Anchors gps fetched")
         # get a world map from shapefile
         # Todo: download a shapefile from server
-        shapefile = os.path.join(sanity_path, '/ne_10m_admin_0_countries.shp')
+        shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
         map = san.load_map_from_shapefile(shapefile)
 
         for filename in conf_list:
@@ -223,14 +223,14 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                     continue
 
                 # sending ping to the anchors
-                ping_result = probe.perform_probe(sanity_path, vpn_provider, vpn_provider, country, anchors)
+                ping_result = probe.perform_probe(sanity_path, vpn_provider, vp_ip, country, anchors)
 
                 # have to do this sanity check if timestamp is a certain value, needs changing
                 timestamp = time.time()
-                ping_result['timestamp'] = timestamp
+                ping_result['timestamp'] = timestamp #Todo:
 
                 # Shinyoung, you can add the sanity check module here
-                tag = sanity_check(vp_ip, country, ping_result[vpn_provider]['pings'], anchors_gps, map)
+                tag = san.sanity_check(vp_ip, country, ping_result[vp_ip]['pings'], anchors_gps, map, sanity_path)
                 if tag:
                     sanity_checked_set.add(filename)
 
@@ -239,7 +239,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 time.sleep(5)
 
             except:
-                logging.warning("Failed to geolocate %s" % vp_ip)
+                logging.warning("Failed to sanity check %s" % vp_ip)
 
         conf_list = list(sanity_checked_set)
         logging.info("List size after sanity check. New size: %d" %len(conf_list))
