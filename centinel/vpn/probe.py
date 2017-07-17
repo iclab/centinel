@@ -133,7 +133,7 @@ def perform_probe(sanity_directory,vpn_provider, target_name, target_cnt, anchor
     """
     logging.info("Start Probing")
 
-    pickle_path = os.path.join(sanity_directory,'pickle')
+    pickle_path = os.path.join(sanity_directory,'pings')
     if not os.path.exists(pickle_path):
         os.makedirs(pickle_path)
 
