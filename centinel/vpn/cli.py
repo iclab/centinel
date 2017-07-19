@@ -169,7 +169,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # Todo: download a shapefile from server
         shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
         map = san.load_map_from_shapefile(shapefile)
-
         for filename in conf_list:
             centinel_config = os.path.join(conf_dir, filename)
             config = centinel.config.Configuration()
@@ -232,7 +231,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 timestamp = time.time()
                 ping_result['timestamp'] = timestamp #Todo: ??
 
-
                 logging.info("%s: Stopping VPN." % filename)
                 vpn.stop()
                 time.sleep(5)
@@ -243,6 +241,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # sanity check
         failed_sanity_check = set()
         sanity_checked_set = set()
+        error_sanity_check = set()
         vp_ip = 'unknown'
         pickle_path = os.path.join(sanity_path, 'pings')
         file_lists = os.listdir(pickle_path)
@@ -255,7 +254,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                         ping_result = pickle.load(f)
                     tag = san.sanity_check(vp_ip, country, ping_result[vp_ip]['pings'], anchors_gps, map,
                                            sanity_path)
-                    if tag:
+                    if tag == -1:
+                        error_sanity_check.add(this_file)
+                    elif tag == True:
                         sanity_checked_set.add(this_file)
                     else:
                         failed_sanity_check.add(this_file)
@@ -270,6 +271,10 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 f.write(vp_ip + '\n')
             f.write("Fail\n")
             for this_file in failed_sanity_check:
+                vp_ip = this_file.split('-')[0]
+                f.write(vp_ip + '\n')
+            f.write("Error\n")
+            for this_file in error_sanity_check:
                 vp_ip = this_file.split('-')[0]
                 f.write(vp_ip + '\n')
         conf_list = list(sanity_checked_set)
