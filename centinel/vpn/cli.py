@@ -153,7 +153,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
     # geolocation sanity check
     if sanity_check:
-        sanity_checked_set = set()
         # create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
         sanity_path = os.path.join(directory, '../sanitycheck')
         if not os.path.exists(sanity_path):
@@ -240,6 +239,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 logging.warning("Failed to sanity check %s" % vp_ip)
 
         # sanity check
+        failed_sanity_check = set()
+        sanity_checked_set = set()
         pickle_path = os.path.join(sanity_path, 'pings')
         file_lists = os.listdir(pickle_path)
         if file_lists:
@@ -252,6 +253,17 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                                        sanity_path)
                 if tag:
                     sanity_checked_set.add(this_file)
+                else:
+                    failed_sanity_check.add(this_file)
+        with open(os.path.join(sanity_path, 'results_of_sanity_check.txt'), 'w') as f:
+            f.write("Pass\n")
+            for this_file in sanity_checked_set:
+                vp_ip = this_file.split('-')[0]
+                f.write(vp_ip + '\n')
+            f.write("Fail\n")
+            for this_file in failed_sanity_check:
+                vp_ip = this_file.split('-')[0]
+                f.write(vp_ip + '\n')
         conf_list = list(sanity_checked_set)
         logging.info("List size after sanity check. New size: %d" %len(conf_list))
 
