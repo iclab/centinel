@@ -28,7 +28,9 @@ import probe as probe
 import geosanity as san
 
 PID_FILE = "/tmp/centinel.lock"
-
+log_file = 'log_vpn.log'
+logging.basicConfig(format="%(asctime)s %(levelname)s: %(message)s",
+                        filename=log_file )
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -193,20 +195,20 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
             country = None
             try:
-                # meta = centinel.backend.get_meta(config.params, vp_ip)
+                meta = centinel.backend.get_meta(config.params, vp_ip)
                 # send country name to be converted to alpha2 code
                 if (len(country_in_config) > 2):
-                    # meta['country'] = convertor.country_to_a2(country_in_config)
-                    country = convertor.country_to_a2(country_in_config)
+                    meta['country'] = convertor.country_to_a2(country_in_config)
+                    # country = convertor.country_to_a2(country_in_config)
                 # some vpn config files already contain the alpha2 code (length == 2)
-                # if 'country' in meta:
-                    # country = meta['country']
+                if 'country' in meta:
+                    country = meta['country']
 
                 # try setting the VPN info (IP and country) to get appropriate
                 # experiemnts and input data.
                 try:
                     logging.info("country is %s" % country)
-                    # centinel.backend.set_vpn_info(config.params, vpn_address, country)
+                    centinel.backend.set_vpn_info(config.params, vpn_address, country)
                 except Exception as exp:
                     logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
 
@@ -236,25 +238,30 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 time.sleep(5)
 
             except:
-                logging.warning("Failed to sanity check %s" % vp_ip)
+                logging.warning("Failed to send pings from %s" % vp_ip)
 
         # sanity check
         failed_sanity_check = set()
         sanity_checked_set = set()
+        vp_ip = 'unknown'
         pickle_path = os.path.join(sanity_path, 'pings')
         file_lists = os.listdir(pickle_path)
         if file_lists:
             for this_file in file_lists:
-                vp_ip = this_file.split('-')[0]
-                country = this_file.split('-')[1]
-                with open(os.path.join(pickle_path, this_file), 'r') as f:
-                    ping_result = pickle.load(f)
-                tag = san.sanity_check(vp_ip, country, ping_result[vp_ip]['pings'], anchors_gps, map,
-                                       sanity_path)
-                if tag:
-                    sanity_checked_set.add(this_file)
-                else:
-                    failed_sanity_check.add(this_file)
+                try:
+                    vp_ip = this_file.split('-')[0]
+                    country = this_file.split('-')[1]
+                    with open(os.path.join(pickle_path, this_file), 'r') as f:
+                        ping_result = pickle.load(f)
+                    tag = san.sanity_check(vp_ip, country, ping_result[vp_ip]['pings'], anchors_gps, map,
+                                           sanity_path)
+                    if tag:
+                        sanity_checked_set.add(this_file)
+                    else:
+                        failed_sanity_check.add(this_file)
+                except:
+                    logging.warning("Failed to sanity check %s" % vp_ip)
+
         with open(os.path.join(sanity_path, 'results_of_sanity_check.txt'), 'w') as f:
             f.write("Pass\n")
             for this_file in sanity_checked_set:
