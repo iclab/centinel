@@ -262,7 +262,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 except:
                     logging.warning("Failed to sanity check %s" % vp_ip)
 
-        with open(os.path.join(sanity_path, 'results_of_sanity_check.txt'), 'w') as f:
+        time_unique = time.time()
+        with open(os.path.join(sanity_path, 'results-of-sanity-check'+str(time_unique)+'.txt'), 'w') as f:
             f.write("Pass\n")
             for this_file in sanity_checked_set:
                 vp_ip = this_file.split('-')[0]

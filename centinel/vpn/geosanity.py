@@ -1,9 +1,9 @@
 """ Class for sanity check for vpn location"""
-import datetime
 import logging
 import os
 import time
 import pickle
+from datetime import timedelta
 from geopandas import *
 from geopy.distance import vincenty
 from geopy.geocoders import Nominatim
@@ -61,10 +61,19 @@ def get_gps_of_anchors(anchors, directory):
     anchors_gps = dict()
     count = 0
     try:
-        with open("gps_of_anchors.pickle", "r") as f:
+        with open(os.path.join(directory, "gps_of_anchors.pickle"), "r") as f:
             anchors_gps = pickle.load(f)
+        if 'timestamp' in anchors_gps:
+            if time.time() - anchors_gps['timestamp'] <= timedelta(days=30):
+                return anchors_gps
+        else:
+            return anchors
     except:
-        for anchor, item in anchors.iteritems():
+        logging.info("gps_of_anchors.pickle is not existed")
+    for anchor, item in anchors.iteritems():
+        if anchor == 'timestamp':
+            anchors_gps['timestamp'] = item
+        else:
             count += 1
             logging.info(
                 "Retrieving... %s(%s/%s): %s" % (anchor, count, len(anchors), item['city'] + ' ' + item['country']))
@@ -75,8 +84,8 @@ def get_gps_of_anchors(anchors, directory):
             if location == None:
                 logging.info("Fail to read gps of %s" %anchor)
             anchors_gps[anchor] = (location.latitude, location.longitude)
-        with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
-            pickle.dump(anchors_gps, f)
+    with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
+        pickle.dump(anchors_gps, f)
     return anchors_gps
 
 
