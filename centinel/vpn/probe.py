@@ -26,12 +26,24 @@ def get_anchor_list(directory):
     try:
         with open(landmark_path, "r") as f:
             anchors = pickle.load(f)
-        if 'timestamp' in anchors:
-            if time.time() - anchors['timestamp'] <= timedelta(days=30):
-                 return anchors
+        if 'timestamp' in anchors.keys():
+            if (time.time() - anchors['timestamp']) <= timedelta(days=30).total_seconds():
+                 return anchors['anchors']
             else:
-                try: os.remove(os.path.join(directory, 'RIPE_anchor_list.csv'))
-                except: pass
+                logging.info("List of anchors is expired.")
+                try:
+                    file_path = os.path.join(directory, 'landmarks_list.pickle')
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                    file_path = os.path.join(directory, 'RIPE_anchor_list.csv')
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                    file_path = os.path.join(directory, 'gps_of_anchors.pickle')
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                except:
+                    logging.info("Fail to delete expired files of anchors.")
+                    pass
         else: return anchors
     except:
         logging.info("landmarks_list.pickle is not existed")
@@ -39,8 +51,6 @@ def get_anchor_list(directory):
         # sys.stderr.write("Retrieving landmark list...")
         logging.info("landmarks_list pickle is not available, starting to fetch it")
         anchors = dict()
-        timestamp = time.time()
-        anchors['timestamp'] = timestamp
         try:
             ## you can get "RIPE_anchor_list.csv" by crawling RIPE first page of anchors (table)
             ripe_path = os.path.join(directory,'RIPE_anchor_list.csv')
@@ -85,6 +95,7 @@ def get_anchor_list(directory):
 
         logging.info("Finished extracting RIPE anchors from file.")
         count = 0
+
         for key, value in anchors.iteritems():
             count += 1
             logging.info("Retrieving anchor %s, %s/%s" % (value['probe'], count, len(anchors)))
@@ -104,8 +115,10 @@ def get_anchor_list(directory):
                 anchors[key]['asn'] = str(s_text[s_text.index("ASN")+1])
             except:
                 logging.exception("Connection reset by Peer on %s" % (url))
+        timestamp = time.time()
+        ripe_anchors = {'timestamp': timestamp, 'anchors': anchors}
         with open(landmark_path, "w") as f:
-            pickle.dump(anchors, f)
+            pickle.dump(ripe_anchors, f)
         return anchors
     except (TypeError, ValueError, UnicodeError) as e:
         sys.exit(1)

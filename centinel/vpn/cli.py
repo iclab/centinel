@@ -28,9 +28,9 @@ import probe as probe
 import geosanity as san
 
 PID_FILE = "/tmp/centinel.lock"
-log_file = 'log_vpn.log'
-logging.basicConfig(format="%(asctime)s %(levelname)s: %(message)s",
-                        filename=log_file )
+# log_file = 'log_vpn.log'
+# logging.basicConfig(format="%(asctime)s %(levelname)s: %(message)s",
+#                         filename=log_file )
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -255,28 +255,25 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                     tag = san.sanity_check(vp_ip, country, ping_result[vp_ip]['pings'], anchors_gps, map,
                                            sanity_path)
                     if tag == -1:
-                        error_sanity_check.add(this_file)
+                        error_sanity_check.add(vp_ip + '-' + country)
                     elif tag == True:
-                        sanity_checked_set.add(this_file)
+                        sanity_checked_set.add(vp_ip + '-' + country)
                     else:
-                        failed_sanity_check.add(this_file)
+                        failed_sanity_check.add(vp_ip + '-' + country)
                 except:
                     logging.warning("Failed to sanity check %s" % vp_ip)
 
         time_unique = time.time()
         with open(os.path.join(sanity_path, 'results-of-sanity-check'+str(time_unique)+'.txt'), 'w') as f:
             f.write("Pass\n")
-            for this_file in sanity_checked_set:
-                vp_ip = this_file.split('-')[0]
-                f.write(vp_ip + '\n')
+            for server in sanity_checked_set:
+                f.write(server + '\n')
             f.write("Fail\n")
-            for this_file in failed_sanity_check:
-                vp_ip = this_file.split('-')[0]
-                f.write(vp_ip + '\n')
+            for server in failed_sanity_check:
+                f.write(server + '\n')
             f.write("Error\n")
-            for this_file in error_sanity_check:
-                vp_ip = this_file.split('-')[0]
-                f.write(vp_ip + '\n')
+            for server in error_sanity_check:
+                f.write(server + '\n')
         conf_list = list(sanity_checked_set)
         logging.info("List size after sanity check. New size: %d" %len(conf_list))
 

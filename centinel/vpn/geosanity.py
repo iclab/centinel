@@ -29,6 +29,9 @@ def sanity_check(proxy_id, iso_cnt, ping_results, anchors_gps, map, directory):
     if len(points) == 0:
         logging.info("No valid ping results for %s" % proxy_id)
         return -1
+    logging.info("[%s] has %s valid anchors' results (valid pings) from %s anchors"
+                 %(proxy_id, len(points), len(ping_results)))
+
     circles = checker.get_anchors_region(points)
     proxy_region = checker.get_vpn_region(map)
     if proxy_region.empty:
@@ -63,17 +66,10 @@ def get_gps_of_anchors(anchors, directory):
     try:
         with open(os.path.join(directory, "gps_of_anchors.pickle"), "r") as f:
             anchors_gps = pickle.load(f)
-        if 'timestamp' in anchors_gps:
-            if time.time() - anchors_gps['timestamp'] <= timedelta(days=30):
-                return anchors_gps
-        else:
-            return anchors
     except:
         logging.info("gps_of_anchors.pickle is not existed")
-    for anchor, item in anchors.iteritems():
-        if anchor == 'timestamp':
-            anchors_gps['timestamp'] = item
-        else:
+
+        for anchor, item in anchors.iteritems():
             count += 1
             logging.info(
                 "Retrieving... %s(%s/%s): %s" % (anchor, count, len(anchors), item['city'] + ' ' + item['country']))
@@ -84,8 +80,8 @@ def get_gps_of_anchors(anchors, directory):
             if location == None:
                 logging.info("Fail to read gps of %s" %anchor)
             anchors_gps[anchor] = (location.latitude, location.longitude)
-    with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
-        pickle.dump(anchors_gps, f)
+        with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
+            pickle.dump(anchors_gps, f)
     return anchors_gps
 
 
