@@ -616,7 +616,7 @@ def create_config_files(directory):
     home_dirs = return_abs_path(directory, "home")
     os.mkdir(home_dirs)
     for filename in os.listdir(vpn_dir):
-        if('server' not in filename):
+        if('servers' not in filename):
             configuration = centinel.config.Configuration()
             # setup the directories
             home_dir = os.path.join(home_dirs, filename)
