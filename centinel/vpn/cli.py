@@ -451,8 +451,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         country = None
         try:
 	    # we still might need some info from the Maximind query
-            meta = centinel.backend.get_meta(config.params,
-                                             vp_ip)
+            meta = centinel.backend.get_meta(config.params, vp_ip)
 
 	    # send country name to be converted to alpha2 code
 	    if(len(country_in_config) > 2):
