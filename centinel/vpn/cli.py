@@ -17,6 +17,7 @@ import urllib2
 import zipfile
 import requests
 import StringIO
+import socket
 
 
 import centinel.backend
@@ -190,7 +191,16 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             centinel_config = os.path.join(conf_dir, filename)
             config = centinel.config.Configuration()
             config.parse_config(centinel_config)
-            vp_ip = os.path.splitext(filename)[0]
+            # get ip address of hostnames
+            hostname = os.path.splitext(filename)[0]
+            vp_ip = "unknown"
+            try:
+		vp_ip = socket.gethostbyname(hostname)
+	    except Exception as exp:
+		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+		continue
+
+
 
             vpn_config = os.path.join(vpn_dir, filename)
             centinel_config = os.path.join(conf_dir, filename)
@@ -198,6 +208,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             # [ip-address].ovpn, we can extract IP address from filename
             # and use it to geolocate and fetch experiments before connecting
             # to VPN.
+	    # filename is [hostname].ovpn, we resolved the hostname to ip
+	    # using socket.gethostbyname()
             vpn_address, extension = os.path.splitext(filename)
             lines = [line.rstrip('\n') for line in open(centinel_config)]
 
@@ -224,7 +236,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 # experiemnts and input data.
                 try:
                     logging.info("country is %s" % country)
-                    centinel.backend.set_vpn_info(config.params, vpn_address, country)
+                    centinel.backend.set_vpn_info(config.params, vp_ip, country)
                 except Exception as exp:
                     logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
 
@@ -305,7 +317,13 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             centinel_config = os.path.join(conf_dir, filename)
             config = centinel.config.Configuration()
             config.parse_config(centinel_config)
-            vp_ip = os.path.splitext(filename)[0]
+            hostname = os.path.splitext(filename)[0]
+            vp_ip = "unknown"
+            try:
+		vp_ip = socket.gethostbyname(hostname)
+	    except Exception as exp:
+		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+		continue
 
             # get country for this vpn
             country_in_config = ""
@@ -402,11 +420,23 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         config = centinel.config.Configuration()
         config.parse_config(centinel_config)
 
+
+
         # assuming that each VPN config file has a name like:
         # [ip-address].ovpn, we can extract IP address from filename
         # and use it to geolocate and fetch experiments before connecting
         # to VPN.
-        vpn_address, extension = os.path.splitext(filename)
+	# filename is [hostname].ovpn, we resolved the hostname to ip
+	# using socket.gethostbyname()
+        hostname = os.path.splitext(filename)
+        vp_ip = "unknown"
+        try:
+	    vp_ip = socket.gethostbyname(hostname)
+	except Exception as exp:
+	    logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+	    continue
+
+#        vpn_address, extension = os.path.splitext(filename)
         lines = [line.rstrip('\n') for line in open(centinel_config)]
 
         # get country for this vpn
@@ -422,7 +452,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         try:
 	    # we still might need some info from the Maximind query
             meta = centinel.backend.get_meta(config.params,
-                                             vpn_address)
+                                             vp_ip)
 
 	    # send country name to be converted to alpha2 code
 	    if(len(country_in_config) > 2):
@@ -431,7 +461,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             if 'country' in meta:
                 country = meta['country']
         except:
-            logging.exception("%s: Failed to geolocate %s" % (filename, vpn_address))
+            logging.exception("%s: Failed to geolocate %s" % (filename, vp_ip))
 
         if country and exclude_list and country in exclude_list:
             logging.info("%s: Skipping this server (%s)" % (filename, country))
@@ -441,7 +471,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # experiemnts and input data.
         try:
 	    logging.info("country is %s" % country)
-            centinel.backend.set_vpn_info(config.params, vpn_address, country)
+            centinel.backend.set_vpn_info(config.params, vp_ip, country)
         except Exception as exp:
             logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
 
@@ -454,7 +484,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         if not experiments_available(config.params):
             logging.info("%s: No experiments available." % filename)
             try:
-                centinel.backend.set_vpn_info(config.params, vpn_address, country)
+                centinel.backend.set_vpn_info(config.params, vp_ip, country)
             except Exception as exp:
                 logging.exception("Failed to set VPN info: %s" % exp)
             continue
@@ -534,7 +564,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # try setting the VPN info (IP and country) to the correct address
         # after sync is over.
         try:
-            centinel.backend.set_vpn_info(config.params, vpn_address, country)
+            centinel.backend.set_vpn_info(config.params, vp_ip, country)
         except Exception as exp:
             logging.exception("Failed to set VPN info: %s" % exp)
 
