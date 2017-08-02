@@ -57,29 +57,29 @@ def create_config_files(directory):
             lines = [line.rstrip('\n') for line in open(file_path)]
 
             # get ip address for this vpn
-            ip = ""
+            hostname = ""
             for line in lines:
                 if line.startswith('remote'):
                     hostname = line.split(' ')[1]
                     # added because gethostbyname will fail on some hostnames
-                    try:
-                	ip = socket.gethostbyname(hostname)
-                	break
-            	    except socket.gaierror:
-            	        logging.exception("Failed to resolve %s" %hostname)
-            		continue
+                    # try:
+                    # ip = socket.gethostbyname(hostname)
+                    # break
+                    # except socket.gaierror:
+            	     #    logging.exception("Failed to resolve %s" %hostname)
+                    # continue
 
-            if len(ip) > 0:
-                new_path = os.path.join(directory, ip + '.ovpn')
+            if len(hostname) > 0:
+                new_path = os.path.join(directory, hostname + '.ovpn')
                 shutil.copyfile(file_path, new_path)
-                server_country[ip] = country
+                server_country[hostname] = country
             else:
                 logging.warn("Unable to resolve hostname and remove %s" % filename)
                 os.remove(file_path)
 
     with open(os.path.join(directory, 'servers.txt'), 'w') as f:
-        for ip in server_country:
-            f.write('|'.join([ip, server_country[ip]]) + '\n')
+        for hostname in server_country:
+            f.write('|'.join([hostname, server_country[hostname]]) + '\n')
 
     # remove extracted folder
     shutil.rmtree(unzip_path)
