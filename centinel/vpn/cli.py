@@ -13,6 +13,11 @@ import signal
 import dns.resolver
 import json
 import pickle
+import urllib2
+import zipfile
+import requests
+import StringIO
+
 
 import centinel.backend
 import centinel.client
@@ -96,6 +101,7 @@ def parse_args():
     return parser.parse_args()
 
 
+
 def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
               exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp, sanity_check):
     """
@@ -163,11 +169,20 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         anchors = probe.get_anchor_list(sanity_path)
         logging.info("Anchors list fetched")
         # get anchor's gps
-        anchors_gps = san.get_gps_of_anchors(anchors, sanity_path)
-        logging.info("Anchors gps fetched")
+        #anchors_gps = san.get_gps_of_anchors(anchors, sanity_path)
+        #logging.info("Anchors gps fetched")
         # get a world map from shapefile
         # Todo: download a shapefile from server
+
         shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
+        if not os.path.exists(shapefile):
+            logging.info("Shape file does not exist, Downloading from server")
+            shapefile_url = 'http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip'
+            logging.info("Starting to download map shape file zip")
+            r = requests.get(shapefile_url, stream=True)
+            z = zipfile.ZipFile(StringIO.StringIO(r.content))
+            z.extractall(sanity_path)
+
         map = san.load_map_from_shapefile(shapefile)
         for filename in conf_list:
             centinel_config = os.path.join(conf_dir, filename)
