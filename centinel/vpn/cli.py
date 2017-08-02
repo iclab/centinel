@@ -169,11 +169,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         anchors = probe.get_anchor_list(sanity_path)
         logging.info("Anchors list fetched")
         # get anchor's gps
-        #anchors_gps = san.get_gps_of_anchors(anchors, sanity_path)
-        #logging.info("Anchors gps fetched")
+        anchors_gps = san.get_gps_of_anchors(anchors, sanity_path)
+        logging.info("Anchors gps fetched")
         # get a world map from shapefile
-        # Todo: download a shapefile from server
-
         shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
         if not os.path.exists(shapefile):
             logging.info("Shape file does not exist, Downloading from server")
@@ -183,6 +181,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 r = requests.get(shapefile_url, stream=True)
                 z = zipfile.ZipFile(StringIO.StringIO(r.content))
                 z.extractall(sanity_path)
+		logging.info("Map shape file downloaded")
             except Exception as exp:
                 logging.error("Could not fetch map file : %s" %str(exp))
 
