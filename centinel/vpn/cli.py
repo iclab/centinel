@@ -179,9 +179,12 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             logging.info("Shape file does not exist, Downloading from server")
             shapefile_url = 'http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip'
             logging.info("Starting to download map shape file zip")
-            r = requests.get(shapefile_url, stream=True)
-            z = zipfile.ZipFile(StringIO.StringIO(r.content))
-            z.extractall(sanity_path)
+            try:
+                r = requests.get(shapefile_url, stream=True)
+                z = zipfile.ZipFile(StringIO.StringIO(r.content))
+                z.extractall(sanity_path)
+            except Exception as exp:
+                logging.error("Could not fetch map file : %s" %str(exp))
 
         map = san.load_map_from_shapefile(shapefile)
         for filename in conf_list:
