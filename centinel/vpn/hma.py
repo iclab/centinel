@@ -130,7 +130,9 @@ def update_config_files(directory):
         if found_vpn_flag == 0:
 	    delete_list.append(vp)
     # new additions
-    print('vp\'s to be added: ' , set(new_config_dict.keys()) - set(old_config_dict.keys()))	
+    add_list = []
+    add_list.extend((set(new_config_dict.keys()) - set(old_config_dict.keys())))
+    print('vp\'s to be added: ' , add_list)	
     print('vp\'s to be deleted: ' , delete_list)
     print('vp\'s to be updated: ', update_list)
 	    
@@ -145,7 +147,7 @@ def update_config_files(directory):
 	for hostname in server_country:
 	    f.write('|'.join([hostname, server_country[hostname]]) + '\n')
 
-
+    return [delete_list, update_list, add_list]
 
 
 def create_config_files(directory):
