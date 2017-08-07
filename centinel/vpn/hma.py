@@ -47,13 +47,104 @@ def update_config_files(directory):
     :param directory:
     :return:
     """
+    updated_vpn_path = os.path.join(directory, '../updated_vpns')
+    print(updated_vpn_path)
+    if not os.path.exists(updated_vpn_path):
+	os.makedirs(updated_vpn_path)
+
     logging.info("Update HMA Configs")
 
     # read python dict back from the file
     pkl_file = open(os.path.join(directory,'../config_hash.pkl'), 'rb')
-    config_dict = pickle.load(pkl_file)
+    old_config_dict = pickle.load(pkl_file)
     pkl_file.close()
-    print(config_dict)
+#    print(config_dict)
+
+    config_zip_url = "https://hidemyass.com/vpn-config/vpn-configs.zip"
+
+    logging.info("Starting to download hma config file zip")
+
+    zip_response = urllib2.urlopen(config_zip_url)
+    zip_content = zip_response.read()
+    zip_path = os.path.join(directory, '../vpn-configs.zip')
+
+    with open(zip_path,'w') as f:
+	f.write(zip_content)
+    logging.info("Extracting zip file")
+    unzip(zip_path, os.path.join(directory, '../'))
+
+    # remove zip file
+    os.remove(zip_path)
+
+    server_country = {}
+    new_config_dict = {}
+
+    # move all config files to /vpns
+    orig_path = os.path.join(directory, '../TCP')
+    config_dict = {}
+    server_country = {}
+    for filename in os.listdir(orig_path):
+	if filename.endswith('.ovpn'):
+	    country = filename.split('.')[0]
+	file_path = os.path.join(orig_path, filename)
+	lines = [line.rstrip('\n') for line in open(file_path)]
+
+	hostname = ""
+	for line in lines:
+	    if line.startswith('remote'):
+		hostname = line.split(' ')[1]
+	if len(hostname) > 0:
+	    new_path = os.path.join(updated_vpn_path, hostname + '.ovpn')
+	    shutil.copyfile(file_path, new_path)
+	    server_country[hostname] = country
+
+    # remove extracted folder
+    shutil.rmtree(os.path.join(directory, '../TCP'))
+    shutil.rmtree(os.path.join(directory, '../UDP'))
+
+    # add dns update options to each file
+    logging.info("Appending DNS update options")
+    for filename in os.listdir(updated_vpn_path):
+	file_path = os.path.join(updated_vpn_path, filename)
+	with open(file_path, 'a') as f:
+	    f.write('\n')
+	    f.write('up /etc/openvpn/update-resolv-conf\n')
+	    f.write('down /etc/openvpn/update-resolv-conf\n')
+	message = hash_file(file_path)
+	new_config_dict[filename] = message
+
+    delete_list = []
+    update_list = []
+    # delete and update
+    for vp in old_config_dict:
+        found_vpn_flag = 0
+	for newvp in new_config_dict:
+	    if(vp == newvp):
+		found_vpn_flag = 1
+		if(old_config_dict[vp] != new_config_dict[newvp]):
+#		    print('vpn update'+ str(vp))
+		    update_list.append(vp)
+		else:
+#		    print('no update needed')
+		    continue
+        if found_vpn_flag == 0:
+	    delete_list.append(vp)
+    # new additions
+    print('vp\'s to be added: ' , set(new_config_dict.keys()) - set(old_config_dict.keys()))	
+    print('vp\'s to be deleted: ' , delete_list)
+    print('vp\'s to be updated: ', update_list)
+	    
+    # print(config_dict)
+    # output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')
+    # pickle.dump(config_dict, output)
+    # output.close()
+    #
+    #
+    # print os.path.join(directory, 'servers.txt'), len(server_country)
+    # with open(os.path.join(directory, 'servers.txt'), 'w') as f:
+    # for hostname in server_country:
+	 #    f.write('|'.join([hostname, server_country[hostname]]) + '\n')
+
 
 
 
@@ -139,9 +230,9 @@ def create_config_files(directory):
 	    f.write('\n')
 	    f.write('up /etc/openvpn/update-resolv-conf\n')
 	    f.write('down /etc/openvpn/update-resolv-conf\n')
+    # print(config_dict)
 	message = hash_file(file_path)
 	config_dict[filename] = message
-    # print(config_dict)
     output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')
     pickle.dump(config_dict, output)
     output.close()
