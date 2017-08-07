@@ -18,6 +18,7 @@ import zipfile
 import requests
 import StringIO
 import socket
+import shutil
 
 
 import centinel.backend
@@ -619,6 +620,48 @@ def signal_handler(signal, frame):
     sys.exit(0)
 
 
+def update_config_files(directory, vp_list):
+    """
+    For each VPN file in directory/vpns update its configuration if needed
+    :param directory:
+    :param vp_list: the list of vp updates/deletes/additions
+    :return:
+    """
+
+    logging.info("Starting to update config files")
+    server_country = {}
+    vpn_dir = return_abs_path(directory, "vpns")
+    print(vpn_dir)
+    new_vpn_dir = return_abs_path(directory, "updated_vpns")
+
+    # read servers.txt to find the country associated with the ip
+    with open (vpn_dir+ '/servers.txt') as server_file:
+        servers = server_file.readlines()
+
+    for server_line in servers:
+        server_line = (server_line.split('|'))
+        server_country[server_line[0]] = server_line[1].replace('\n','')
+
+    conf_dir = return_abs_path(directory, "configs")
+    home_dirs = return_abs_path(directory, "home")
+
+    # remove vps
+    for vp in vp_list[0]:
+        os.remove(os.path.join(directory,"vpns/"+vp))
+        shutil.rmtree(os.path.join(directory,"home/"+vp))
+        os.remove(os.path.join(directory,"configs/"+vp))
+
+    # update vps
+    for vp in vp_list[1]:
+        print('in update')
+        os.remove(os.path.join(directory,"configs/"+vp))
+        os.remove(os.path.join(directory,"vpns/"+vp))
+        shutil.copyfile(os.path.join(directory,"updated_vpns/"+vp), os.path.join(directory,"vpns/"+vp))
+    # add vp
+    for vp in vp_list[2]:
+        print(os.path.join(directory,"vpns/"+vp))
+        shutil.copyfile(os.path.join(directory,"updated_vpns/"+vp), os.path.join(directory,"vpns/"+vp))
+
 def create_config_files(directory):
     """
     For each VPN file in directory/vpns, create a new configuration
@@ -776,7 +819,11 @@ def _run():
     elif args.update_conf_dir:
         if args.update_HMA:
             hma_dir = return_abs_path(args.update_conf_dir, 'vpns')
-            hma.update_config_files(hma_dir)
+            vp_list = hma.update_config_files(hma_dir)
+        update_config_files(args.update_conf_dir, vp_list)
+
+            # add new ones
+
     else:
         # sanity check tls_auth and key_direction
         if (args.tls_auth is not None and args.key_direction is None) or \
