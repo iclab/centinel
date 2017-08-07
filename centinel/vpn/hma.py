@@ -39,7 +39,24 @@ def hash_file(filename):
 def unzip(source_filename, dest_dir):
     with zipfile.ZipFile(source_filename) as zf:
 	zf.extractall(dest_dir)
-	
+
+
+def update_config_files(directory):
+    """
+    Update directory for vpn walker
+    :param directory:
+    :return:
+    """
+    logging.info("Update HMA Configs")
+
+    # read python dict back from the file
+    pkl_file = open(os.path.join(directory,'../config_hash.pkl'), 'rb')
+    config_dict = pickle.load(pkl_file)
+    pkl_file.close()
+    print(config_dict)
+
+
+
 def create_config_files(directory):
     """
     Initialize directory ready for vpn walker
@@ -124,7 +141,7 @@ def create_config_files(directory):
 	    f.write('down /etc/openvpn/update-resolv-conf\n')
 	message = hash_file(file_path)
 	config_dict[filename] = message
-    print(config_dict)
+    # print(config_dict)
     output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')
     pickle.dump(config_dict, output)
     output.close()

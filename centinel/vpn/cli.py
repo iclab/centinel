@@ -63,6 +63,9 @@ def parse_args():
     g1.add_argument('--create-hma-configs', dest='create_HMA',
                     action="store_true",
                     help='Create the openvpn config files for HMA')
+    g1.add_argument('--update-hma-configs', dest='update_HMA',
+                    action="store_true",
+                    help='Update the openvpn config files for HMA')
     g1.add_argument('--create-ipvanish-configs', dest='create_IPVANISH',
                     action='store_true',
                     help='Create the openvpn config files for IPVanish')
@@ -83,13 +86,17 @@ def parse_args():
     g2 = parser.add_mutually_exclusive_group(required=True)
     g2.add_argument('--directory', '-d', dest='directory',
                     help='Directory with experiments, config files, etc.')
-    create_conf_help = ('Create configuration files for the given '
+    create_conf_help = ('Create/Update configuration files for the given '
                         'openvpn config files so that we can treat each '
                         'one as a client. The argument should be a '
                         'directory with a subdirectory called openvpn '
                         'that contains the openvpn config files')
     g2.add_argument('--create-config', '-c', help=create_conf_help,
                     dest='create_conf_dir')
+
+    g2.add_argument('--update-config', '-z', help=create_conf_help,
+                    dest='update_conf_dir')
+
 
     # following args are used to support splitting clients among multiple VMs
     # each running vpn walker will use this to decide which portion of vpn
@@ -765,6 +772,11 @@ def _run():
             vpngate.create_config_files(vpngate_dir)
         # create the config files for the openvpn config files
         create_config_files(args.create_conf_dir)
+
+    elif args.update_conf_dir:
+        if args.update_HMA:
+            hma_dir = return_abs_path(args.update_conf_dir, 'vpns')
+            hma.update_config_files(hma_dir)
     else:
         # sanity check tls_auth and key_direction
         if (args.tls_auth is not None and args.key_direction is None) or \
