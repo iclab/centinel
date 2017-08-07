@@ -134,16 +134,16 @@ def update_config_files(directory):
     print('vp\'s to be deleted: ' , delete_list)
     print('vp\'s to be updated: ', update_list)
 	    
-    # print(config_dict)
-    # output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')
-    # pickle.dump(config_dict, output)
-    # output.close()
-    #
-    #
-    # print os.path.join(directory, 'servers.txt'), len(server_country)
-    # with open(os.path.join(directory, 'servers.txt'), 'w') as f:
-    # for hostname in server_country:
-	 #    f.write('|'.join([hostname, server_country[hostname]]) + '\n')
+#    print(new_config_dict)
+    output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')
+    pickle.dump(new_config_dict, output)
+    output.close()
+    
+    
+    print os.path.join(directory, 'servers.txt'), len(server_country)
+    with open(os.path.join(directory, 'servers.txt'), 'w') as f:
+	for hostname in server_country:
+	    f.write('|'.join([hostname, server_country[hostname]]) + '\n')
 
 
 
