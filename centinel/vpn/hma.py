@@ -10,6 +10,31 @@ import logging
 import socket
 import zipfile
 import urllib2
+import pickle
+import hashlib
+
+def hash_file(filename):
+   """
+   This function returns the SHA-1 hash
+   of the file passed into it
+   """
+
+   # make a hash object
+   h = hashlib.sha1()
+
+   # open file for reading in binary mode
+   with open(filename,'rb') as file:
+
+       # loop till the end of the file
+       chunk = 0
+       while chunk != b'':
+           # read only 1024 bytes at a time
+           chunk = file.read(1024)
+           h.update(chunk)
+
+   # return the hex representation of digest
+   return h.hexdigest()
+
 
 def unzip(source_filename, dest_dir):
     with zipfile.ZipFile(source_filename) as zf:
@@ -62,7 +87,7 @@ def create_config_files(directory):
 
     # move all config files to /vpns
     orig_path = os.path.join(directory, '../TCP')
-    
+    config_dict = {}
     server_country = {}
     for filename in os.listdir(orig_path):
 	if filename.endswith('.ovpn'):
@@ -97,7 +122,13 @@ def create_config_files(directory):
 	    f.write('\n')
 	    f.write('up /etc/openvpn/update-resolv-conf\n')
 	    f.write('down /etc/openvpn/update-resolv-conf\n')
-	    
+	message = hash_file(file_path)
+	config_dict[filename] = message
+    print(config_dict)
+    output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')
+    pickle.dump(config_dict, output)
+    output.close()
+
 
     print os.path.join(directory, 'servers.txt'), len(server_country)
     with open(os.path.join(directory, 'servers.txt'), 'w') as f:
