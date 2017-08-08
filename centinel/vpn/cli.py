@@ -654,13 +654,39 @@ def update_config_files(directory, vp_list):
     # update vps
     for vp in vp_list[1]:
         print('in update')
-        os.remove(os.path.join(directory,"configs/"+vp))
         os.remove(os.path.join(directory,"vpns/"+vp))
         shutil.copyfile(os.path.join(directory,"updated_vpns/"+vp), os.path.join(directory,"vpns/"+vp))
     # add vp
     for vp in vp_list[2]:
         print(os.path.join(directory,"vpns/"+vp))
         shutil.copyfile(os.path.join(directory,"updated_vpns/"+vp), os.path.join(directory,"vpns/"+vp))
+        configuration = centinel.config.Configuration()
+        # setup the directories
+        home_dir = os.path.join(home_dirs, vp)
+        os.mkdir(home_dir)
+        configuration.params['user']['centinel_home'] = home_dir
+        exp_dir = os.path.join(home_dir, "experiments")
+        os.mkdir(exp_dir)
+        configuration.params['dirs']['experiments_dir'] = exp_dir
+        data_dir = os.path.join(home_dir, "data")
+        os.mkdir(data_dir)
+        configuration.params['dirs']['data_dir'] = data_dir
+        res_dir = os.path.join(home_dir, "results")
+        os.mkdir(res_dir)
+        configuration.params['dirs']['results_dir'] = res_dir
+
+        log_file = os.path.join(home_dir, "centinel.log")
+        configuration.params['log']['log_file'] = log_file
+        login_file = os.path.join(home_dir, "login")
+        configuration.params['server']['login_file'] = login_file
+        configuration.params['user']['is_vpn'] = True
+
+        configuration.params['server']['verify'] = True
+        configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
+        configuration.params['country'] = server_country[vp.replace('.ovpn','')]
+        conf_file = os.path.join(conf_dir, vp)
+        configuration.write_out_config(conf_file)
+
 
 def create_config_files(directory):
     """
