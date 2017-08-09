@@ -434,9 +434,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # [ip-address].ovpn, we can extract IP address from filename
         # and use it to geolocate and fetch experiments before connecting
         # to VPN.
-	# filename is [hostname].ovpn, we resolved the hostname to ip
+	# filename is [OBhostname].ovpn, we resolved the hostname to ip
 	# using socket.gethostbyname()
-        hostname = os.path.splitext(filename)
+        hostname = os.path.splitext(filename)[0]
         vp_ip = "unknown"
         try:
 	    vp_ip = socket.gethostbyname(hostname)
