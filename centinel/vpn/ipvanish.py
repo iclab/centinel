@@ -43,7 +43,7 @@ def update_config_files(directory):
     :param directory:
     :return:
     """
-    updated_vpn_path = os.path.join(directory, '../updated_vpn')
+    updated_vpn_path = os.path.join(directory, '../updated_vpns')
     if not os.path.exists(updated_vpn_path):
 	os.makedirs(updated_vpn_path)
 
@@ -53,6 +53,7 @@ def update_config_files(directory):
     pkl_file = open(os.path.join(directory, '../config_hash.pkl'), 'rb')
     old_config_dict = pickle.load(pkl_file)
     pkl_file.close()
+
 
     config_zip_url = "http://www.ipvanish.com/software/configs/configs.zip"
 
@@ -70,6 +71,7 @@ def update_config_files(directory):
 
     logging.info("Extracting zip file")
     unzip(zip_path, unzip_path)
+
 
     # remove zip file
     os.remove(zip_path)
@@ -90,7 +92,7 @@ def update_config_files(directory):
                 if line.startswith('remote'):
                     hostname = line.split(' ')[1]
             if len(hostname) > 0:
-                new_path = os.path.join(directory, hostname + '.ovpn')
+                new_path = os.path.join(updated_vpn_path, hostname + '.ovpn')
                 shutil.copyfile(file_path, new_path)
                 server_country[hostname] = country
             else:
@@ -98,8 +100,9 @@ def update_config_files(directory):
                 os.remove(file_path)
 
     for filename in os.listdir(updated_vpn_path):
-	file_path = os.path.jpin(updated_vpn_path, filename)
+	file_path = os.path.join(updated_vpn_path, filename)
 	message = hash_file(file_path)
+	# print(filename, message)
 	new_config_dict[filename] = message
 
     delete_list = []
@@ -118,12 +121,12 @@ def update_config_files(directory):
 	    delete_list.append(vp)
     # new additions
     add_list = []
-    add_list.expand((set(new_config_dict.keys()) - set(old_config_dict.keys())))
+    add_list.extend((set(new_config_dict.keys()) - set(old_config_dict.keys())))
     print('vp\'s to be added: ', add_list)
     print('vp\'s tp be deleted: ', delete_list)
     print('vp\'s to be updated: ', update_list)
 
-    output = open(os.path.jpin(directory, '../config_hash.pkl'), 'wb')
+    output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')
     pickle.dump(new_config_dict, output)
     output.close()
 
@@ -134,6 +137,7 @@ def update_config_files(directory):
 
     # remove extracted folder
     shutil.rmtree(unzip_path)
+
 
     return [delete_list, update_list, add_list]
 
@@ -206,6 +210,7 @@ def create_config_files(directory):
     for filename in os.listdir(directory):
 	file_path = os.path.join(directory, filename)
 	message = hash_file(file_path)
+	# print filename, message
 	config_dict[filename] = message
 
     output = open(os.path.join(directory, '../config_hash.pkl'), 'wb')

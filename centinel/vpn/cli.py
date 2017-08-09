@@ -70,6 +70,9 @@ def parse_args():
     g1.add_argument('--create-ipvanish-configs', dest='create_IPVANISH',
                     action='store_true',
                     help='Create the openvpn config files for IPVanish')
+    g1.add_argument('--update-ipvanish-configs', dest='update_IPVANISH',
+                    action="store_true",
+                    help='Update the openvpn config files for IPVANISH')
     g1.add_argument('--create-purevpn-configs', dest='create_PUREVPN',
                     action='store_true',
                     help='Create the openvpn config files for PureVPN')
@@ -846,6 +849,9 @@ def _run():
         if args.update_HMA:
             hma_dir = return_abs_path(args.update_conf_dir, 'vpns')
             vp_list = hma.update_config_files(hma_dir)
+	if args.update_IPVANISH:
+	    ipvanish_dir = return_abs_path(args.update_conf_dir, 'vpns')
+	    vp_list = ipvanish.update_config_files(ipvanish_dir)
         update_config_files(args.update_conf_dir, vp_list)
 
             # add new ones
