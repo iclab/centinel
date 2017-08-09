@@ -147,8 +147,7 @@ def update_config_files(directory):
 	for hostname in server_country:
 	    f.write('|'.join([hostname, server_country[hostname]]) + '\n')
 
-    shutil.rmtree(os.path.join(directory, '../updated_vpns'))
-
+   
     return [delete_list, update_list, add_list]
 
 
