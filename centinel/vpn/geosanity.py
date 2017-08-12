@@ -3,18 +3,22 @@ import logging
 import os
 import time
 import pickle
-from datetime import timedelta
+import matplotlib
+matplotlib.use('Agg')
 from geopandas import *
 from geopy.distance import vincenty
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 import pyproj
 import functools
+import pycountry
 from shapely.ops import transform as sh_transform
 from shapely.geometry import Point, Polygon, box as Box
 
+def run_checker(args):
+    return sanity_check(*args)
 
-
-def sanity_check(proxy_id, iso_cnt, ping_results, anchors_gps, map, directory):
+def sanity_check(this_file, anchors_gps, map, directory, pickle_path):
     """
     :param proxy_id:(str)
     :param iso_cnt:(str)
@@ -23,25 +27,35 @@ def sanity_check(proxy_id, iso_cnt, ping_results, anchors_gps, map, directory):
     :param map:(dataframe)
     :return:
     """
-    checker = Checker(proxy_id, iso_cnt, directory)
-    # points = checker.check_ping_results(results, anchors_gps)
-    points = checker.check_ping_results(ping_results, anchors_gps)
-    if len(points) == 0:
-        logging.info("No valid ping results for %s" % proxy_id)
-        return -1
-    logging.info("[%s] has %s valid anchors' results (valid pings) from %s anchors"
-                 %(proxy_id, len(points), len(ping_results)))
-
-    circles = checker.get_anchors_region(points)
-    proxy_region = checker.get_vpn_region(map)
-    if proxy_region.empty:
-        logging.info("Fail to get proxy region: %s" % iso_cnt)
-        return -1
-    results = checker.check_overlap(proxy_region, circles)
-    return checker.is_valid(results)
-    # time_now = str(datetime.datetime.now()).split(' ')[0]
-    # with open("results_" + proxy_id + "_" + time_now + ".pickle", "w") as f:
-    #   pickle.dump(results, f)
+    try:
+        start_time = time.time()
+        proxy_id = this_file.split('-')[0]
+        iso_cnt = this_file.split('-')[1]
+        tag = -1
+        with open(os.path.join(pickle_path, this_file), 'r') as f:
+            ping_result = pickle.load(f)
+        ping_results = ping_result[proxy_id]['pings']
+        checker = Checker(proxy_id, iso_cnt, directory)
+        # points = checker.check_ping_results(results, anchors_gps)
+        points = checker.check_ping_results(ping_results, anchors_gps)
+        if len(points) == 0:
+            logging.info("No valid ping results for %s" % proxy_id)
+            return proxy_id, iso_cnt, -1
+        logging.info("[%s] has %s valid anchors' results (valid pings) from %s anchors"
+                     %(proxy_id, len(points), len(ping_results)))
+        circles = checker.get_anchors_region(points)
+        proxy_region = checker.get_vpn_region(map)
+        if proxy_region.empty:
+            logging.info("[%s] Fail to get proxy region: %s" % (proxy_id, iso_cnt))
+            return proxy_id, iso_cnt, -1
+        results = checker.check_overlap(proxy_region, circles, this_file)
+        tag = checker.is_valid(results)
+        end_time = time.time() - start_time
+        logging.info("[%s] How long it takes: %s" % (this_file, end_time))
+    except:
+        logging.warning("[%s] Failed to sanity check" % this_file)
+        return "N/A", "N/A", -1
+    return proxy_id, iso_cnt, tag
 
 def load_map_from_shapefile(shapefile):
     """
@@ -50,9 +64,9 @@ def load_map_from_shapefile(shapefile):
     """
     logging.info("Loading a shapefile for the world map")
     temp = GeoDataFrame.from_file(shapefile)
+    # print temp.dtypes.index
     map = temp[['ISO_A2', 'NAME', 'SUBREGION', 'geometry']]
     return map
-
 
 def get_gps_of_anchors(anchors, directory):
     """
@@ -68,22 +82,23 @@ def get_gps_of_anchors(anchors, directory):
             anchors_gps = pickle.load(f)
     except:
         logging.info("gps_of_anchors.pickle is not existed")
-
         for anchor, item in anchors.iteritems():
             count += 1
             logging.info(
                 "Retrieving... %s(%s/%s): %s" % (anchor, count, len(anchors), item['city'] + ' ' + item['country']))
             geolocator = Nominatim()
-            location = geolocator.geocode(item['city'] + ' ' + item['country'])
-            if location == None:
-                location = geolocator.geocode(item['country'])
-            if location == None:
-                logging.info("Fail to read gps of %s" %anchor)
-            anchors_gps[anchor] = (location.latitude, location.longitude)
+            try:
+                location = geolocator.geocode(item['city'] + ' ' + item['country'], timeout=10)
+                if location == None:
+                    location = geolocator.geocode(item['country'], timeout=10)
+                if location == None:
+                    logging.info("Fail to read gps of %s" %anchor)
+                anchors_gps[anchor] = (location.latitude, location.longitude)
+            except GeocoderTimedOut as e:
+                logging.info("Error geocode failed: %s" %(e))
         with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
             pickle.dump(anchors_gps, f)
     return anchors_gps
-
 
 class Checker:
     def __init__(self, proxy_id, iso, path):
@@ -96,10 +111,13 @@ class Checker:
         """
         Get a region of given iso country
         """
-        logging.info("Getting vpn region from a map")
+        # logging.info("Getting vpn region from a map")
         region = map[map.ISO_A2 == self.iso].geometry
         if region.empty:
-            logging.info("Fail to read country region: %s" % self.iso)
+            cnt = pycountry.countries.get(alpha2=self.iso)
+            region = map[map.NAME == cnt.name].geometry
+        if region.empty:
+            logging.info("Fail to read country region: %s (%s)" % (self.iso, cnt))
             return None
         df = geopandas.GeoDataFrame({'geometry': region})
         df.crs = {'init': 'epsg:4326'}
@@ -116,8 +134,8 @@ class Checker:
                 logging.info("Fail to get gps of location %s" %self.iso)
                 return None
             vpn_gps = (location.latitude, location.longitude)
-        except:
-            logging.info("Fail to get gps of proxy")
+        except GeocoderTimedOut as e:
+            logging.info("Error geocode failed: %s" %(e))
         return vpn_gps
 
     def _disk(self, x, y, radius):
@@ -128,7 +146,6 @@ class Checker:
         (referred from zack's paper & code Todo: add LICENSE?)
         https://github.com/zackw/active-geolocator
         Note that pyproj takes distances in meters & lon/lat order.
-
         """
         logging.info("Starting to draw anchors region")
         wgs_proj = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
@@ -167,7 +184,6 @@ class Checker:
                     else:
                         i += 1
                 disk = Polygon(boundary).buffer(0)
-
                 # In the case of the generated disk is too large
                 origin = Point(lon, lat)
                 if not disk.contains(origin):
@@ -182,7 +198,7 @@ class Checker:
                 logging.debug("Fail to get a circle %s" %self.proxy_id)
         return circles
 
-    def check_overlap(self, proxy_region, circles):
+    def check_overlap(self, proxy_region, circles, ping_filename):
         """ Check overlap between proxy region and anchors' region.
         If there is an overlap check how much they are overlapped,
         otherwise, check how far the distance is from a proxy.
@@ -214,15 +230,13 @@ class Checker:
                 area_overlap = sum(area_overlap.tolist())
                 stack = area_overlap/area_cnt
                 results.append((True, stack))
-
         pickle_path = os.path.join(self.path, 'sanity')
         if not os.path.exists(pickle_path):
             os.makedirs(pickle_path)
         time_unique = time.time()
-        with open(pickle_path + '/' + self.proxy_id + '-' + self.iso + '-' + str(time_unique) + '.pickle', 'w') as f:
+        with open(pickle_path + '/' + ping_filename, 'w') as f:
             pickle.dump(results, f)
             logging.info("Pickle file successfully created.")
-
         return results
 
     def _calculate_radius(self, time_ms):
