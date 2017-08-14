@@ -703,7 +703,7 @@ def update_config_files(directory, vp_list):
         configuration.write_out_config(conf_file)
     shutil.rmtree(new_vpn_dir)
 
-def create_config_files(directory):
+def create_config_files(directory, provider):
     """
     For each VPN file in directory/vpns, create a new configuration
     file and all the associated directories
@@ -761,6 +761,19 @@ def create_config_files(directory):
             configuration.params['server']['verify'] = True
             configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
             configuration.params['country'] = server_country[filename.replace('.ovpn','')]
+	    
+    	    hostname = os.path.splitext(filename)[0]
+	    print('hostname is %s' %hostname)
+    	    vp_ip = "unknown"
+    	    try:
+		vp_ip = socket.gethostbyname(hostname)
+	    except Exception as exp:
+		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+	    continue
+
+	    configuration.params['custom_meta']['provider'] = provider
+	    configuration.params['custom_meta']['hostname'] = hostname
+	    configuration.params['custom_meta']['ip_address'] = vp_ip
             conf_file = os.path.join(conf_dir, filename)
             configuration.write_out_config(conf_file)
 
@@ -840,32 +853,39 @@ def _run():
     if args.vm_index < 1 or args.vm_index > args.vm_num:
         print "vm_index value cannot be negative or greater than vm_num!"
         return
-
+    provider = "None"
     if args.create_conf_dir:
         if args.create_HMA:
             hma_dir = return_abs_path(args.create_conf_dir, 'vpns')
+	    provider = 'hma'
             hma.create_config_files(hma_dir)
         elif args.create_IPVANISH:
             ipvanish_dir = return_abs_path(args.create_conf_dir, 'vpns')
+	    provider = 'ipvanish'
             ipvanish.create_config_files(ipvanish_dir)
         elif args.create_PUREVPN:
             purevpn_dir = return_abs_path(args.create_conf_dir, 'vpns')
+	    provider = 'purevpn'
             purevpn.create_config_files(purevpn_dir)
         elif args.create_VPNGATE:
             vpngate_dir = return_abs_path(args.create_conf_dir, 'vpns')
+	    provider = 'vpngate'
             vpngate.create_config_files(vpngate_dir)
         # create the config files for the openvpn config files
-        create_config_files(args.create_conf_dir)
+        create_config_files(args.create_conf_dir, provider)
 
     elif args.update_conf_dir:
         if args.update_HMA:
             hma_dir = return_abs_path(args.update_conf_dir, 'vpns')
+	    provider = 'hma'
             vp_list = hma.update_config_files(hma_dir)
 	if args.update_IPVANISH:
 	    ipvanish_dir = return_abs_path(args.update_conf_dir, 'vpns')
+	    provdier = 'ipvanish'
 	    vp_list = ipvanish.update_config_files(ipvanish_dir)
 	if args.update_PUREVPN:
 	    purevpn_dir = return_abs_path(args.update_conf_dir, 'vpns')
+	    provider = 'purevpn'
 	    vp_list = purevpn.update_config_files(purevpn_dir)
         update_config_files(args.update_conf_dir, vp_list)
 
