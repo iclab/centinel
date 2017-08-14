@@ -19,7 +19,7 @@ import requests
 import StringIO
 import socket
 import shutil
-
+import multiprocessing
 
 import centinel.backend
 import centinel.client
@@ -176,6 +176,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
     # geolocation sanity check
     if sanity_check:
+        # start_time = time.time()
         # create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
         sanity_path = os.path.join(directory, '../sanitycheck')
         if not os.path.exists(sanity_path):
@@ -196,10 +197,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 r = requests.get(shapefile_url, stream=True)
                 z = zipfile.ZipFile(StringIO.StringIO(r.content))
                 z.extractall(sanity_path)
-		logging.info("Map shape file downloaded")
+                logging.info("Map shape file downloaded")
             except Exception as exp:
-                logging.error("Could not fetch map file : %s" %str(exp))
-
+                logging.error("Could not fetch map file : %s" % str(exp))
         map = san.load_map_from_shapefile(shapefile)
         for filename in conf_list:
             centinel_config = os.path.join(conf_dir, filename)
@@ -209,24 +209,20 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             hostname = os.path.splitext(filename)[0]
             vp_ip = "unknown"
             try:
-		vp_ip = socket.gethostbyname(hostname)
-	    except Exception as exp:
-		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
-		continue
-
-
-
+                vp_ip = socket.gethostbyname(hostname)
+            except Exception as exp:
+                logging.exception("Failed to resolve %s : %s" % (hostname, str(exp)))
+                continue
             vpn_config = os.path.join(vpn_dir, filename)
             centinel_config = os.path.join(conf_dir, filename)
             # assuming that each VPN config file has a name like:
             # [ip-address].ovpn, we can extract IP address from filename
             # and use it to geolocate and fetch experiments before connecting
             # to VPN.
-	    # filename is [hostname].ovpn, we resolved the hostname to ip
-	    # using socket.gethostbyname()
+            # filename is [hostname].ovpn, we resolved the hostname to ip
+            # using socket.gethostbyname()
             vpn_address, extension = os.path.splitext(filename)
             lines = [line.rstrip('\n') for line in open(centinel_config)]
-
             # get country for this vpn
             country_in_config = ""
             # reading the server.txt file in vpns folder
@@ -234,7 +230,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 if "country" in line:
                     (key, country_in_config) = line.split(': ')
                     country_in_config = country_in_config.replace('\"', '').replace(',', '')
-
             country = None
             try:
                 meta = centinel.backend.get_meta(config.params, vp_ip)
@@ -245,7 +240,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 # some vpn config files already contain the alpha2 code (length == 2)
                 if 'country' in meta:
                     country = meta['country']
-
                 # try setting the VPN info (IP and country) to get appropriate
                 # experiemnts and input data.
                 try:
@@ -253,34 +247,26 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                     centinel.backend.set_vpn_info(config.params, vp_ip, country)
                 except Exception as exp:
                     logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
-
                 # sanity check
                 logging.info("%s: Starting VPN." % filename)
-
                 vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
                                       crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
-
                 vpn.start()
                 if not vpn.started:
                     logging.error("%s: Failed to start VPN!" % filename)
                     vpn.stop()
                     time.sleep(5)
                     continue
-
                 # sending ping to the anchors
                 ping_result = probe.perform_probe(sanity_path, vpn_provider, vp_ip, country, anchors)
-
                 # have to do this sanity check if timestamp is a certain value, needs changing
                 timestamp = time.time()
-                ping_result['timestamp'] = timestamp #Todo: ??
-
+                ping_result['timestamp'] = timestamp  # Todo: ??
                 logging.info("%s: Stopping VPN." % filename)
                 vpn.stop()
                 time.sleep(5)
-
             except:
                 logging.warning("Failed to send pings from %s" % vp_ip)
-
         # sanity check
         failed_sanity_check = set()
         sanity_checked_set = set()
@@ -289,6 +275,29 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         pickle_path = os.path.join(sanity_path, 'pings')
         file_lists = os.listdir(pickle_path)
         if file_lists:
+            num = 1
+            try:
+                num = multiprocessing.cpu_count()
+            except (ImportError, NotImplementedError):
+                pass
+            count = 0
+            pool = multiprocessing.Pool(processes=num)
+            for vp_ip, country, tag in pool.imap_unordered(san.run_checker,
+                                                           ((this_file, anchors_gps, map, sanity_path, pickle_path) for
+                                                            this_file in file_lists),
+                                                           chunksize=1):
+                if tag == -1:
+                    error_sanity_check.add(vp_ip + '-' + country)
+                elif tag == True:
+                    sanity_checked_set.add(vp_ip + '-' + country)
+                else:
+                    failed_sanity_check.add(vp_ip + '-' + country)
+                count += 1
+                logging.info("Finishing.. (%s/%s)" % (count, len(file_lists)))
+            pool.terminate()
+            pool.join()
+            for worker in pool._pool:
+                assert not worker.is_alive()
             for this_file in file_lists:
                 try:
                     vp_ip = this_file.split('-')[0]
@@ -305,9 +314,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                         failed_sanity_check.add(vp_ip + '-' + country)
                 except:
                     logging.warning("Failed to sanity check %s" % vp_ip)
-
         time_unique = time.time()
-        with open(os.path.join(sanity_path, 'results-of-sanity-check'+str(time_unique)+'.txt'), 'w') as f:
+        with open(os.path.join(sanity_path, 'results-of-sanity-check' + str(time_unique) + '.txt'), 'w') as f:
             f.write("Pass\n")
             for server in sanity_checked_set:
                 f.write(server + '\n')
@@ -318,9 +326,10 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             for server in error_sanity_check:
                 f.write(server + '\n')
         conf_list = list(sanity_checked_set)
-        logging.info("List size after sanity check. New size: %d" %len(conf_list))
-
-    # return 0
+        logging.info("List size after sanity check. New size: %d" % len(conf_list))
+        # end_time = time.time() - start_time
+        # logging.info("Total elapsed time: %s" %end_time)
+        # # return 0
 
     # reduce size of list if reduce_vp is true
     if reduce_vp:
