@@ -701,7 +701,7 @@ def update_config_files(directory, vp_list):
         configuration.params['country'] = server_country[vp.replace('.ovpn','')]
         conf_file = os.path.join(conf_dir, vp)
         configuration.write_out_config(conf_file)
-
+    shutil.rmtree(new_vpn_dir)
 
 def create_config_files(directory):
     """
