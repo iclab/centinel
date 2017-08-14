@@ -79,7 +79,7 @@ def update_config_files(directory):
     server_country = {}
     new_config_dict = {}
 
-    # move all config files to /vpns
+
     orig_path = os.path.join(directory, '../TCP')
     config_dict = {}
     server_country = {}

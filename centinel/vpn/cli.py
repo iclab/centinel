@@ -79,6 +79,9 @@ def parse_args():
     g1.add_argument('--create-vpngate-configs', dest='create_VPNGATE',
                     action='store_true',
                     help='Create the openvpn config files for VPN Gate')
+    g1.add_argument('--update-purevpn-configs', dest='update_PUREVPN',
+                    action="store_true",
+                    help='Update the openvpn config files for PUREVPN')
     parser.add_argument('--shuffle', '-s', dest='shuffle_lists',
                         action="store_true", default=False,
                         help='Randomize the order of vantage points')
@@ -852,6 +855,9 @@ def _run():
 	if args.update_IPVANISH:
 	    ipvanish_dir = return_abs_path(args.update_conf_dir, 'vpns')
 	    vp_list = ipvanish.update_config_files(ipvanish_dir)
+	if args.update_PUREVPN:
+	    purevpn_dir = return_abs_path(args.update_conf_dir, 'vpns')
+	    vp_list = purevpn.update_config_files(purevpn_dir)
         update_config_files(args.update_conf_dir, vp_list)
 
             # add new ones
