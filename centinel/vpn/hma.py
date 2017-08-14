@@ -45,7 +45,7 @@ def update_config_files(directory):
     """
     Update directory for vpn walker
     :param directory:
-    :return:
+    :return a list of delete, update and added vps:
     """
     updated_vpn_path = os.path.join(directory, '../updated_vpns')
     print(updated_vpn_path)
@@ -58,7 +58,6 @@ def update_config_files(directory):
     pkl_file = open(os.path.join(directory,'../config_hash.pkl'), 'rb')
     old_config_dict = pickle.load(pkl_file)
     pkl_file.close()
-#    print(config_dict)
 
     config_zip_url = "https://hidemyass.com/vpn-config/vpn-configs.zip"
 

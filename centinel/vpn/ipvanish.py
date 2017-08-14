@@ -41,7 +41,7 @@ def update_config_files(directory):
     """
     Update directory for vpn walker
     :param directory:
-    :return:
+    :return a list of delete, update and added vps:
     """
     updated_vpn_path = os.path.join(directory, '../updated_vpns')
     if not os.path.exists(updated_vpn_path):
