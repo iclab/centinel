@@ -761,16 +761,12 @@ def create_config_files(directory, provider):
             configuration.params['server']['verify'] = True
             configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
             configuration.params['country'] = server_country[filename.replace('.ovpn','')]
-	    
-    	    hostname = os.path.splitext(filename)[0]
-	    print('hostname is %s' %hostname)
-    	    vp_ip = "unknown"
-    	    try:
+	    hostname = os.path.splitext(filename)[0]
+	    vp_ip = "unknown"
+	    try:
 		vp_ip = socket.gethostbyname(hostname)
 	    except Exception as exp:
 		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
-	    continue
-
 	    configuration.params['custom_meta']['provider'] = provider
 	    configuration.params['custom_meta']['hostname'] = hostname
 	    configuration.params['custom_meta']['ip_address'] = vp_ip
