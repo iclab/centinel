@@ -30,7 +30,7 @@ def sanity_check(this_file, anchors_gps, map, directory, pickle_path):
     try:
         start_time = time.time()
         proxy_id = this_file.split('-')[0]
-        iso_cnt = this_file.split('-')[1]
+        iso_cnt = this_file.split('-')[1]   
         tag = -1
         with open(os.path.join(pickle_path, this_file), 'r') as f:
             ping_result = pickle.load(f)
@@ -92,7 +92,7 @@ def get_gps_of_anchors(anchors, directory):
                 if location == None:
                     location = geolocator.geocode(item['country'], timeout=10)
                 if location == None:
-                    logging.info("Fail to read gps of %s" %anchor)
+                    logging.info("Fail to read gps of %s/%s" %(anchor, item['city'] + ' ' + item['country']))
                 anchors_gps[anchor] = (location.latitude, location.longitude)
             except GeocoderTimedOut as e:
                 logging.info("Error geocode failed: %s" %(e))

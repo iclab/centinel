@@ -9,9 +9,7 @@ import multiprocessing as mp
 from datetime import timedelta
 from urllib import urlopen
 from bs4 import BeautifulSoup
-
 #-d vpn_providers/ipvanish/ -u auth_file --crt-file ca.ipvanish.com.crt
-
 
 def get_anchor_list(directory):
     """Get a list of all RIPE Anchors
@@ -65,7 +63,6 @@ def get_anchor_list(directory):
             # parsing ripe anchor website
             reload(sys)
             sys.setdefaultencoding('utf-8')
-
             html = urlopen('https://atlas.ripe.net/anchors/list/').read()
             soup = BeautifulSoup(html,"html.parser")
             ripe_records = (soup.find_all('tr'))
@@ -75,16 +72,16 @@ def get_anchor_list(directory):
                 rec = []
                 for column in columns:
                     soup_column = BeautifulSoup(str(column),"html.parser")
-                    rec.append('\"' + soup_column.td.text.strip().replace('\n','') + '\"')
+                    # rec.append('\"' + soup_column.td.text.strip().replace('\n','') + '\"')
+                    rec.append(soup_column.td.text.strip().replace('\n',''))
                 if(len(rec) > 0):
                     all_records.append(rec)
             ripe_path = os.path.join(directory,'RIPE_anchor_list.csv')
             with open(ripe_path,'w') as f:
-                f.write('Hostname,Probe,Company,City,Country,Capabilities\n')
+                csvwriter = csv.writer(f)
+                csvwriter.writerow(('Hostname','Probe','Company','City','Country'))
                 for sublist in all_records:
-                    for item in sublist:
-                        f.write(item + ',')
-                    f.write('\n')
+                    csvwriter.writerow((sublist[0], sublist[1], sublist[3].split('       ')[0], sublist[4], sublist[5]))
             logging.info("Creating RIPE_anchor list")
             with open(ripe_path, "r") as f:
                 reader = csv.reader(f)
@@ -92,10 +89,8 @@ def get_anchor_list(directory):
                     if row[0] == 'Hostname':
                         continue
                     anchors[row[0]] = {'probe': row[1], 'city': row[3], 'country': row[4], 'ip': str(), 'asn': str()}
-
         logging.info("Finished extracting RIPE anchors from file.")
         count = 0
-
         for key, value in anchors.iteritems():
             count += 1
             logging.info("Retrieving anchor %s, %s/%s" % (value['probe'], count, len(anchors)))
@@ -141,17 +136,14 @@ def send_ping(param):
     times[this_host] = this_delays
     return times
 
-
 def perform_probe(sanity_directory, vpn_provider, target_name, target_cnt, anchors):
     """Send ping 10 times to landmarks and choose the minimum
     :return: times [host] = list()
     """
     logging.info("Start Probing")
-
     pickle_path = os.path.join(sanity_directory,'pings')
     if not os.path.exists(pickle_path):
         os.makedirs(pickle_path)
-
     times = dict()
     s_time = time.time()
     results = []
@@ -174,7 +166,7 @@ def perform_probe(sanity_directory, vpn_provider, target_name, target_cnt, ancho
     logging.info("Creating pickle file")
     # putting time as a part of the filename
     time_unique = time.time()
-    with open(pickle_path + '/' + target_name + '-' + target_cnt + '-' + str(time_unique) + '.pickle', 'w') as f:
+    with open(pickle_path + '/' + vpn_provider + '-' + target_name + '-' + target_cnt + '-' + str(time_unique) + '.pickle', 'w') as f:
         pickle.dump(final, f)
-    	logging.info("Pickle file successfully created.")
+        logging.info("Pickle file successfully created.")
     return final
