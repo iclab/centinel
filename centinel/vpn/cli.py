@@ -35,9 +35,9 @@ import probe as probe
 import geosanity as san
 
 PID_FILE = "/tmp/centinel.lock"
-# log_file = 'log_vpn.log'
-# logging.basicConfig(format="%(asctime)s %(levelname)s: %(message)s",
-#                         filename=log_file )
+log_file = 'log_vpn.log'
+logging.basicConfig(format="%(asctime)s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
+                        filename=log_file )
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -231,43 +231,45 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                     (key, country_in_config) = line.split(': ')
                     country_in_config = country_in_config.replace('\"', '').replace(',', '')
             country = None
+            meta = centinel.backend.get_meta(config.params, vp_ip)
+            # send country name to be converted to alpha2 code
+            if (len(country_in_config) > 2):
+                meta['country'] = convertor.country_to_a2(country_in_config)
+                # country = convertor.country_to_a2(country_in_config)
+            # some vpn config files already contain the alpha2 code (length == 2)
+            if 'country' in meta:
+                country = meta['country']
+            # try setting the VPN info (IP and country) to get appropriate
+            # experiemnts and input data.
             try:
-                meta = centinel.backend.get_meta(config.params, vp_ip)
-                # send country name to be converted to alpha2 code
-                if (len(country_in_config) > 2):
-                    meta['country'] = convertor.country_to_a2(country_in_config)
-                    # country = convertor.country_to_a2(country_in_config)
-                # some vpn config files already contain the alpha2 code (length == 2)
-                if 'country' in meta:
-                    country = meta['country']
-                # try setting the VPN info (IP and country) to get appropriate
-                # experiemnts and input data.
-                try:
-                    logging.info("country is %s" % country)
-                    centinel.backend.set_vpn_info(config.params, vp_ip, country)
-                except Exception as exp:
-                    logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
-                # sanity check
-                logging.info("%s: Starting VPN." % filename)
-                vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
-                                      crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
-                vpn.start()
-                if not vpn.started:
-                    logging.error("%s: Failed to start VPN!" % filename)
-                    vpn.stop()
-                    time.sleep(5)
-                    continue
-                # sending ping to the anchors
-                ping_result = probe.perform_probe(sanity_path, vpn_provider, vp_ip, country, anchors)
-                # have to do this sanity check if timestamp is a certain value, needs changing
-                timestamp = time.time()
-                ping_result['timestamp'] = timestamp  # Todo: ??
-                logging.info("%s: Stopping VPN." % filename)
+                logging.info("country is %s" % country)
+                centinel.backend.set_vpn_info(config.params, vp_ip, country)
+            except Exception as exp:
+                logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
+            # sanity check
+            logging.info("%s: Starting VPN." % filename)
+            vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
+                                  crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
+            vpn.start()
+            if not vpn.started:
+                logging.error("%s: Failed to start VPN!" % filename)
                 vpn.stop()
                 time.sleep(5)
+                continue
+            # sending ping to the anchors
+            try:
+                ping_result = probe.perform_probe(sanity_path, vpn_provider, vp_ip, country, anchors)
+            # have to do this sanity check if timestamp is a certain value, needs changing
+                timestamp = time.time()
+                ping_result['timestamp'] = timestamp
             except:
                 logging.warning("Failed to send pings from %s" % vp_ip)
+            logging.info("%s: Stopping VPN." % filename)
+            vpn.stop()
+            time.sleep(5)
+
         # sanity check
+        # return 0
         failed_sanity_check = set()
         sanity_checked_set = set()
         error_sanity_check = set()
