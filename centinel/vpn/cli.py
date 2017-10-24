@@ -177,16 +177,13 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     # geolocation sanity check
     if sanity_check:
         # start_time = time.time()
-        # create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
+        # create a directory to store the RIPE anchor list in it so other vpns could use it as well
         sanity_path = os.path.join(directory, '../sanitycheck')
         if not os.path.exists(sanity_path):
             os.makedirs(sanity_path)
         # fetch the list of RIPE anchors
-        anchors = probe.get_anchor_list(sanity_path)
+        anchors = probe.retrieve_anchor_list(sanity_path)
         logging.info("Anchors list fetched")
-        # get anchor's gps
-        anchors_gps = probe.get_gps_of_anchors(anchors, sanity_path)
-        logging.info("Anchors gps fetched")
         # get a world map from shapefile
         shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
         if not os.path.exists(shapefile):
@@ -285,7 +282,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             count = 0
             pool = multiprocessing.Pool(processes=num)
             for vp_ip, country, tag in pool.imap_unordered(san.run_checker,
-                                                           ((this_file, anchors_gps, map, sanity_path, pickle_path) for
+                                                           ((this_file, anchors, map, sanity_path, pickle_path) for
                                                             this_file in file_lists),
                                                            chunksize=1):
                 if tag == -1:
