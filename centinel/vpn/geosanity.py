@@ -14,6 +14,12 @@ import functools
 import pycountry
 from shapely.ops import transform as sh_transform
 from shapely.geometry import Point, Polygon, box as Box
+import urllib2
+import zipfile
+import requests
+import StringIO
+
+
 
 def run_checker(args):
     return sanity_check(*args)
@@ -57,12 +63,24 @@ def sanity_check(this_file, anchors_gps, map, directory, pickle_path):
         return "N/A", "N/A", -1
     return proxy_id, iso_cnt, tag
 
-def load_map_from_shapefile(shapefile):
+def load_map_from_shapefile(sanity_path):
     """
     Load all countries from shapefile
     (e.g.,  shapefile = 'map/ne_10m_admin_0_countries.shp')
     """
     logging.info("Loading a shapefile for the world map")
+    shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
+    if not os.path.exists(shapefile):
+        logging.info("Shape file does not exist, Downloading from server")
+        shapefile_url = 'http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip'
+        logging.info("Starting to download map shape file zip")
+        try:
+            r = requests.get(shapefile_url, stream=True)
+            z = zipfile.ZipFile(StringIO.StringIO(r.content))
+            z.extractall(sanity_path)
+            logging.info("Map shape file downloaded")
+        except Exception as exp:
+            logging.error("Could not fetch map file : %s" % str(exp))
     temp = GeoDataFrame.from_file(shapefile)
     # print temp.dtypes.index
     map = temp[['ISO_A2', 'NAME', 'SUBREGION', 'geometry']]

@@ -68,12 +68,12 @@ def send_ping(param):
     return times
 
 
-def perform_probe(sanity_directory, vpn_provider, target_name, target_cnt, anchors):
+def perform_probe(sanity_directory, vpn_provider, target_ip, hostname, target_cnt, anchors):
     """Send ping 10 times to landmarks and choose the minimum
     :return: times [host] = list()
     """
-    logging.info("Start Probing (%s)" %target_name)
-    pickle_path = os.path.join(sanity_directory, 'pings')
+    logging.info("Start Probing [%s(%s)]" %(hostname, target_ip))
+    pickle_path = os.path.join(sanity_directory, 'pings/' + vpn_provider)
     if not os.path.exists(pickle_path):
         os.makedirs(pickle_path)
     times = dict()
@@ -81,7 +81,7 @@ def perform_probe(sanity_directory, vpn_provider, target_name, target_cnt, ancho
     results = []
     process_num = 25
     pool = mp.Pool(processes=process_num)
-    results.append(pool.map(send_ping, [(this_host, Param['ip']) for this_host, Param in anchors.iteritems()]))
+    results.append(pool.map(send_ping, [(this_host, Param['ip_v4']) for this_host, Param in anchors.iteritems()]))
     _sum = 0
     _total = 0
     for output in results[0]:
@@ -93,16 +93,13 @@ def perform_probe(sanity_directory, vpn_provider, target_name, target_cnt, ancho
             for this in value:
                 times[key].append(this)
     e_time = time.time()
-    logging.info("Finish Probing (%s): average %s/10 (%sec)" %(target_name, _sum/float(_total), e_time-s_time))
+    logging.info("Finish Probing [%s(%s)]: average succeeded pings=%.2f/10 (%.2fsec)"
+                 %(hostname, target_ip, _sum/float(_total), e_time - s_time))
     pool.close()
     pool.join()
-    final = {target_name: dict()}
-    final[target_name]['pings'] = times
-    final[target_name]['cnt'] = target_cnt
+    final = {hostname: {'pings': times, 'cnt': target_cnt, 'ip_v4': target_ip}}
     logging.info("Creating pickle file")
-    # putting time as a part of the filename
-    time_unique = time.time()
-    with open(pickle_path + '/' + vpn_provider + '-' + target_name + '-' + target_cnt + '-' + str(time_unique) + '.pickle', 'w') as f:
+    with open(pickle_path+'/'+vpn_provider+'-'+hostname+'-'+target_ip+'-'+target_cnt+'.pickle', 'w') as f:
         pickle.dump(final, f)
         logging.info("Pickle file successfully created.")
     return final

@@ -13,10 +13,6 @@ import signal
 import dns.resolver
 import json
 import pickle
-import urllib2
-import zipfile
-import requests
-import StringIO
 import socket
 import shutil
 import multiprocessing
@@ -176,7 +172,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
     # geolocation sanity check
     if sanity_check:
-        # start_time = time.time()
+        start_time = time.time()
         # create a directory to store the RIPE anchor list in it so other vpns could use it as well
         sanity_path = os.path.join(directory, '../sanitycheck')
         if not os.path.exists(sanity_path):
@@ -184,55 +180,32 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # fetch the list of RIPE anchors
         anchors = probe.retrieve_anchor_list(sanity_path)
         logging.info("Anchors list fetched")
-        # get a world map from shapefile
-        shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
-        if not os.path.exists(shapefile):
-            logging.info("Shape file does not exist, Downloading from server")
-            shapefile_url = 'http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip'
-            logging.info("Starting to download map shape file zip")
-            try:
-                r = requests.get(shapefile_url, stream=True)
-                z = zipfile.ZipFile(StringIO.StringIO(r.content))
-                z.extractall(sanity_path)
-                logging.info("Map shape file downloaded")
-            except Exception as exp:
-                logging.error("Could not fetch map file : %s" % str(exp))
-        map = san.load_map_from_shapefile(shapefile)
         for filename in conf_list:
+            vpn_config = os.path.join(vpn_dir, filename)
             centinel_config = os.path.join(conf_dir, filename)
             config = centinel.config.Configuration()
             config.parse_config(centinel_config)
             # get ip address of hostnames
             hostname = os.path.splitext(filename)[0]
-            vp_ip = "unknown"
             try:
                 vp_ip = socket.gethostbyname(hostname)
             except Exception as exp:
                 logging.exception("Failed to resolve %s : %s" % (hostname, str(exp)))
                 continue
-            vpn_config = os.path.join(vpn_dir, filename)
-            centinel_config = os.path.join(conf_dir, filename)
-            # assuming that each VPN config file has a name like:
-            # [ip-address].ovpn, we can extract IP address from filename
-            # and use it to geolocate and fetch experiments before connecting
-            # to VPN.
-            # filename is [hostname].ovpn, we resolved the hostname to ip
-            # using socket.gethostbyname()
-            vpn_address, extension = os.path.splitext(filename)
-            lines = [line.rstrip('\n') for line in open(centinel_config)]
+            # check if vp_ip is changed (when compared to ip in config file)
+            # if not changed, then we can use the current results of ping + sanity check
+            # otherwise, send ping again.
             # get country for this vpn
+            with open(centinel_config) as fc:
+                json_data = json.load(fc)
             country_in_config = ""
-            # reading the server.txt file in vpns folder
-            for line in lines:
-                if "country" in line:
-                    (key, country_in_config) = line.split(': ')
-                    country_in_config = country_in_config.replace('\"', '').replace(',', '')
+            if 'country' in json_data:
+                country_in_config = json_data['country']
             country = None
             meta = centinel.backend.get_meta(config.params, vp_ip)
             # send country name to be converted to alpha2 code
             if (len(country_in_config) > 2):
                 meta['country'] = convertor.country_to_a2(country_in_config)
-                # country = convertor.country_to_a2(country_in_config)
             # some vpn config files already contain the alpha2 code (length == 2)
             if 'country' in meta:
                 country = meta['country']
@@ -243,7 +216,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 centinel.backend.set_vpn_info(config.params, vp_ip, country)
             except Exception as exp:
                 logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
-            # sanity check
+            # send pings
             logging.info("%s: Starting VPN." % filename)
             vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
                                   crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
@@ -255,18 +228,18 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 continue
             # sending ping to the anchors
             try:
-                ping_result = probe.perform_probe(sanity_path, vpn_provider, vp_ip, country, anchors)
-            # have to do this sanity check if timestamp is a certain value, needs changing
-                timestamp = time.time()
-                ping_result['timestamp'] = timestamp
+                ping_result = probe.perform_probe(sanity_path, vpn_provider, vp_ip, hostname, country, anchors)
             except:
                 logging.warning("Failed to send pings from %s" % vp_ip)
             logging.info("%s: Stopping VPN." % filename)
             vpn.stop()
             time.sleep(5)
 
+            return 0
         # sanity check
         # return 0
+        # get a world map from shapefile
+        map = san.load_map_from_shapefile(sanity_path)
         failed_sanity_check = set()
         sanity_checked_set = set()
         error_sanity_check = set()
@@ -326,8 +299,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 f.write(server + '\n')
         conf_list = list(sanity_checked_set)
         logging.info("List size after sanity check. New size: %d" % len(conf_list))
-        # end_time = time.time() - start_time
-        # logging.info("Total elapsed time: %s" %end_time)
+        end_time = time.time() - start_time
+        logging.info("Total elapsed time: %s" %end_time)
         # # return 0
 
     # reduce size of list if reduce_vp is true
