@@ -9,7 +9,6 @@ import multiprocessing as mp
 from datetime import timedelta
 from urllib import urlopen
 from bs4 import BeautifulSoup
-#-d vpn_providers/ipvanish/ -u auth_file --crt-file ca.ipvanish.com.crt
 
 def get_anchor_list(directory):
     """Get a list of all RIPE Anchors
@@ -140,24 +139,28 @@ def perform_probe(sanity_directory, vpn_provider, target_name, target_cnt, ancho
     """Send ping 10 times to landmarks and choose the minimum
     :return: times [host] = list()
     """
-    logging.info("Start Probing")
+    logging.info("Start Probing (%s)" %target_name)
     pickle_path = os.path.join(sanity_directory,'pings')
     if not os.path.exists(pickle_path):
         os.makedirs(pickle_path)
     times = dict()
     s_time = time.time()
     results = []
-    process_num = 6
+    process_num = 25
     pool = mp.Pool(processes=process_num)
-    results.append(pool.map(send_ping, [(this_host, Param['ip']) for this_host, Param in anchors.iteritems()]))
+    results.append(pool.map(send_ping, [(this_host, Param['ip']) for this_host, Param in anchors['anchors'].iteritems()]))
+    _sum = 0
+    _total = 0
     for output in results[0]:
+        _total += 1
         for key, value in output.iteritems():
+            _sum += len(value)
             if key not in times:
                 times[key] = list()
             for this in value:
                 times[key].append(this)
     e_time = time.time()
-    logging.info(e_time - s_time)
+    logging.info("Finish Probing (%s): %s/10 (%sec)" %(target_name, _sum/float(_total), e_time-s_time))
     pool.close()
     pool.join()
     final = {target_name: dict()}
