@@ -6,6 +6,8 @@ import pickle
 import time
 import subprocess
 import multiprocessing as mp
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 from datetime import timedelta
 from urllib import urlopen
 from bs4 import BeautifulSoup
@@ -117,6 +119,38 @@ def get_anchor_list(directory):
     except (TypeError, ValueError, UnicodeError) as e:
         sys.exit(1)
 
+def get_gps_of_anchors(anchors, directory):
+    """
+    Get gps of all anchors
+    Note: geopy library has a limitation for query in a certain time.
+          While testing, better to store the query results so that we can reduce the number of query.
+    """
+    logging.info("Starting to get RIPE anchors' gps")
+    anchors_gps = dict()
+    count = 0
+    try:
+        with open(os.path.join(directory, "gps_of_anchors.pickle"), "r") as f:
+            anchors_gps = pickle.load(f)
+    except:
+        logging.info("gps_of_anchors.pickle is not existed")
+        for anchor, item in anchors.iteritems():
+            count += 1
+            logging.info(
+                "Retrieving... %s(%s/%s): %s" % (anchor, count, len(anchors), item['city'] + ' ' + item['country']))
+            geolocator = Nominatim()
+            try:
+                location = geolocator.geocode(item['city'] + ' ' + item['country'], timeout=10)
+                if location == None:
+                    location = geolocator.geocode(item['country'], timeout=10)
+                if location == None:
+                    logging.info("Fail to read gps of %s/%s" %(anchor, item['city'] + ' ' + item['country']))
+                anchors_gps[anchor] = (location.latitude, location.longitude)
+            except GeocoderTimedOut as e:
+                logging.info("Error geocode failed: %s" %(e))
+        with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
+            pickle.dump(anchors_gps, f)
+    return anchors_gps
+
 def send_ping(param):
     this_host, ip = param
     logging.info("Pinging (%s, %s)" % (this_host, ip))
@@ -160,7 +194,7 @@ def perform_probe(sanity_directory, vpn_provider, target_name, target_cnt, ancho
             for this in value:
                 times[key].append(this)
     e_time = time.time()
-    logging.info("Finish Probing (%s): %s/10 (%sec)" %(target_name, _sum/float(_total), e_time-s_time))
+    logging.info("Finish Probing (%s): average %s/10 (%sec)" %(target_name, _sum/float(_total), e_time-s_time))
     pool.close()
     pool.join()
     final = {target_name: dict()}

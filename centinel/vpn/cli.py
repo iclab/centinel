@@ -185,7 +185,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         anchors = probe.get_anchor_list(sanity_path)
         logging.info("Anchors list fetched")
         # get anchor's gps
-        anchors_gps = san.get_gps_of_anchors(anchors, sanity_path)
+        anchors_gps = probe.get_gps_of_anchors(anchors, sanity_path)
         logging.info("Anchors gps fetched")
         # get a world map from shapefile
         shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"

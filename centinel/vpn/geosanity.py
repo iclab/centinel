@@ -68,38 +68,6 @@ def load_map_from_shapefile(shapefile):
     map = temp[['ISO_A2', 'NAME', 'SUBREGION', 'geometry']]
     return map
 
-def get_gps_of_anchors(anchors, directory):
-    """
-    Get gps of all anchors
-    Note: geopy library has a limitation for query in a certain time.
-          While testing, better to store the query results so that we can reduce the number of query.
-    """
-    logging.info("Starting to get RIPE anchors' gps")
-    anchors_gps = dict()
-    count = 0
-    try:
-        with open(os.path.join(directory, "gps_of_anchors.pickle"), "r") as f:
-            anchors_gps = pickle.load(f)
-    except:
-        logging.info("gps_of_anchors.pickle is not existed")
-        for anchor, item in anchors.iteritems():
-            count += 1
-            logging.info(
-                "Retrieving... %s(%s/%s): %s" % (anchor, count, len(anchors), item['city'] + ' ' + item['country']))
-            geolocator = Nominatim()
-            try:
-                location = geolocator.geocode(item['city'] + ' ' + item['country'], timeout=10)
-                if location == None:
-                    location = geolocator.geocode(item['country'], timeout=10)
-                if location == None:
-                    logging.info("Fail to read gps of %s/%s" %(anchor, item['city'] + ' ' + item['country']))
-                anchors_gps[anchor] = (location.latitude, location.longitude)
-            except GeocoderTimedOut as e:
-                logging.info("Error geocode failed: %s" %(e))
-        with open(os.path.join(directory, "gps_of_anchors.pickle"), "w") as f:
-            pickle.dump(anchors_gps, f)
-    return anchors_gps
-
 class Checker:
     def __init__(self, proxy_id, iso, path):
         self.proxy_id = proxy_id
