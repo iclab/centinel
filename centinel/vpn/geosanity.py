@@ -24,7 +24,7 @@ import StringIO
 def run_checker(args):
     return sanity_check(*args)
 
-def sanity_check(this_file, anchors_gps, map, directory, pickle_path):
+def sanity_check(args):
     """
     :param proxy_id:(str)
     :param iso_cnt:(str)
@@ -33,27 +33,27 @@ def sanity_check(this_file, anchors_gps, map, directory, pickle_path):
     :param map:(dataframe)
     :return:
     """
+    this_file, anchors, map, sanity_path, pickle_path = args
     try:
         start_time = time.time()
-        proxy_id = this_file.split('-')[0]
-        iso_cnt = this_file.split('-')[1]   
-        tag = -1
         with open(os.path.join(pickle_path, this_file), 'r') as f:
-            ping_result = pickle.load(f)
-        ping_results = ping_result[proxy_id]['pings']
-        checker = Checker(proxy_id, iso_cnt, directory)
-        # points = checker.check_ping_results(results, anchors_gps)
-        points = checker.check_ping_results(ping_results, anchors_gps)
+            json_data = pickle.load(f)
+        proxy_name = json_data.keys()[0]
+        iso_cnt = json_data[proxy_name]['cnt']
+        pings = json_data[proxy_name]['pings']
+        provider =json_data[proxy_name]['vpn_provider']
+        checker = Checker(proxy_name, iso_cnt, sanity_path, provider)
+        points = checker.check_ping_results(pings, anchors)
         if len(points) == 0:
-            logging.info("No valid ping results for %s" % proxy_id)
-            return proxy_id, iso_cnt, -1
+            logging.info("No valid ping results for %s" % proxy_name)
+            return proxy_name, iso_cnt, -1
         logging.info("[%s] has %s valid anchors' results (valid pings) from %s anchors"
-                     %(proxy_id, len(points), len(ping_results)))
+                     %(proxy_name, len(points), len(pings)))
         circles = checker.get_anchors_region(points)
         proxy_region = checker.get_vpn_region(map)
         if proxy_region.empty:
-            logging.info("[%s] Fail to get proxy region: %s" % (proxy_id, iso_cnt))
-            return proxy_id, iso_cnt, -1
+            logging.info("[%s] Fail to get proxy region: %s" % (proxy_name, iso_cnt))
+            return proxy_name, iso_cnt, -1
         results = checker.check_overlap(proxy_region, circles, this_file)
         tag = checker.is_valid(results)
         end_time = time.time() - start_time
@@ -61,7 +61,7 @@ def sanity_check(this_file, anchors_gps, map, directory, pickle_path):
     except:
         logging.warning("[%s] Failed to sanity check" % this_file)
         return "N/A", "N/A", -1
-    return proxy_id, iso_cnt, tag
+    return proxy_name, iso_cnt, tag
 
 def load_map_from_shapefile(sanity_path):
     """
@@ -69,7 +69,7 @@ def load_map_from_shapefile(sanity_path):
     (e.g.,  shapefile = 'map/ne_10m_admin_0_countries.shp')
     """
     logging.info("Loading a shapefile for the world map")
-    shapefile = sanity_path + "/ne_10m_admin_0_countries.shp"
+    shapefile = os.path.join(sanity_path, "ne_10m_admin_0_countries.shp")
     if not os.path.exists(shapefile):
         logging.info("Shape file does not exist, Downloading from server")
         shapefile_url = 'http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip'
@@ -87,7 +87,8 @@ def load_map_from_shapefile(sanity_path):
     return map
 
 class Checker:
-    def __init__(self, proxy_id, iso, path):
+    def __init__(self, proxy_id, iso, path, vpn_provider):
+        self.vpn_provider = vpn_provider
         self.proxy_id = proxy_id
         self.iso = iso
         self.gps = self._get_gps_of_proxy()
@@ -216,11 +217,10 @@ class Checker:
                 area_overlap = sum(area_overlap.tolist())
                 stack = area_overlap/area_cnt
                 results.append((True, stack))
-        pickle_path = os.path.join(self.path, 'sanity')
+        pickle_path = os.path.join(self.path, 'sanity/'+self.vpn_provider)
         if not os.path.exists(pickle_path):
             os.makedirs(pickle_path)
-        time_unique = time.time()
-        with open(pickle_path + '/' + ping_filename, 'w') as f:
+        with open(os.path.join(pickle_path, ping_filename), 'w') as f:
             pickle.dump(results, f)
             logging.info("Pickle file successfully created.")
         return results
@@ -265,9 +265,10 @@ class Checker:
                 continue
             # calculate the distance(km) between proxy and anchor
             distance = 0
+            anchor_gps = (anchors_gps[anchor]['latitude'], anchors_gps[anchor]['longitude'])
             if len(self.gps) != 0:
-                distance = vincenty(anchors_gps[anchor], self.gps).km
-            points.append((distance, min_delay, anchors_gps[anchor][0], anchors_gps[anchor][1], radi))
+                distance = vincenty(anchor_gps, self.gps).km
+            points.append((distance, min_delay, anchor_gps[0], anchor_gps[1], radi))
         if len(points) == 0:
             logging.debug("no valid pings results")
             return []

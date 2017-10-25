@@ -97,9 +97,9 @@ def perform_probe(sanity_directory, vpn_provider, target_ip, hostname, target_cn
                  %(hostname, target_ip, _sum/float(_total), e_time - s_time))
     pool.close()
     pool.join()
-    final = {hostname: {'pings': times, 'cnt': target_cnt, 'ip_v4': target_ip}}
+    final = {hostname: {'pings': times, 'cnt': target_cnt, 'ip_v4': target_ip,
+                        'timestamp': time.time(), 'vpn_provider': vpn_provider}}
     logging.info("Creating pickle file")
     with open(pickle_path+'/'+vpn_provider+'-'+hostname+'-'+target_ip+'-'+target_cnt+'.pickle', 'w') as f:
         pickle.dump(final, f)
         logging.info("Pickle file successfully created.")
-    return final

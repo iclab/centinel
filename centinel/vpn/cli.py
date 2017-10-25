@@ -9,13 +9,15 @@ from random import shuffle
 import os
 import time
 import sys
+import csv
 import signal
 import dns.resolver
 import json
 import pickle
 import socket
 import shutil
-import multiprocessing
+import datetime
+import multiprocessing as mp
 
 import centinel.backend
 import centinel.client
@@ -173,15 +175,12 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     # geolocation sanity check
     if sanity_check:
         start_time = time.time()
-        # create a directory to store the RIPE anchor list in it so other vpns could use it as well
         sanity_path = os.path.join(directory, '../sanitycheck')
         if not os.path.exists(sanity_path):
             os.makedirs(sanity_path)
-        # fetch the list of RIPE anchors
         anchors = probe.retrieve_anchor_list(sanity_path)
         logging.info("Anchors list fetched")
         for filename in conf_list:
-            vpn_config = os.path.join(vpn_dir, filename)
             centinel_config = os.path.join(conf_dir, filename)
             config = centinel.config.Configuration()
             config.parse_config(centinel_config)
@@ -195,6 +194,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             # check if vp_ip is changed (when compared to ip in config file)
             # if not changed, then we can use the current results of ping + sanity check
             # otherwise, send ping again.
+
             # get country for this vpn
             with open(centinel_config) as fc:
                 json_data = json.load(fc)
@@ -216,7 +216,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 centinel.backend.set_vpn_info(config.params, vp_ip, country)
             except Exception as exp:
                 logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
-            # send pings
+
+            # start openvpn
+            vpn_config = os.path.join(vpn_dir, filename)
             logging.info("%s: Starting VPN." % filename)
             vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
                                   crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
@@ -228,80 +230,48 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 continue
             # sending ping to the anchors
             try:
-                ping_result = probe.perform_probe(sanity_path, vpn_provider, vp_ip, hostname, country, anchors)
+                probe.perform_probe(sanity_path, vpn_provider, vp_ip, hostname, country, anchors)
             except:
                 logging.warning("Failed to send pings from %s" % vp_ip)
             logging.info("%s: Stopping VPN." % filename)
             vpn.stop()
             time.sleep(5)
 
-            return 0
         # sanity check
-        # return 0
-        # get a world map from shapefile
+        pickle_path = os.path.join(sanity_path, 'pings/' + vpn_provider)
         map = san.load_map_from_shapefile(sanity_path)
-        failed_sanity_check = set()
-        sanity_checked_set = set()
-        error_sanity_check = set()
-        vp_ip = 'unknown'
-        pickle_path = os.path.join(sanity_path, 'pings')
         file_lists = os.listdir(pickle_path)
         if file_lists:
-            num = 1
             try:
-                num = multiprocessing.cpu_count()
+                num = mp.cpu_count()
             except (ImportError, NotImplementedError):
+                num = 1
                 pass
-            count = 0
-            pool = multiprocessing.Pool(processes=num)
-            for vp_ip, country, tag in pool.imap_unordered(san.run_checker,
-                                                           ((this_file, anchors, map, sanity_path, pickle_path) for
-                                                            this_file in file_lists),
-                                                           chunksize=1):
-                if tag == -1:
-                    error_sanity_check.add(vp_ip + '-' + country)
-                elif tag == True:
-                    sanity_checked_set.add(vp_ip + '-' + country)
-                else:
-                    failed_sanity_check.add(vp_ip + '-' + country)
-                count += 1
-                logging.info("Finishing.. (%s/%s)" % (count, len(file_lists)))
-            pool.terminate()
+            pool = mp.Pool(processes=num)
+            results = []
+            results.append(pool.map(san.sanity_check, [(this_file, anchors, map, sanity_path, pickle_path)
+                                                       for this_file in file_lists]))
+            pool.close()
             pool.join()
-            for worker in pool._pool:
-                assert not worker.is_alive()
-            for this_file in file_lists:
-                try:
-                    vp_ip = this_file.split('-')[0]
-                    country = this_file.split('-')[1]
-                    with open(os.path.join(pickle_path, this_file), 'r') as f:
-                        ping_result = pickle.load(f)
-                    tag = san.sanity_check(vp_ip, country, ping_result[vp_ip]['pings'], anchors_gps, map,
-                                           sanity_path)
-                    if tag == -1:
-                        error_sanity_check.add(vp_ip + '-' + country)
-                    elif tag == True:
-                        sanity_checked_set.add(vp_ip + '-' + country)
-                    else:
-                        failed_sanity_check.add(vp_ip + '-' + country)
-                except:
-                    logging.warning("Failed to sanity check %s" % vp_ip)
-        time_unique = time.time()
-        with open(os.path.join(sanity_path, 'results-of-sanity-check' + str(time_unique) + '.txt'), 'w') as f:
-            f.write("Pass\n")
-            for server in sanity_checked_set:
-                f.write(server + '\n')
-            f.write("Fail\n")
-            for server in failed_sanity_check:
-                f.write(server + '\n')
-            f.write("Error\n")
-            for server in error_sanity_check:
-                f.write(server + '\n')
-        conf_list = list(sanity_checked_set)
-        logging.info("List size after sanity check. New size: %d" % len(conf_list))
+            new_conf_list = []
+            result_path = os.path.join(sanity_path, 'results/' + vpn_provider)
+            if not os.path.exists(result_path):
+                os.makedirs(result_path)
+            current_time = datetime.date.today().strftime("%Y-%m-%d")
+            with open(os.path.join(result_path, vpn_provider + '-' + current_time + '.csv'), 'w') as f:
+                writer = csv.writer(f)
+                writer.writerow(('proxy_name', 'country', 'truth'))
+                for output in results:
+                    for proxy_name, iso_cnt, tag in output:
+                        if tag == True:
+                            new_conf_list.append(proxy_name + '.ovpn')
+                        writer.writerow((proxy_name, iso_cnt, tag))
+            logging.info("List size after sanity check. New size: %d" % len(new_conf_list))
+            conf_list = new_conf_list
+
         end_time = time.time() - start_time
-        logging.info("Total elapsed time: %s" %end_time)
-        # # return 0
+        logging.info("Finished sanity check: total elapsed time (%.2f)" %end_time)
+
 
     # reduce size of list if reduce_vp is true
     if reduce_vp:
