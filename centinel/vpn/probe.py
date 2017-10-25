@@ -1,12 +1,18 @@
 import os
-import logging
-import pickle
 import time
+import json
+import pickle
+import socket
+import logging
+import requests
 import subprocess
 import multiprocessing as mp
 from datetime import timedelta
-import requests
 from urlparse import urljoin
+
+import country_module as convertor
+import centinel.backend
+import centinel.vpn.openvpn as openvpn
 
 def retrieve_anchor_list(directory):
     """ Retrieve anchor lists with RIPE API
@@ -103,3 +109,65 @@ def perform_probe(sanity_directory, vpn_provider, target_ip, hostname, target_cn
     with open(pickle_path+'/'+vpn_provider+'-'+hostname+'-'+target_ip+'-'+target_cnt+'.pickle', 'w') as f:
         pickle.dump(final, f)
         logging.info("Pickle file successfully created.")
+
+
+def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
+                key_direction, sanity_path, vpn_provider, anchors):
+    """ Run vpn_walk to get pings from proxy to anchors
+    """
+    for filename in conf_list:
+        centinel_config = os.path.join(conf_dir, filename)
+        config = centinel.config.Configuration()
+        config.parse_config(centinel_config)
+        # get ip address of hostnames
+        hostname = os.path.splitext(filename)[0]
+        try:
+            vp_ip = socket.gethostbyname(hostname)
+        except Exception as exp:
+            logging.exception("Failed to resolve %s : %s" % (hostname, str(exp)))
+            continue
+        # check if vp_ip is changed (when compared to ip in config file)
+        # if not changed, then we can use the current results of ping + sanity check
+        # otherwise, send ping again.
+
+        # get country for this vpn
+        with open(centinel_config) as fc:
+            json_data = json.load(fc)
+        country_in_config = ""
+        if 'country' in json_data:
+            country_in_config = json_data['country']
+        country = None
+        meta = centinel.backend.get_meta(config.params, vp_ip)
+        # send country name to be converted to alpha2 code
+        if (len(country_in_config) > 2):
+            meta['country'] = convertor.country_to_a2(country_in_config)
+        # some vpn config files already contain the alpha2 code (length == 2)
+        if 'country' in meta:
+            country = meta['country']
+        # try setting the VPN info (IP and country) to get appropriate
+        # experiemnts and input data.
+        try:
+            logging.info("country is %s" % country)
+            centinel.backend.set_vpn_info(config.params, vp_ip, country)
+        except Exception as exp:
+            logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
+
+        # start openvpn
+        vpn_config = os.path.join(vpn_dir, filename)
+        logging.info("%s: Starting VPN." % filename)
+        vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
+                              crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
+        vpn.start()
+        if not vpn.started:
+            logging.error("%s: Failed to start VPN!" % filename)
+            vpn.stop()
+            time.sleep(5)
+            continue
+        # sending ping to the anchors
+        try:
+            perform_probe(sanity_path, vpn_provider, vp_ip, hostname, country, anchors)
+        except:
+            logging.warning("Failed to send pings from %s" % vp_ip)
+        logging.info("%s: Stopping VPN." % filename)
+        vpn.stop()
+        time.sleep(5)
