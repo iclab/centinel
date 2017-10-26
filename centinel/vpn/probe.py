@@ -115,6 +115,7 @@ def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
                 key_direction, sanity_path, vpn_provider, anchors):
     """ Run vpn_walk to get pings from proxy to anchors
     """
+    start_time = time.time()
     for filename in conf_list:
         centinel_config = os.path.join(conf_dir, filename)
         config = centinel.config.Configuration()
@@ -126,35 +127,17 @@ def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
         except Exception as exp:
             logging.exception("Failed to resolve %s : %s" % (hostname, str(exp)))
             continue
-        # check if vp_ip is changed (when compared to ip in config file)
-        # if not changed, then we can use the current results of ping + sanity check
-        # otherwise, send ping again.
-
         # get country for this vpn
         with open(centinel_config) as fc:
             json_data = json.load(fc)
         country_in_config = ""
         if 'country' in json_data:
             country_in_config = json_data['country']
-        country = None
-        meta = centinel.backend.get_meta(config.params, vp_ip)
-        # send country name to be converted to alpha2 code
         if (len(country_in_config) > 2):
-            meta['country'] = convertor.country_to_a2(country_in_config)
-        # some vpn config files already contain the alpha2 code (length == 2)
-        if 'country' in meta:
-            country = meta['country']
-        # try setting the VPN info (IP and country) to get appropriate
-        # experiemnts and input data.
-        try:
-            logging.info("country is %s" % country)
-            centinel.backend.set_vpn_info(config.params, vp_ip, country)
-        except Exception as exp:
-            logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
-
+            country = convertor.country_to_a2(country_in_config)
         # start openvpn
         vpn_config = os.path.join(vpn_dir, filename)
-        logging.info("%s: Starting VPN." % filename)
+        logging.info("%s: Starting VPN. (%s)" %(filename, country))
         vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
                               crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
         vpn.start()
@@ -171,3 +154,5 @@ def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
         logging.info("%s: Stopping VPN." % filename)
         vpn.stop()
         time.sleep(5)
+    end_time = time.time() - start_time
+    logging.info("Finished all probing: %.2fsec" %(end_time))

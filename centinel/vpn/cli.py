@@ -227,26 +227,23 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             config = centinel.config.Configuration()
             config.parse_config(centinel_config)
             hostname = os.path.splitext(filename)[0]
-            vp_ip = "unknown"
             try:
                 vp_ip = socket.gethostbyname(hostname)
             except Exception as exp:
                 logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
                 continue
-
             # get country for this vpn
+            with open(centinel_config) as fc:
+                json_data = json.load(fc)
             country_in_config = ""
-            # reading the server.txt file in vpns folder
-            for line in lines:
-                if "country" in line:
-                    (key, country_in_config) = line.split(': ')
-                    country_in_config = country_in_config.replace('\"', '').replace(',', '')
+            if 'country' in json_data:
+                country_in_config = json_data['country']
 
             try:
                 meta = centinel.backend.get_meta(config.params, vp_ip)
+                # send country name to be converted to alpha2 code
                 if (len(country_in_config) > 2):
-                    meta['country'] = convertor.country_to_a2(country_in_config) 
-
+                    meta['country'] = convertor.country_to_a2(country_in_config)
                 if 'country' in meta and 'as_number' in meta \
                         and meta['country'] and meta['as_number']:
                     country_asn = '_'.join([meta['country'], meta['as_number']])
