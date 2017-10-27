@@ -204,8 +204,8 @@ class Checker:
                     proxy_region.geometry.item())
                 ## min_distance
                 azimu_anchor = self._disk(0, 0, radi * 1000)  #km ---> m
-                gap = azimu_anchor.distance(azimu_cnt) / 1000    #km
-                results.append({'anchor_name': anchor_name, 'distanct': distance, 'proxy_name': self.proxy_id,
+                gap = azimu_anchor.distance(azimu_cnt) / float(1000)   #km
+                results.append({'anchor_name': anchor_name, 'distance': distance, 'proxy_name': self.proxy_id,
                                 'min_delay': min_delay, 'truth': False, 'extra': gap, 'anchor_gps': (lat, lon),
                                 'anchor_ip': anchors[anchor_name]['ip_v4'], 'radius': radi, 'proxy_ip': self.ip,
                                 'anchor_cnt': (anchors[anchor_name]['city'], anchors[anchor_name]['country']),
@@ -296,7 +296,9 @@ class Checker:
         total = 0
         count_valid = 0
         limit = 30
-        for valid, aux in results:
+        for this in results:
+            valid = this['truth']
+            aux = this['extra']
             total += 1
             if valid:
                 count_valid += 1
