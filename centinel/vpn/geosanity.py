@@ -2,6 +2,7 @@
 import logging
 import os
 import time
+import csv
 import pickle
 import matplotlib
 matplotlib.use('Agg')
@@ -14,15 +15,9 @@ import functools
 import pycountry
 from shapely.ops import transform as sh_transform
 from shapely.geometry import Point, Polygon, box as Box
-import urllib2
 import zipfile
 import requests
 import StringIO
-
-
-
-def run_checker(args):
-    return sanity_check(*args)
 
 def sanity_check(args):
     """
@@ -42,22 +37,23 @@ def sanity_check(args):
         iso_cnt = json_data[proxy_name]['cnt']
         pings = json_data[proxy_name]['pings']
         provider =json_data[proxy_name]['vpn_provider']
-        checker = Checker(proxy_name, iso_cnt, sanity_path, provider)
+        proxy_ip = json_data[proxy_name]['ip_v4']
+        checker = Checker(proxy_name, iso_cnt, sanity_path, provider, proxy_ip)
         points = checker.check_ping_results(pings, anchors)
         if len(points) == 0:
             logging.info("No valid ping results for %s" % proxy_name)
             return proxy_name, iso_cnt, -1
-        logging.info("[%s] has %s valid anchors' results (valid pings) from %s anchors"
+        logging.info("[%s] has %s valid pings from %s anchors"
                      %(proxy_name, len(points), len(pings)))
         circles = checker.get_anchors_region(points)
         proxy_region = checker.get_vpn_region(map)
         if proxy_region.empty:
             logging.info("[%s] Fail to get proxy region: %s" % (proxy_name, iso_cnt))
             return proxy_name, iso_cnt, -1
-        results = checker.check_overlap(proxy_region, circles, this_file)
+        results = checker.check_overlap(proxy_region, circles, this_file, anchors)
         tag = checker.is_valid(results)
         end_time = time.time() - start_time
-        logging.info("[%s] How long it takes: %s" % (this_file, end_time))
+        logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
     except:
         logging.warning("[%s] Failed to sanity check" % this_file)
         return "N/A", "N/A", -1
@@ -87,12 +83,13 @@ def load_map_from_shapefile(sanity_path):
     return map
 
 class Checker:
-    def __init__(self, proxy_id, iso, path, vpn_provider):
+    def __init__(self, proxy_id, iso, path, vpn_provider, ip):
         self.vpn_provider = vpn_provider
         self.proxy_id = proxy_id
         self.iso = iso
         self.gps = self._get_gps_of_proxy()
         self.path = path
+        self.ip = ip
 
     def get_vpn_region(self, map):
         """
@@ -134,7 +131,7 @@ class Checker:
         https://github.com/zackw/active-geolocator
         Note that pyproj takes distances in meters & lon/lat order.
         """
-        logging.info("Starting to draw anchors region")
+        # logging.info("Starting to draw anchors region")
         wgs_proj = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
         ## Sort based on distance. if there is no distance, then sort with min delay
         if points[0][0] != 0:
@@ -143,7 +140,7 @@ class Checker:
             points.sort(key=lambda tup: tup[1]) #order of min time
         circles = list()
         count = 0
-        for dist, min_delay, lat, lon, radi in points:
+        for dist, min_delay, lat, lon, radi, anchor_name in points:
             count += 1
             # create azimuthal equidistant projector for each anchors
             aeqd = pyproj.Proj(proj='aeqd', ellps='WGS84', datum='WGS84',
@@ -180,21 +177,21 @@ class Checker:
                     disk = df3.geometry[0]
                     assert disk.is_valid
                     assert disk.contains(origin)
-                circles.append((lat, lon, radi, disk))
+                circles.append((lat, lon, radi, disk, anchor_name, dist, min_delay))
             except Exception as e:
                 logging.debug("Fail to get a circle %s" %self.proxy_id)
         return circles
 
-    def check_overlap(self, proxy_region, circles, ping_filename):
+    def check_overlap(self, proxy_region, circles, ping_filename, anchors):
         """ Check overlap between proxy region and anchors' region.
         If there is an overlap check how much they are overlapped,
         otherwise, check how far the distance is from a proxy.
         :return results(list): if True: the percentage of overlapped area to a country
                                  False: the distance (km) between a country and expected range
         """
-        logging.info("Starting to check overlap")
+        # logging.info("Starting to check overlap")
         results = list()
-        for lat, lon, radi, this_circle in circles:
+        for lat, lon, radi, this_circle, anchor_name, distance, min_delay in circles:
             df_anchor = geopandas.GeoDataFrame({'geometry': [this_circle]})
             overlap = geopandas.overlay(proxy_region, df_anchor, how="intersection")
             if overlap.empty:
@@ -208,21 +205,38 @@ class Checker:
                 ## min_distance
                 azimu_anchor = self._disk(0, 0, radi * 1000)  #km ---> m
                 gap = azimu_anchor.distance(azimu_cnt) / 1000    #km
-                results.append((False, gap))
+                results.append({'anchor_name': anchor_name, 'distanct': distance, 'proxy_name': self.proxy_id,
+                                'min_delay': min_delay, 'truth': False, 'extra': gap, 'anchor_gps': (lat, lon),
+                                'anchor_ip': anchors[anchor_name]['ip_v4'], 'radius': radi, 'proxy_ip': self.ip,
+                                'anchor_cnt': (anchors[anchor_name]['city'], anchors[anchor_name]['country']),
+                                'proxy_country': self.iso})
             else:
                 ## area
                 area_cnt = proxy_region['geometry'].area#/10**6 #km/sqr
                 area_cnt = sum(area_cnt.tolist())
                 area_overlap = overlap['geometry'].area#/10**6 #km/sqr
                 area_overlap = sum(area_overlap.tolist())
-                stack = area_overlap/area_cnt
-                results.append((True, stack))
+                overlapped = area_overlap/area_cnt
+                results.append({'anchor_name': anchor_name, 'distance': distance, 'proxy_name': self.proxy_id,
+                                'min_delay': min_delay, 'truth': True, 'extra': overlapped, 'anchor_gps': (lat, lon),
+                                'anchor_ip': anchors[anchor_name]['ip_v4'], 'radius': radi, 'proxy_ip': self.ip,
+                                'anchor_cnt': (anchors[anchor_name]['city'], anchors[anchor_name]['country']),
+                                'proxy_country': self.iso})
         pickle_path = os.path.join(self.path, 'sanity/'+self.vpn_provider)
         if not os.path.exists(pickle_path):
             os.makedirs(pickle_path)
+        with open(os.path.join(pickle_path, ping_filename+'.csv'), 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(('proxy_name','proxy_ip','proxy_country','truth','extra',
+                             'anchor_name','anchor_ip','anchor_cnt','anchor_gps','distance','min_delay','radius'))
+            for this in results:
+                writer.writerow((this['proxy_name'],this['proxy_ip'],this['proxy_country'],
+                                 this['truth'],this['extra'],
+                                 this['anchor_name'],this['anchor_ip'],this['anchor_cnt'],
+                                 this['anchor_gps'],this['distance'],this['min_delay'],this['radius']))
         with open(os.path.join(pickle_path, ping_filename), 'w') as f:
             pickle.dump(results, f)
-            logging.info("Pickle file successfully created.")
+            # logging.info("Pickle file successfully created.")
         return results
 
     def _calculate_radius(self, time_ms):
@@ -245,7 +259,6 @@ class Checker:
         Otherwise, return latitude and longitude of vps, radius derived from ping delay.
         Return points(list): (lat, lon, radius)
         """
-        logging.info("Starting checking ping results")
         points = list()
         for anchor, pings in results.iteritems():
             valid_pings = list()
@@ -268,7 +281,7 @@ class Checker:
             anchor_gps = (anchors_gps[anchor]['latitude'], anchors_gps[anchor]['longitude'])
             if len(self.gps) != 0:
                 distance = vincenty(anchor_gps, self.gps).km
-            points.append((distance, min_delay, anchor_gps[0], anchor_gps[1], radi))
+            points.append((distance, min_delay, anchor_gps[0], anchor_gps[1], radi, anchor))
         if len(points) == 0:
             logging.debug("no valid pings results")
             return []
@@ -279,7 +292,7 @@ class Checker:
         Need reasonable threshold to answer the validation of location
         For now, we say it is valid if 90% of 30 nearest anchors are True
         """
-        logging.info("checking validation")
+        # logging.info("checking validation")
         total = 0
         count_valid = 0
         limit = 30
