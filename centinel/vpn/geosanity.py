@@ -54,8 +54,8 @@ def sanity_check(args):
         tag = checker.is_valid(results)
         end_time = time.time() - start_time
         logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
-    except:
-        logging.warning("[%s] Failed to sanity check" % this_file)
+    except Exception, e:
+        logging.warning("[%s] Failed to sanity check: %s" % (this_file, str(e)))
         return "N/A", "N/A", -1
     return proxy_name, iso_cnt, tag
 
