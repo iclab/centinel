@@ -12,6 +12,7 @@ import sys
 import signal
 import dns.resolver
 import json
+from contextlib import contextmanager
 
 import centinel.backend
 import centinel.client
@@ -24,8 +25,7 @@ import centinel.vpn.vpngate as vpngate
 
 PID_FILE = "/tmp/centinel.lock"
 
-
-def parse_args():
+def arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--auth-file', '-u', dest='auth_file', default=None,
                         help=("File with HMA username on first line, \n"
@@ -82,65 +82,14 @@ def parse_args():
     parser.add_argument('--vm-index', dest='vm_index', type=int, default=1,
                         help='The index of current VM, must be >= 1 and '
                              '<= vm_num')
-    return parser.parse_args()
+    return parser
 
+def parse_args():
+    return arg_parser().parse_args()
 
-def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
-              exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp):
-    """
-    For each VPN, check if there are experiments and scan with it if
-    necessary
-
-    Note: the expected directory structure is
-    args.directory
-    -----vpns (contains the OpenVPN config files
-    -----configs (contains the Centinel config files)
-    -----exps (contains the experiments directories)
-
-    :param directory: root directory that contains vpn configs and
-                      centinel client configs
-    :param auth_file: a text file with username at first line and
-                      password at second line
-    :param crt_file: optional root certificate file
-    :param tls_auth: additional key
-    :param key_direction: must specify if tls_auth is used
-    :param exclude_list: optional list of exluded countries
-    :param shuffle_lists: shuffle vpn list if set true
-    :param vm_num: number of VMs that are running currently
-    :param vm_index: index of current VM
-    :param reduce_vp: reduce number of vantage points
-    :return:
-    """
-
-    logging.info("Starting to run the experiments for each VPN")
-    logging.warn("Excluding vantage points from: %s" % exclude_list)
-
-    # iterate over each VPN
-    vpn_dir = return_abs_path(directory, "vpns")
+def get_vpn_config_files(directory, vm_num, vm_index, shuffle_lists, reduce_vp):
     conf_dir = return_abs_path(directory, "configs")
-    home_dir = return_abs_path(directory, "home")
-    if auth_file is not None:
-        auth_file = return_abs_path(directory, auth_file)
-    if crt_file is not None:
-        crt_file = return_abs_path(directory, crt_file)
-    if tls_auth is not None:
-        tls_auth = return_abs_path(directory, tls_auth)
     conf_list = sorted(os.listdir(conf_dir))
-
-    # determine VPN provider
-    vpn_provider = None
-    if "hma" in directory:
-        vpn_provider = "hma"
-    elif "ipvanish" in directory:
-        vpn_provider = "ipvanish"
-    elif "purevpn" in directory:
-        vpn_provider = "purevpn"
-    elif "vpngate" in directory:
-        vpn_provider = "vpngate"
-    if vpn_provider:
-        logging.info("Detected VPN provider is %s" % vpn_provider)
-    else:
-        logging.warning("Cannot determine VPN provider!")
 
     # reduce size of list if reduce_vp is true
     if reduce_vp:
@@ -185,6 +134,81 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
     if shuffle_lists:
         shuffle(conf_list)
+
+    return conf_list
+
+@contextmanager
+def vpn_connection(timeout=60, **kwargs):
+    vpn = openvpn.OpenVPN(timeout=timeout, **kwargs)
+    vpn.start()
+    yield vpn
+    vpn.stop()
+
+def vpn_config_file_to_ip(filename):
+    return os.path.splitext(filename)[0]
+
+def determine_provider(directory):
+    vpn_provider = None
+    if "hma" in directory:
+        vpn_provider = "hma"
+    elif "ipvanish" in directory:
+        vpn_provider = "ipvanish"
+    elif "purevpn" in directory:
+        vpn_provider = "purevpn"
+    elif "vpngate" in directory:
+        vpn_provider = "vpngate"
+    if vpn_provider:
+        logging.info("Detected VPN provider is %s" % vpn_provider)
+    else:
+        logging.warning("Cannot determine VPN provider!")
+    return vpn_provider
+
+def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
+              exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp):
+    """
+    For each VPN, check if there are experiments and scan with it if
+    necessary
+
+    Note: the expected directory structure is
+    args.directory
+    -----vpns (contains the OpenVPN config files
+    -----configs (contains the Centinel config files)
+    -----exps (contains the experiments directories)
+
+    :param directory: root directory that contains vpn configs and
+                      centinel client configs
+    :param auth_file: a text file with username at first line and
+                      password at second line
+    :param crt_file: optional root certificate file
+    :param tls_auth: additional key
+    :param key_direction: must specify if tls_auth is used
+    :param exclude_list: optional list of exluded countries
+    :param shuffle_lists: shuffle vpn list if set true
+    :param vm_num: number of VMs that are running currently
+    :param vm_index: index of current VM
+    :param reduce_vp: reduce number of vantage points
+    :return:
+    """
+
+    logging.info("Starting to run the experiments for each VPN")
+    logging.warn("Excluding vantage points from: %s" % exclude_list)
+
+    # iterate over each VPN
+    vpn_dir = return_abs_path(directory, "vpns")
+    conf_dir = return_abs_path(directory, "configs")
+    home_dir = return_abs_path(directory, "home")
+    if auth_file is not None:
+        auth_file = return_abs_path(directory, auth_file)
+    if crt_file is not None:
+        crt_file = return_abs_path(directory, crt_file)
+    if tls_auth is not None:
+        tls_auth = return_abs_path(directory, tls_auth)
+    conf_list = sorted(os.listdir(conf_dir))
+
+    vpn_provider = determine_provider(directory)
+
+    conf_list = get_vpn_config_files(directory, vm_num,
+            vm_index, shuffle_lists, reduce_vp)
 
     number = 1
     total = len(conf_list)
@@ -240,7 +264,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # [ip-address].ovpn, we can extract IP address from filename
         # and use it to geolocate and fetch experiments before connecting
         # to VPN.
-        vpn_address, extension = os.path.splitext(filename)
+        vpn_address = vpn_config_file_to_ip(filename)
         country = None
         try:
             meta = centinel.backend.get_meta(config.params,
@@ -296,28 +320,26 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         logging.info("%s: Starting VPN." % filename)
 
-        vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
-                              crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction)
+        with vpn_connection(auth_file=auth_file, config_file=vpn_config,
+                crt_file=crt_file, tls_auth=tls_auth, key_direction=key_direction) as vpn:
+            if not vpn.started:
+                logging.error("%s: Failed to start VPN!" % filename)
+                vpn.stop()
+                time.sleep(5)
+                continue
 
-        vpn.start()
-        if not vpn.started:
-            logging.error("%s: Failed to start VPN!" % filename)
-            vpn.stop()
-            time.sleep(5)
-            continue
+            logging.info("%s: Running Centinel." % filename)
+            try:
+                client = centinel.client.Client(config.params, vpn_provider)
+                centinel.conf = config.params
+                # do not use client logging config
+                # client.setup_logging()
+                client.run()
+            except Exception as exp:
+                logging.exception("%s: Error running Centinel: %s" % (filename, exp))
 
-        logging.info("%s: Running Centinel." % filename)
-        try:
-            client = centinel.client.Client(config.params, vpn_provider)
-            centinel.conf = config.params
-            # do not use client logging config
-            # client.setup_logging()
-            client.run()
-        except Exception as exp:
-            logging.exception("%s: Error running Centinel: %s" % (filename, exp))
+            logging.info("%s: Stopping VPN." % filename)
 
-        logging.info("%s: Stopping VPN." % filename)
-        vpn.stop()
         time.sleep(5)
 
         logging.info("%s: Synchronizing." % filename)
