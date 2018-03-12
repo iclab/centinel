@@ -5,6 +5,8 @@ import time
 import random
 import BeautifulSoup
 import re
+import datetime
+import pytz
 from urlparse import urlparse
 
 from http_helper import ICHTTPConnection
@@ -74,9 +76,9 @@ def _get_http_request(netloc, path="/", headers=None, ssl=False):
 
     response = {}
 
+    request['startedDateTime'] = datetime.datetime.now(pytz.utc).isoformat()
     try:
         conn = ICHTTPConnection(host=host, port=port, timeout=10)
-
         conn.request(path, headers, ssl, timeout=10)
         response["status"] = conn.status
         response["reason"] = conn.reason
@@ -93,7 +95,8 @@ def _get_http_request(netloc, path="/", headers=None, ssl=False):
         response["failure"] = str(err)
 
     result = {"response": response,
-              "request": request}
+              "request": request,
+              "timings": conn.timings}
 
     return result
 
@@ -113,6 +116,7 @@ def get_request(netloc, path="/", headers=None, ssl=False,
         first_response_information = {"redirect_count": 0,
                                       "redirect_loop": False,
                                       "full_url": url,
+                                      "timings": first_response['timings'],
                                       "response": first_response["response"],
                                       "request": first_response["request"]}
         http_results = first_response_information
@@ -154,6 +158,7 @@ def get_request(netloc, path="/", headers=None, ssl=False,
     if is_redirecting:
         http_results["redirects"] = {}
         first_response_information = {"full_url": url,
+                                      "timings": first_response['timings'],
                                       "response": first_response["response"],
                                       "request": first_response["request"]}
         http_results["redirects"][0] = first_response_information
@@ -220,6 +225,7 @@ def get_request(netloc, path="/", headers=None, ssl=False,
                 http_results["full_url"] = redirect_url
 
             redirect_information = {"full_url": redirect_url,
+                                    "timings": first_response['timings'],
                                     "response": redirect_http_result["response"],
                                     "request": redirect_http_result["request"]}
             http_results["redirects"][redirect_number] = redirect_information
@@ -230,6 +236,7 @@ def get_request(netloc, path="/", headers=None, ssl=False,
         first_response_information = {"redirect_count": 0,
                                       "redirect_loop": False,
                                       "full_url": url,
+                                      "timings": first_response['timings'],
                                       "response": first_response["response"],
                                       "request": first_response["request"]}
         http_results = first_response_information
