@@ -192,6 +192,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             except (ImportError, NotImplementedError):
                 num = 1
                 pass
+            # num = 10
             pool = mp.Pool(processes=num)
             results = []
             results.append(pool.map(san.sanity_check,
@@ -215,7 +216,6 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             conf_list = new_conf_list
         end_time = time.time() - start_time
         logging.info("Finished sanity check: total elapsed time (%.2f)" %end_time)
-
 
     # reduce size of list if reduce_vp is true
     if reduce_vp:
@@ -332,22 +332,22 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # [ip-address].ovpn, we can extract IP address from filename
         # and use it to geolocate and fetch experiments before connecting
         # to VPN.
-	# filename is [OBhostname].ovpn, we resolved the hostname to ip
-	# using socket.gethostbyname()
+        #  filename is [OBhostname].ovpn, we resolved the hostname to ip
+        #  using socket.gethostbyname()
         hostname = os.path.splitext(filename)[0]
         vp_ip = "unknown"
         try:
-	    vp_ip = socket.gethostbyname(hostname)
-	except Exception as exp:
-	    logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
-	    continue
+            vp_ip = socket.gethostbyname(hostname)
+        except Exception as exp:
+            logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+            continue
 
 #        vpn_address, extension = os.path.splitext(filename)
         lines = [line.rstrip('\n') for line in open(centinel_config)]
 
         # get country for this vpn
         country_in_config = ""
-	# reading the server.txt file in vpns folder
+        # reading the server.txt file in vpns folder
         for line in lines:
             if "country" in line:
                 (key, country_in_config) = line.split(': ')
@@ -356,13 +356,13 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
         country = None
         try:
-	    # we still might need some info from the Maximind query
+        # we still might need some info from the Maximind query
             meta = centinel.backend.get_meta(config.params, vp_ip)
 
-	    # send country name to be converted to alpha2 code
-	    if(len(country_in_config) > 2):
-	    	meta['country'] = convertor.country_to_a2(country_in_config)
-	    # some vpn config files already contain the alpha2 code (length == 2)
+            # send country name to be converted to alpha2 code
+            if(len(country_in_config) > 2):
+                meta['country'] = convertor.country_to_a2(country_in_config)
+            # some vpn config files already contain the alpha2 code (length == 2)
             if 'country' in meta:
                 country = meta['country']
         except:
@@ -375,7 +375,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # try setting the VPN info (IP and country) to get appropriate
         # experiemnts and input data.
         try:
-	    logging.info("country is %s" % country)
+            logging.info("country is %s" % country)
             centinel.backend.set_vpn_info(config.params, vp_ip, country)
         except Exception as exp:
             logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
@@ -437,7 +437,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             continue
 
 
-	# sending ping to the anchors
+    # sending ping to the anchors
         # ping_result = probe.perform_probe(sanity_path, vpn_provider,vpn_provider,country,anchors)
 	
 	# have to do this sanity check if timestamp is a certain value, needs changing
