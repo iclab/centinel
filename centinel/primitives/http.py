@@ -15,6 +15,8 @@ from centinel.utils import user_agent_pool
 REDIRECT_LOOP_THRESHOLD = 5
 MAX_THREAD_START_RETRY = 10
 THREAD_START_DELAY = 3
+CONNECTION_TIMEOUT = 30
+REQUEST_TIMEOUT = 60
 
 def meta_redirect(content):
     """
@@ -78,8 +80,8 @@ def _get_http_request(netloc, path="/", headers=None, ssl=False):
 
     request['startedDateTime'] = datetime.datetime.now(pytz.utc).isoformat()
     try:
-        conn = ICHTTPConnection(host=host, port=port, timeout=10)
-        conn.request(path, headers, ssl, timeout=10)
+        conn = ICHTTPConnection(host=host, port=port, timeout=CONNECTION_TIMEOUT)
+        conn.request(path, headers, ssl, timeout=REQUEST_TIMEOUT)
         response["status"] = conn.status
         response["reason"] = conn.reason
         response["headers"] = conn.headers
