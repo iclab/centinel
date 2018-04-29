@@ -1,13 +1,12 @@
 import os
 import time
 import json
-import pickle
+import csv
 import socket
 import logging
 import requests
 import subprocess
 import multiprocessing as mp
-from datetime import timedelta
 from urlparse import urljoin
 
 import country_module as convertor
@@ -56,21 +55,21 @@ def send_ping(param):
     this_delays = list()
     for i in output:
         try:
-            this_delays.append(i.split('time=')[1])
+            this_delays.append(float(i.split('time=')[1].split(' ms')[0]))
         except:
             continue
     times[this_host] = this_delays
     return times
 
-
-def perform_probe(sanity_directory, vpn_provider, target_ip, hostname, target_cnt, anchors):
+def perform_probe(fname, vpn_provider, target_ip, hostname, target_cnt, anchors):
     """Send ping 10 times to landmarks and choose the minimum
     :return: times [host] = list()
     """
     logging.info("Start Probing [%s(%s)]" %(hostname, target_ip))
-    pickle_path = os.path.join(sanity_directory, 'pings/' + vpn_provider)
-    if not os.path.exists(pickle_path):
-        os.makedirs(pickle_path)
+    # ping from local to vpn
+    vp_ping = send_ping((hostname, target_ip))
+    vp_min = min(vp_ping[hostname])
+    # get to others
     times = dict()
     s_time = time.time()
     results = []
@@ -92,19 +91,31 @@ def perform_probe(sanity_directory, vpn_provider, target_ip, hostname, target_cn
                  %(hostname, target_ip, _sum/float(_total), e_time - s_time))
     pool.close()
     pool.join()
-    final = {hostname: {'pings': times, 'cnt': target_cnt, 'ip_v4': target_ip,
-                        'timestamp': time.time(), 'vpn_provider': vpn_provider}}
-    logging.info("Creating pickle file")
-    with open(pickle_path+'/'+vpn_provider+'-'+hostname+'-'+target_ip+'-'+target_cnt+'.pickle', 'w') as f:
-        pickle.dump(final, f)
-        logging.info("Pickle file successfully created.")
-
+    # store results
+    # store as csv file: "vpn_provider, vp_name, vp_ip, vpn_cnt, all_keys()"
+    keys = sorted(anchors.keys())
+    with open(fname, "a") as csv_file:
+        writer = csv.writer(csv_file)
+        line = [vpn_provider, hostname, target_ip, target_cnt]
+        for this_anchor in keys:
+            if len(times[this_anchor]) > 0:
+                ping_min = min(times[this_anchor])
+                the_ping = (ping_min - vp_min)
+            else:
+                the_ping = None
+            line.append(the_ping)
+        writer.writerow(line)
 
 def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
                 key_direction, sanity_path, vpn_provider, anchors):
     """ Run vpn_walk to get pings from proxy to anchors
     """
     start_time = time.time()
+    ping_path = os.path.join(sanity_path, 'pings')
+    if not os.path.exists(ping_path):
+        os.makedirs(ping_path)
+    u_time = time.time()
+    fname = os.path.join(ping_path, 'pings_' + vpn_provider + '_' + str(u_time) + '.csv')
     for filename in conf_list:
         centinel_config = os.path.join(conf_dir, filename)
         config = centinel.config.Configuration()
@@ -137,7 +148,7 @@ def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
             continue
         # sending ping to the anchors
         try:
-            perform_probe(sanity_path, vpn_provider, vp_ip, hostname, country, anchors)
+            perform_probe(fname, vpn_provider, vp_ip, hostname, country, anchors)
         except:
             logging.warning("Failed to send pings from %s" % vp_ip)
         logging.info("%s: Stopping VPN." % filename)
