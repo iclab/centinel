@@ -176,7 +176,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         sanity_path = os.path.join(directory, '../sanitycheck')
         if not os.path.exists(sanity_path):
             os.makedirs(sanity_path)
-        anchors = probe.retrieve_anchor_list()
+        anchors = probe.retrieve_anchor_list(sanity_path)
         logging.info("Anchors list fetched")
         # send pings
         probe.start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,

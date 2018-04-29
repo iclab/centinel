@@ -2,6 +2,7 @@ import os
 import time
 import json
 import csv
+import pickle
 import socket
 import logging
 import requests
@@ -13,7 +14,7 @@ import country_module as convertor
 import centinel.backend
 import centinel.vpn.openvpn as openvpn
 
-def retrieve_anchor_list():
+def retrieve_anchor_list(directory):
     """ Retrieve anchor lists with RIPE API
     """
     logging.info("Starting to fetch RIPE anchors")
@@ -41,6 +42,9 @@ def retrieve_anchor_list():
         query_url = urljoin(query_url, next_url)
     e_time = time.time()
     logging.info("Finishing to fetch RIPE anchors (%s sec)" %(e_time-s_time))
+    landmark_path = os.path.join(directory, "landmarks_list_" + str(time.time()) + ".pickle")
+    with open(landmark_path, "w") as f:
+        pickle.dump(anchors, f)
     return anchors
 
 def send_ping(param):
