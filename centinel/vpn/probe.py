@@ -14,25 +14,18 @@ import country_module as convertor
 import centinel.backend
 import centinel.vpn.openvpn as openvpn
 
-def retrieve_anchor_list(directory):
+def retrieve_anchor_list():
     """ Retrieve anchor lists with RIPE API
     """
     logging.info("Starting to fetch RIPE anchors")
-    landmark_path = os.path.join(directory, "landmarks_list.pickle")
-    if os.path.isfile(landmark_path):
-        with open(landmark_path, "r") as f:
-            json_data = pickle.load(f)
-        if (time.time() - json_data['timestamp']) <= timedelta(days=30).total_seconds():
-            return json_data['anchors']
-    logging.info("landmarks_list pickle is not available or expired, starting to fetch it.")
     s_time = time.time()
     BASE_URL = 'https://atlas.ripe.net/api/v2'
     query_url = BASE_URL + '/anchors/'
     anchors = dict()
     while True:
         resp = requests.get(query_url)
-        temp = resp.json()
-        for this in temp['results']:
+        resp = resp.json()
+        for this in resp['results']:
             assert this['geometry']['type'] == "Point"
             anchor_name = this['fqdn'].split('.')[0].strip()
             anchors[anchor_name] = {'aid': this["id"],
@@ -43,17 +36,13 @@ def retrieve_anchor_list(directory):
                                     'latitude': this["geometry"]["coordinates"][1],
                                     'country': this["country"],
                                     'city': this["city"]}
-        next_url = temp.get("next")
+        next_url = resp.get("next")
         if next_url is None:
             break
         query_url = urljoin(query_url, next_url)
-    ripe_anchors = {'timestamp': time.time(), 'anchors': anchors}
-    with open(landmark_path, "w") as f:
-        pickle.dump(ripe_anchors, f)
     e_time = time.time()
     logging.info("Finishing to fetch RIPE anchors (%s sec)" %(e_time-s_time))
     return anchors
-
 
 def send_ping(param):
     this_host, ip = param
@@ -130,11 +119,11 @@ def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
         # get country for this vpn
         with open(centinel_config) as fc:
             json_data = json.load(fc)
-        country_in_config = ""
+        country = ""
         if 'country' in json_data:
-            country_in_config = json_data['country']
-        if (len(country_in_config) > 2):
-            country = convertor.country_to_a2(country_in_config)
+            country = json_data['country']
+        if (len(country) > 2):
+            country = convertor.country_to_a2(country)
         # start openvpn
         vpn_config = os.path.join(vpn_dir, filename)
         logging.info("%s: Starting VPN. (%s)" %(filename, country))
