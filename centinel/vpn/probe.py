@@ -120,6 +120,14 @@ def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
         os.makedirs(ping_path)
     u_time = time.time()
     fname = os.path.join(ping_path, 'pings_' + vpn_provider + '_' + str(u_time) + '.csv')
+    keys = sorted(anchors.keys())
+    with open(fname, "w") as f:
+        writer = csv.writer(f)
+        line = ['vpn_provider', 'vp_name', 'vp_ip', 'vpn_cnt']
+        for k2 in keys:
+            line.append(k2)
+        writer.writerow(line)
+
     for filename in conf_list:
         centinel_config = os.path.join(conf_dir, filename)
         config = centinel.config.Configuration()
