@@ -97,7 +97,15 @@ class OpenVPN:
         """
         if not timeout:
             timeout = self.timeout
-        os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+
+        process_group_id = os.getpgid(self.process.pid)
+        try:
+            os.killpg(process_group_id, signal.SIGTERM)
+        except OSError:
+            # Because sometimes we have to sudo to send the signal
+            cmd = ['sudo', 'kill', '-' + str(process_group_id)]
+            process = subprocess.call(cmd)
+
         self.thread.join(timeout)
         if self.stopped:
             logging.info("OpenVPN stopped")
