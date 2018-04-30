@@ -22,8 +22,33 @@ import datetime
 import multiprocessing as mp
 
 
+def read_ping_results_from_file(fname, ping_path, anchors):
+    vp_info = dict()
+    keys = sorted(anchors.keys())
+    with open(os.path.join(ping_path, fname), 'r') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if row[0] == 'proxy_name':
+                keys = sorted(row[4:])
+                continue
+            name = row[1]
+            vp_info[name] = dict()
+            vp_info[name]['vpn_provider'] = row[0]
+            vp_info[name]['ip_v4'] = row[2]
+            vp_info[name]['cnt'] = row[3]
+            vp_info[name]['pings'] = dict()
+            count = 4
+            for key in keys:
+                vp_info[name]['pings'][key] = row[count]
+                count += 1
+    return vp_info
+
 def start_sanity_check(sanity_path, vpn_provider, anchors):
-    pickle_path = os.path.join(sanity_path, 'pings/' + vpn_provider)
+    ping_path = os.path.join(sanity_path, 'pings')
+    # get the recent ping results of the vpn provider
+    file_lists = {float(i.split('_')[2].split('.csv')[0]): i for i in os.listdir(ping_path) if vpn_provider in i}
+    fname = file_lists[max(file_lists.keys())]
+    vpn_pings = read_ping_results_from_file(fname, ping_path, anchors)
     map = load_map_from_shapefile(sanity_path)
     try:
         num = mp.cpu_count()
@@ -33,22 +58,22 @@ def start_sanity_check(sanity_path, vpn_provider, anchors):
     pool = mp.Pool(processes=num)
     results = []
     results.append(pool.map(sanity_check,
-                            [(this_file, anchors, map, sanity_path, pickle_path) for this_file in file_lists]))
+                            [(this, vpn_pings[this], anchors, map, sanity_path) for this in vpn_pings]))
     pool.close()
     pool.join()
     new_conf_list = []
-    result_path = os.path.join(sanity_path, 'results/' + vpn_provider)
+    result_path = os.path.join(sanity_path, 'results')
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     current_time = datetime.date.today().strftime("%Y-%m-%d")
-    with open(os.path.join(result_path, vpn_provider + '-' + current_time + '.csv'), 'w') as f:
+    with open(os.path.join(result_path, 'results_' + vpn_provider + '_' + current_time + '.csv'), 'w') as f:
         writer = csv.writer(f)
-        writer.writerow(('proxy_name', 'country', 'truth'))
+        writer.writerow(('vpn_provider', 'proxy_name', 'proxy_cnt', 'truth', 'proxy_ip'))
         for output in results:
-            for proxy_name, iso_cnt, tag in output:
+            for provider, proxy_name, iso_cnt, tag, ip in output:
                 if tag == True:
                     new_conf_list.append(proxy_name + '.ovpn')
-                writer.writerow((proxy_name, iso_cnt, tag))
+                writer.writerow((provider, proxy_name, iso_cnt, tag, ip))
     return new_conf_list
 
 def sanity_check(args):
@@ -60,16 +85,13 @@ def sanity_check(args):
     :param map:(dataframe)
     :return:
     """
-    this_file, anchors, map, sanity_path, pickle_path = args
+    proxy_name, vp_info, anchors, map, sanity_path = args
+    iso_cnt = vp_info['cnt']
+    pings = vp_info['pings']
+    provider = vp_info['vpn_provider']
+    proxy_ip = vp_info['ip_v4']
     try:
         start_time = time.time()
-        with open(os.path.join(pickle_path, this_file), 'r') as f:
-            json_data = pickle.load(f)
-        proxy_name = json_data.keys()[0]
-        iso_cnt = json_data[proxy_name]['cnt']
-        pings = json_data[proxy_name]['pings']
-        provider =json_data[proxy_name]['vpn_provider']
-        proxy_ip = json_data[proxy_name]['ip_v4']
         checker = Checker(proxy_name, iso_cnt, sanity_path, provider, proxy_ip)
         points = checker.check_ping_results(pings, anchors)
         if len(points) == 0:
@@ -82,14 +104,13 @@ def sanity_check(args):
         if proxy_region.empty:
             logging.info("[%s] Fail to get proxy region: %s" % (proxy_name, iso_cnt))
             return proxy_name, iso_cnt, -1
-        results = checker.check_overlap(proxy_region, circles, this_file, anchors)
-        tag = checker.is_valid(results)
+        tag = checker.check_overlap(proxy_region, circles, anchors)
         end_time = time.time() - start_time
         logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
     except Exception, e:
-        logging.warning("[%s] Failed to sanity check: %s" % (this_file, str(e)))
-        return "N/A", "N/A", -1
-    return proxy_name, iso_cnt, tag
+        logging.warning("[%s/%s] Failed to sanity check: %s" % (provider, proxy_name, str(e)))
+        return provider, proxy_name, iso_cnt, -1, proxy_ip
+    return provider, proxy_name, iso_cnt, tag, proxy_ip
 
 def load_map_from_shapefile(sanity_path):
     """
@@ -165,11 +186,8 @@ class Checker:
         """
         # logging.info("Starting to draw anchors region")
         wgs_proj = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
-        ## Sort based on distance. if there is no distance, then sort with min delay
-        if points[0][0] != 0:
-            points.sort(key=lambda tup: tup[0]) #closest to the proxy
-        else:
-            points.sort(key=lambda tup: tup[1]) #order of min time
+        ## Sort based on distance.
+        points.sort(key=lambda tup: tup[0], reverse=True) # further to the proxy
         circles = list()
         count = 0
         for dist, min_delay, lat, lon, radi, anchor_name in points:
@@ -214,7 +232,7 @@ class Checker:
                 logging.debug("Fail to get a circle %s" %self.proxy_id)
         return circles
 
-    def check_overlap(self, proxy_region, circles, ping_filename, anchors):
+    def check_overlap(self, proxy_region, circles, anchors):
         """ Check overlap between proxy region and anchors' region.
         If there is an overlap check how much they are overlapped,
         otherwise, check how far the distance is from a proxy.
@@ -223,53 +241,64 @@ class Checker:
         """
         # logging.info("Starting to check overlap")
         results = list()
+        simple = True
+        claimed_cnt = True
         for lat, lon, radi, this_circle, anchor_name, distance, min_delay in circles:
             df_anchor = geopandas.GeoDataFrame({'geometry': [this_circle]})
             overlap = geopandas.overlay(proxy_region, df_anchor, how="intersection")
-            if overlap.empty:
-                aeqd = pyproj.Proj(proj='aeqd', ellps='WGS84', datum='WGS84',
-                                   lat_0=lat, lon_0=lon)
-                wgs_proj = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")  ##4326 -- 2d
-                ## country
-                azimu_cnt = sh_transform(
-                    functools.partial(pyproj.transform, wgs_proj, aeqd),
-                    proxy_region.geometry.item())
-                ## min_distance
-                azimu_anchor = self._disk(0, 0, radi * 1000)  #km ---> m
-                gap = azimu_anchor.distance(azimu_cnt) / float(1000)   #km
-                results.append({'anchor_name': anchor_name, 'distance': distance, 'proxy_name': self.proxy_id,
-                                'min_delay': min_delay, 'truth': False, 'extra': gap, 'anchor_gps': (lat, lon),
-                                'anchor_ip': anchors[anchor_name]['ip_v4'], 'radius': radi, 'proxy_ip': self.ip,
-                                'anchor_cnt': (anchors[anchor_name]['city'], anchors[anchor_name]['country']),
-                                'proxy_country': self.iso})
+            if simple:
+                if overlap.empty:
+                    claimed_cnt = False
+                    break
             else:
-                ## area
-                area_cnt = proxy_region['geometry'].area#/10**6 #km/sqr
-                area_cnt = sum(area_cnt.tolist())
-                area_overlap = overlap['geometry'].area#/10**6 #km/sqr
-                area_overlap = sum(area_overlap.tolist())
-                overlapped = area_overlap/area_cnt
-                results.append({'anchor_name': anchor_name, 'distance': distance, 'proxy_name': self.proxy_id,
-                                'min_delay': min_delay, 'truth': True, 'extra': overlapped, 'anchor_gps': (lat, lon),
-                                'anchor_ip': anchors[anchor_name]['ip_v4'], 'radius': radi, 'proxy_ip': self.ip,
-                                'anchor_cnt': (anchors[anchor_name]['city'], anchors[anchor_name]['country']),
-                                'proxy_country': self.iso})
-        pickle_path = os.path.join(self.path, 'sanity/'+self.vpn_provider)
-        if not os.path.exists(pickle_path):
-            os.makedirs(pickle_path)
-        with open(os.path.join(pickle_path, ping_filename+'.csv'), 'w') as f:
-            writer = csv.writer(f)
-            writer.writerow(('proxy_name','proxy_ip','proxy_country','truth','extra',
-                             'anchor_name','anchor_ip','anchor_cnt','anchor_gps','distance','min_delay','radius'))
-            for this in results:
-                writer.writerow((this['proxy_name'],this['proxy_ip'],this['proxy_country'],
-                                 this['truth'],this['extra'],
-                                 this['anchor_name'],this['anchor_ip'],this['anchor_cnt'],
-                                 this['anchor_gps'],this['distance'],this['min_delay'],this['radius']))
-        with open(os.path.join(pickle_path, ping_filename), 'w') as f:
-            pickle.dump(results, f)
-            # logging.info("Pickle file successfully created.")
-        return results
+                # When we wanna do further investigation
+                if overlap.empty:
+                    aeqd = pyproj.Proj(proj='aeqd', ellps='WGS84', datum='WGS84',
+                                       lat_0=lat, lon_0=lon)
+                    wgs_proj = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")  ##4326 -- 2d
+                    ## country
+                    azimu_cnt = sh_transform(
+                        functools.partial(pyproj.transform, wgs_proj, aeqd),
+                        proxy_region.geometry.item())
+                    ## min_distance
+                    azimu_anchor = self._disk(0, 0, radi * 1000)  #km ---> m
+                    gap = azimu_anchor.distance(azimu_cnt) / float(1000)   #km
+                    results.append({'anchor_name': anchor_name, 'distance': distance, 'proxy_name': self.proxy_id,
+                                    'min_delay': min_delay, 'truth': False, 'extra': gap, 'anchor_gps': (lat, lon),
+                                    'anchor_ip': anchors[anchor_name]['ip_v4'], 'radius': radi, 'proxy_ip': self.ip,
+                                    'anchor_cnt': (anchors[anchor_name]['city'], anchors[anchor_name]['country']),
+                                    'proxy_country': self.iso})
+                else:
+                    ## area
+                    area_cnt = proxy_region['geometry'].area#/10**6 #km/sqr
+                    area_cnt = sum(area_cnt.tolist())
+                    area_overlap = overlap['geometry'].area#/10**6 #km/sqr
+                    area_overlap = sum(area_overlap.tolist())
+                    overlapped = area_overlap/area_cnt
+                    results.append({'anchor_name': anchor_name, 'distance': distance, 'proxy_name': self.proxy_id,
+                                    'min_delay': min_delay, 'truth': True, 'extra': overlapped, 'anchor_gps': (lat, lon),
+                                    'anchor_ip': anchors[anchor_name]['ip_v4'], 'radius': radi, 'proxy_ip': self.ip,
+                                    'anchor_cnt': (anchors[anchor_name]['city'], anchors[anchor_name]['country']),
+                                    'proxy_country': self.iso})
+        if not simple:
+            ping_filename = self.vpn_provider + '_' + self.proxy_id + '_' + str(time.time)
+            pickle_path = os.path.join(self.path, 'sanity/'+self.vpn_provider)
+            if not os.path.exists(pickle_path):
+                os.makedirs(pickle_path)
+            with open(os.path.join(pickle_path, ping_filename+'.csv'), 'w') as f:
+                writer = csv.writer(f)
+                writer.writerow(('proxy_name','proxy_ip','proxy_country','truth','extra',
+                                 'anchor_name','anchor_ip','anchor_cnt','anchor_gps','distance','min_delay','radius'))
+                for this in results:
+                    writer.writerow((this['proxy_name'],this['proxy_ip'],this['proxy_country'],
+                                     this['truth'],this['extra'],
+                                     this['anchor_name'],this['anchor_ip'],this['anchor_cnt'],
+                                     this['anchor_gps'],this['distance'],this['min_delay'],this['radius']))
+            with open(os.path.join(pickle_path, ping_filename), 'w') as f:
+                pickle.dump(results, f)
+                # logging.info("Pickle file successfully created.")
+            claimed_cnt = self.is_valid(results)
+        return claimed_cnt
 
     def _calculate_radius(self, time_ms):
         """
@@ -292,19 +321,15 @@ class Checker:
         Return points(list): (lat, lon, radius)
         """
         points = list()
-        for anchor, pings in results.iteritems():
-            valid_pings = list()
-            for this in pings:
-                # remove anomalies
-                ping = float(this.split(' ')[0])
-                owtt = ping/2.0
-                if float(owtt) >= 3.0 and float(owtt) <= 130.0:
-                    valid_pings.append(owtt)
-            if len(valid_pings) == 0:
+        for anchor, ping in results.iteritems():
+            # remove anomalies
+            if ping == '': continue
+            ping = float(ping)
+            owtt = ping/2.0
+            if owtt < 3.0 or owtt >= 130.0:
                 logging.debug("no valid pings results of anchor %s" %anchor)
                 continue
-            min_delay = min(valid_pings)
-            radi = self._calculate_radius(min_delay)
+            radi = self._calculate_radius(ping)
             if anchor not in anchors_gps:
                 logging.debug("no gps for anchor %s" %anchor)
                 continue
@@ -313,7 +338,7 @@ class Checker:
             anchor_gps = (anchors_gps[anchor]['latitude'], anchors_gps[anchor]['longitude'])
             if len(self.gps) != 0:
                 distance = vincenty(anchor_gps, self.gps).km
-            points.append((distance, min_delay, anchor_gps[0], anchor_gps[1], radi, anchor))
+            points.append((distance, ping, anchor_gps[0], anchor_gps[1], radi, anchor))
         if len(points) == 0:
             logging.debug("no valid pings results")
             return []

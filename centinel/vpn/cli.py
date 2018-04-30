@@ -177,7 +177,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         logging.info("Anchors list fetched")
         # send pings
         probe.start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
-                key_direction, sanity_path, vpn_provider, anchors)
+                          key_direction, sanity_path, vpn_provider, anchors)
         # sanity check
         new_conf_list = san.start_sanity_check(sanity_path, vpn_provider, anchors)
         logging.info("List size after sanity check. New size: %d" % len(new_conf_list))
