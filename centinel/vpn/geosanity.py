@@ -18,6 +18,38 @@ from shapely.geometry import Point, Polygon, box as Box
 import zipfile
 import requests
 import StringIO
+import datetime
+import multiprocessing as mp
+
+
+def start_sanity_check(sanity_path, vpn_provider, anchors):
+    pickle_path = os.path.join(sanity_path, 'pings/' + vpn_provider)
+    map = load_map_from_shapefile(sanity_path)
+    try:
+        num = mp.cpu_count()
+    except (ImportError, NotImplementedError):
+        num = 1
+        pass
+    pool = mp.Pool(processes=num)
+    results = []
+    results.append(pool.map(sanity_check,
+                            [(this_file, anchors, map, sanity_path, pickle_path) for this_file in file_lists]))
+    pool.close()
+    pool.join()
+    new_conf_list = []
+    result_path = os.path.join(sanity_path, 'results/' + vpn_provider)
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+    current_time = datetime.date.today().strftime("%Y-%m-%d")
+    with open(os.path.join(result_path, vpn_provider + '-' + current_time + '.csv'), 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(('proxy_name', 'country', 'truth'))
+        for output in results:
+            for proxy_name, iso_cnt, tag in output:
+                if tag == True:
+                    new_conf_list.append(proxy_name + '.ovpn')
+                writer.writerow((proxy_name, iso_cnt, tag))
+    return new_conf_list
 
 def sanity_check(args):
     """

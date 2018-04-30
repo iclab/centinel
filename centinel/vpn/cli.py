@@ -9,14 +9,11 @@ from random import shuffle
 import os
 import time
 import sys
-import csv
 import signal
 import dns.resolver
 import json
 import socket
 import shutil
-import datetime
-import multiprocessing as mp
 
 import centinel.backend
 import centinel.client
@@ -182,36 +179,9 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         probe.start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
                 key_direction, sanity_path, vpn_provider, anchors)
         # sanity check
-        pickle_path = os.path.join(sanity_path, 'pings/' + vpn_provider)
-        map = san.load_map_from_shapefile(sanity_path)
-        file_lists = os.listdir(pickle_path)
-        if file_lists:
-            try:
-                num = mp.cpu_count()
-            except (ImportError, NotImplementedError):
-                num = 1
-                pass
-            pool = mp.Pool(processes=num)
-            results = []
-            results.append(pool.map(san.sanity_check,
-                     [(this_file, anchors, map, sanity_path, pickle_path) for this_file in file_lists]))
-            pool.close()
-            pool.join()
-            new_conf_list = []
-            result_path = os.path.join(sanity_path, 'results/' + vpn_provider)
-            if not os.path.exists(result_path):
-                os.makedirs(result_path)
-            current_time = datetime.date.today().strftime("%Y-%m-%d")
-            with open(os.path.join(result_path, vpn_provider + '-' + current_time + '.csv'), 'w') as f:
-                writer = csv.writer(f)
-                writer.writerow(('proxy_name', 'country', 'truth'))
-                for output in results:
-                    for proxy_name, iso_cnt, tag in output:
-                        if tag == True:
-                            new_conf_list.append(proxy_name + '.ovpn')
-                        writer.writerow((proxy_name, iso_cnt, tag))
-            logging.info("List size after sanity check. New size: %d" % len(new_conf_list))
-            conf_list = new_conf_list
+        new_conf_list = san.start_sanity_check(sanity_path, vpn_provider, anchors)
+        logging.info("List size after sanity check. New size: %d" % len(new_conf_list))
+        conf_list = new_conf_list
         end_time = time.time() - start_time
         logging.info("Finished sanity check: total elapsed time (%.2f)" %end_time)
 
