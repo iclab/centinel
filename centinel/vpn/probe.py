@@ -9,7 +9,7 @@ import requests
 import subprocess
 import multiprocessing as mp
 from urlparse import urljoin
-
+import datetime
 import country_module as convertor
 import centinel.backend
 import centinel.vpn.openvpn as openvpn
@@ -42,7 +42,8 @@ def retrieve_anchor_list(directory):
         query_url = urljoin(query_url, next_url)
     e_time = time.time()
     logging.info("Finishing to fetch RIPE anchors (%s sec)" %(e_time-s_time))
-    landmark_path = os.path.join(directory, "landmarks_list_" + str(time.time()) + ".pickle")
+    current_time = datetime.date.today().strftime("%Y-%m-%d")
+    landmark_path = os.path.join(directory, "landmarks_list_" + str(current_time) + ".pickle")
     with open(landmark_path, "w") as f:
         pickle.dump(anchors, f)
     return anchors
