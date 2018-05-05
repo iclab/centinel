@@ -66,13 +66,13 @@ def send_ping(param):
     times[this_host] = this_delays
     return times
 
-def perform_probe(fname, vpn_provider, target_ip, hostname, target_cnt, anchors):
+def perform_probe(fname, vpn_provider, proxy_ip, hostname, target_cnt, anchors):
     """Send ping 10 times to landmarks and choose the minimum
     :return: times [host] = list()
     """
-    logging.info("Start Probing [%s(%s)]" %(hostname, target_ip))
+    logging.info("Start Probing [%s(%s)]" %(hostname, proxy_ip))
     # ping from local to vpn
-    vp_ping = send_ping((hostname, target_ip))
+    vp_ping = send_ping((hostname, proxy_ip))
     vp_min = min(vp_ping[hostname])
     # get to others
     times = dict()
@@ -93,7 +93,7 @@ def perform_probe(fname, vpn_provider, target_ip, hostname, target_cnt, anchors)
                 times[key].append(this)
     e_time = time.time()
     logging.info("Finish Probing [%s(%s)]: average succeeded pings=%.2f/10 (%.2fsec)"
-                 %(hostname, target_ip, _sum/float(_total), e_time - s_time))
+                 %(hostname, proxy_ip, _sum/float(_total), e_time - s_time))
     pool.close()
     pool.join()
     # store results
@@ -101,11 +101,10 @@ def perform_probe(fname, vpn_provider, target_ip, hostname, target_cnt, anchors)
     keys = sorted(anchors.keys())
     with open(fname, "a") as csv_file:
         writer = csv.writer(csv_file)
-        line = [vpn_provider, hostname, target_ip, target_cnt]
+        line = [vpn_provider, hostname, proxy_ip, target_cnt, e_time-s_time, vp_min]
         for this_anchor in keys:
             if len(times[this_anchor]) > 0:
-                ping_min = min(times[this_anchor])
-                the_ping = (ping_min - vp_min)
+                the_ping = min(times[this_anchor])
             else:
                 the_ping = None
             line.append(the_ping)
@@ -119,12 +118,12 @@ def start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
     ping_path = os.path.join(sanity_path, 'pings')
     if not os.path.exists(ping_path):
         os.makedirs(ping_path)
-    u_time = time.time()
-    fname = os.path.join(ping_path, 'pings_' + vpn_provider + '_' + str(u_time) + '.csv')
+    current_time = datetime.date.today().strftime("%Y-%m-%d")
+    fname = os.path.join(ping_path, 'pings_' + vpn_provider + '_' + str(current_time) + '.csv')
     keys = sorted(anchors.keys())
     with open(fname, "w") as f:
         writer = csv.writer(f)
-        line = ['vpn_provider', 'vp_name', 'vp_ip', 'vpn_cnt']
+        line = ['vpn_provider', 'vp_name', 'vp_ip', 'vpn_cnt', 'time_taken', 'ping_to_vp']
         for k2 in keys:
             line.append(k2)
         writer.writerow(line)
