@@ -7,7 +7,7 @@ import pickle
 import matplotlib
 matplotlib.use('Agg')
 from geopandas import *
-from geopy.distance import vincenty
+from geopy.distance import great_circle
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 import pyproj
@@ -48,10 +48,10 @@ def start_sanity_check(sanity_path, vpn_provider, anchors):
         writer = csv.writer(f)
         writer.writerow(('vpn_provider', 'proxy_name', 'proxy_cnt', 'truth', 'proxy_ip'))
         for output in results:
-            for provider, proxy_name, iso_cnt, tag, ip in output:
-                if tag == True:
-                    new_conf_list.append(proxy_name + '.ovpn')
-                writer.writerow((provider, proxy_name, iso_cnt, tag, ip))
+            provider, proxy_name, iso_cnt, tag, ip  = output
+            if tag == True:
+                new_conf_list.append(proxy_name + '.ovpn')
+            writer.writerow((provider, proxy_name, iso_cnt, tag, ip))
     return new_conf_list
 
 
@@ -80,9 +80,9 @@ def sanity_check(args):
         logging.info("[%s] has %s valid pings from %s anchors"
                      % (proxy_name, len(points), len(pings)))
         proxy_region = checker.get_vpn_region(map)
-        if proxy_region.empty:
+        if (not hasattr(proxy_region, 'empty')) or (proxy_region.empty):
             logging.info("[%s] Failed to get proxy region: %s" % (proxy_name, iso_cnt))
-            return proxy_name, iso_cnt, -2
+            return provider, proxy_name, iso_cnt, -2, proxy_ip
         # tag = checker._sanity_check_with_distance(points, proxy_region, anchors)
         tag = checker._sanity_check_with_speed(points, proxy_region)
         end_time = time.time() - start_time
@@ -98,6 +98,8 @@ class Checker:
     def __init__(self, proxy_id, iso, path, vpn_provider, ip):
         self.vpn_provider = vpn_provider
         self.proxy_id = proxy_id
+        if iso == 'UK': iso = 'GB'
+        if iso == 'LA': iso = 'US'
         self.iso = iso
         self.gps = self._get_gps_of_proxy()
         self.path = path
@@ -178,6 +180,7 @@ class Checker:
         """
         # logging.info("Getting vpn region from a map")
         region = map[map.ISO_A2 == self.iso].geometry
+        cnt = ''
         if region.empty:
             cnt = pycountry.countries.get(alpha2=self.iso)
             region = map[map.NAME == cnt.name].geometry
@@ -244,7 +247,7 @@ class Checker:
             distance = 0
             anchor_gps = (anchors_gps[anchor]['latitude'], anchors_gps[anchor]['longitude'])
             if len(self.gps) != 0:
-                distance = vincenty(anchor_gps, self.gps).km
+                distance = great_circle(anchor_gps, self.gps).km
             points.append((distance, ping_vp_to_anchor, anchor_gps[0], anchor_gps[1], radi, anchor))
         return points
 
