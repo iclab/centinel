@@ -34,7 +34,7 @@ def start_sanity_check(sanity_path, vpn_provider, anchors):
         pass
     pool = mp.Pool(processes=num)
     results = []
-    results.append(pool.map(Checker.sanity_check,
+    results.append(pool.map(sanity_check,
                 [(this, vpn_pings[this], anchors, map, sanity_path) for this in vpn_pings]))
     pool.close()
     pool.join()
@@ -53,6 +53,46 @@ def start_sanity_check(sanity_path, vpn_provider, anchors):
                     new_conf_list.append(proxy_name + '.ovpn')
                 writer.writerow((provider, proxy_name, iso_cnt, tag, ip))
     return new_conf_list
+
+
+def sanity_check(args):
+    """
+    :param proxy_id:(str)
+    :param iso_cnt:(str)
+    :param ping_results:(dict) {anchors: [pings])
+    :param anchors_gps:(dict) {anchors: (lat, long)}
+    :param map:(dataframe)
+    :return:
+    """
+    proxy_name, vp_info, anchors, map, sanity_path = args
+    iso_cnt = vp_info['cnt']
+    pings = vp_info['pings']
+    provider = vp_info['vpn_provider']
+    proxy_ip = vp_info['ip_v4']
+    ping_to_vp = vp_info['ping_to_vp']
+    try:
+        start_time = time.time()
+        checker = Checker(proxy_name, iso_cnt, sanity_path, provider, proxy_ip)
+        points = checker.check_ping_results(pings, anchors, ping_to_vp)
+        if len(points) == 0:
+            logging.info("No valid ping results for %s" % proxy_name)
+            return proxy_name, iso_cnt, -1
+        logging.info("[%s] has %s valid pings from %s anchors"
+                     % (proxy_name, len(points), len(pings)))
+        proxy_region = checker.get_vpn_region(map)
+        if proxy_region.empty:
+            logging.info("[%s] Failed to get proxy region: %s" % (proxy_name, iso_cnt))
+            return proxy_name, iso_cnt, -2
+        # tag = checker._sanity_check_with_distance(points, proxy_region, anchors)
+        tag = checker._sanity_check_with_speed(points, proxy_region)
+        end_time = time.time() - start_time
+        logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
+    except Exception, e:
+        logging.warning("[%s/%s] Failed to sanity check: %s" % (provider, proxy_name, str(e)))
+        return provider, proxy_name, iso_cnt, -3, proxy_ip
+    return provider, proxy_name, iso_cnt, tag, proxy_ip
+
+
 
 class Checker:
     def __init__(self, proxy_id, iso, path, vpn_provider, ip):
@@ -112,44 +152,6 @@ class Checker:
         # print temp.dtypes.index
         map = temp[['ISO_A2', 'NAME', 'SUBREGION', 'geometry']]
         return map
-
-    @staticmethod
-    def sanity_check(args):
-        """
-        :param proxy_id:(str)
-        :param iso_cnt:(str)
-        :param ping_results:(dict) {anchors: [pings])
-        :param anchors_gps:(dict) {anchors: (lat, long)}
-        :param map:(dataframe)
-        :return:
-        """
-        proxy_name, vp_info, anchors, map, sanity_path = args
-        iso_cnt = vp_info['cnt']
-        pings = vp_info['pings']
-        provider = vp_info['vpn_provider']
-        proxy_ip = vp_info['ip_v4']
-        ping_to_vp = vp_info['ping_to_vp']
-        try:
-            start_time = time.time()
-            checker = Checker(proxy_name, iso_cnt, sanity_path, provider, proxy_ip)
-            points = checker.check_ping_results(pings, anchors, ping_to_vp)
-            if len(points) == 0:
-                logging.info("No valid ping results for %s" % proxy_name)
-                return proxy_name, iso_cnt, -1
-            logging.info("[%s] has %s valid pings from %s anchors"
-                         % (proxy_name, len(points), len(pings)))
-            proxy_region = checker.get_vpn_region(map)
-            if proxy_region.empty:
-                logging.info("[%s] Failed to get proxy region: %s" % (proxy_name, iso_cnt))
-                return proxy_name, iso_cnt, -2
-            # tag = checker._sanity_check_with_distance(points, proxy_region, anchors)
-            tag = checker._sanity_check_with_speed(points, proxy_region)
-            end_time = time.time() - start_time
-            logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
-        except Exception, e:
-            logging.warning("[%s/%s] Failed to sanity check: %s" % (provider, proxy_name, str(e)))
-            return provider, proxy_name, iso_cnt, -3, proxy_ip
-        return provider, proxy_name, iso_cnt, tag, proxy_ip
 
     def _sanity_check_with_distance(self, points, proxy_region, anchors):
         """ Given the minimum rtt,
