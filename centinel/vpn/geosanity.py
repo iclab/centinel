@@ -18,10 +18,7 @@ from shapely.geometry import Point, Polygon, box as Box
 import zipfile
 import requests
 import StringIO
-import datetime
 import multiprocessing as mp
-
-
 
 def start_sanity_check(sanity_path, vpn_provider, anchors):
     ping_path = os.path.join(sanity_path, 'pings')
@@ -57,7 +54,6 @@ def start_sanity_check(sanity_path, vpn_provider, anchors):
                 writer.writerow((provider, proxy_name, iso_cnt, tag, ip))
     return new_conf_list
 
-
 class Checker:
     def __init__(self, proxy_id, iso, path, vpn_provider, ip):
         self.vpn_provider = vpn_provider
@@ -83,7 +79,7 @@ class Checker:
                 vp_info[name]['ip_v4'] = row[2]
                 vp_info[name]['cnt'] = row[3]
                 vp_info[name]['time_taken'] = row[4]
-                vp_info[name]['ping_to_vp'] = row[5]
+                vp_info[name]['ping_to_vp'] = float(row[5])
                 vp_info[name]['pings'] = dict()
                 count = 6
                 for key in keys:
@@ -92,44 +88,6 @@ class Checker:
                     vp_info[name]['pings'][key] = rtt
                     count += 1
         return vp_info
-
-    @staticmethod
-    def sanity_check(args):
-        """
-        :param proxy_id:(str)
-        :param iso_cnt:(str)
-        :param ping_results:(dict) {anchors: [pings])
-        :param anchors_gps:(dict) {anchors: (lat, long)}
-        :param map:(dataframe)
-        :return:
-        """
-        proxy_name, vp_info, anchors, map, sanity_path = args
-        iso_cnt = vp_info['cnt']
-        pings = vp_info['pings']
-        provider = vp_info['vpn_provider']
-        proxy_ip = vp_info['ip_v4']
-        try:
-            start_time = time.time()
-            checker = Checker(proxy_name, iso_cnt, sanity_path, provider, proxy_ip)
-            points = checker.check_ping_results(pings, anchors)
-            if len(points) == 0:
-                logging.info("No valid ping results for %s" % proxy_name)
-                return proxy_name, iso_cnt, -1
-            logging.info("[%s] has %s valid pings from %s anchors"
-                         % (proxy_name, len(points), len(pings)))
-            # circles = checker.get_anchors_region(points)
-            proxy_region = checker.get_vpn_region(map)
-            if proxy_region.empty:
-                logging.info("[%s] Fail to get proxy region: %s" % (proxy_name, iso_cnt))
-                return proxy_name, iso_cnt, -2
-            # tag = checker.check_overlap(proxy_region, circles, anchors)
-            tag = checker.check_sol_violation(proxy_region, points)
-            end_time = time.time() - start_time
-            logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
-        except Exception, e:
-            logging.warning("[%s/%s] Failed to sanity check: %s" % (provider, proxy_name, str(e)))
-            return provider, proxy_name, iso_cnt, -1, proxy_ip
-        return provider, proxy_name, iso_cnt, tag, proxy_ip
 
     @staticmethod
     def load_map_from_shapefile(sanity_path):
@@ -154,6 +112,63 @@ class Checker:
         # print temp.dtypes.index
         map = temp[['ISO_A2', 'NAME', 'SUBREGION', 'geometry']]
         return map
+
+    @staticmethod
+    def sanity_check(args):
+        """
+        :param proxy_id:(str)
+        :param iso_cnt:(str)
+        :param ping_results:(dict) {anchors: [pings])
+        :param anchors_gps:(dict) {anchors: (lat, long)}
+        :param map:(dataframe)
+        :return:
+        """
+        proxy_name, vp_info, anchors, map, sanity_path = args
+        iso_cnt = vp_info['cnt']
+        pings = vp_info['pings']
+        provider = vp_info['vpn_provider']
+        proxy_ip = vp_info['ip_v4']
+        ping_to_vp = vp_info['ping_to_vp']
+        try:
+            start_time = time.time()
+            checker = Checker(proxy_name, iso_cnt, sanity_path, provider, proxy_ip)
+            points = checker.check_ping_results(pings, anchors, ping_to_vp)
+            if len(points) == 0:
+                logging.info("No valid ping results for %s" % proxy_name)
+                return proxy_name, iso_cnt, -1
+            logging.info("[%s] has %s valid pings from %s anchors"
+                         % (proxy_name, len(points), len(pings)))
+            proxy_region = checker.get_vpn_region(map)
+            if proxy_region.empty:
+                logging.info("[%s] Failed to get proxy region: %s" % (proxy_name, iso_cnt))
+                return proxy_name, iso_cnt, -2
+            # tag = checker._sanity_check_with_distance(points, proxy_region, anchors)
+            tag = checker._sanity_check_with_speed(points, proxy_region)
+            end_time = time.time() - start_time
+            logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
+        except Exception, e:
+            logging.warning("[%s/%s] Failed to sanity check: %s" % (provider, proxy_name, str(e)))
+            return provider, proxy_name, iso_cnt, -3, proxy_ip
+        return provider, proxy_name, iso_cnt, tag, proxy_ip
+
+    def _sanity_check_with_distance(self, points, proxy_region, anchors):
+        """ Given the minimum rtt,
+        check the distance how far ping reply can go with sol from anchors.
+        If the distance is not overlapped with the claimed country,
+        then we consider it as a lied vp.
+        """
+        circles = self.get_anchors_region(points)
+        tag = self.check_overlap(proxy_region, circles, anchors)
+        return tag
+
+    def _sanity_check_with_speed(self, points, proxy_region):
+        """ Given the minimum rtt
+        and the shortest distance from anchor to the claimed country.
+        we calculated a speed of them. If the speed violates sol,
+        then we consider it as a lied vp.
+        """
+        tag = self.check_sol_violation(points, proxy_region)
+        return tag
 
     def get_vpn_region(self, map):
         """
@@ -189,19 +204,20 @@ class Checker:
     def _disk(self, x, y, radius):
         return Point(x, y).buffer(radius)
 
-    def _calculate_radius(self, time_ms):
+    def _calculate_radius(self, ping):
         """
         (the number got from zack's paper & code)
         Network cable's propagation speed: around 2/3c = 199,862 km/s
         + processing & queueing delay --> maximum speed: 153,000 km/s (0.5104 c)
         """
+        owtt_time = ping/float(2)
         C = 299792 # km/s
         speed = np.multiply(0.5104, C)
-        second = time_ms/float(1000)
+        second = owtt_time/float(1000)
         dist_km = np.multiply(speed, second)
         return dist_km
 
-    def check_ping_results(self, results, anchors_gps):
+    def check_ping_results(self, results, anchors_gps, ping_to_vp):
         """
         Because the equator circumference is 40,074.275km.
         the range cannot be farther than 20,037.135km.
@@ -212,13 +228,13 @@ class Checker:
         points = list()
         for anchor, ping in results.iteritems():
             # remove anomalies
-            if ping == '': continue
-            ping = float(ping)
-            owtt = ping/2.0
-            if owtt < 3.0 or owtt >= 250.0:
-                logging.debug("no valid pings results of anchor %s" %anchor)
+            if ping == None: continue
+            # get ping from vp to anchor
+            ping_vp_to_anchor = ping - ping_to_vp
+            if (ping_vp_to_anchor < 6.0) or (ping_vp_to_anchor >= 500.0):
+                logging.debug("ping anomalies of %s: %s" %(anchor, ping_vp_to_anchor))
                 continue
-            radi = self._calculate_radius(ping)
+            radi = self._calculate_radius(ping_vp_to_anchor)
             if anchor not in anchors_gps:
                 logging.debug("no gps for anchor %s" %anchor)
                 continue
@@ -227,18 +243,17 @@ class Checker:
             anchor_gps = (anchors_gps[anchor]['latitude'], anchors_gps[anchor]['longitude'])
             if len(self.gps) != 0:
                 distance = vincenty(anchor_gps, self.gps).km
-            points.append((distance, ping, anchor_gps[0], anchor_gps[1], radi, anchor))
-        if len(points) == 0:
-            logging.debug("no valid pings results")
-            return []
+            points.append((distance, ping_vp_to_anchor, anchor_gps[0], anchor_gps[1], radi, anchor))
         return points
 
     def _get_sol(self):
+        """ Return speed of lights
+        """
         C = 299792  # km/s
         speed = np.multiply(0.5104, C)
         return speed
 
-    def check_sol_violation(self, proxy_region, points):
+    def check_sol_violation(self, points, proxy_region):
         """
         method 2: instead of checking overlap between proxy region and anchor regions, we check
         the sol violation from the further anchors. Once we seen sol violation, we stop and
@@ -258,18 +273,18 @@ class Checker:
                 proxy_region.geometry.item())
 
             ## min_distance
-            azimu_anchor = self._disk(0, 0, 1*1000)  # km ---> m
+            azimu_anchor = self._disk(0, 0, 1)  # km ---> m
             min_dist = azimu_anchor.distance(azimu_cnt) / float(1000)  # km
 
             # check the violation of speed of light
-            min_owtt = float(min_delay)/0.2
-            speed = dist / min_owtt
+            # speed = dist / min_owtt
+            min_owtt = float(min_delay)/float(2)
             min_speed = min_dist / min_owtt
             sol = self._get_sol()
 
-            logging.info("dist: %s, min_dist: %s, min_delay: %s, speed: %s, min_speed: %s, sol: %s"
-                         %(dist, min_dist, min_delay, speed, min_speed, sol))
-            if speed > sol:
+            logging.info("[%s] min_dist: %s, min_owtt: %s, min_speed: %s, sol: %s"
+                         %(anchor_name, min_dist, min_delay, min_speed, sol))
+            if min_speed > sol:
                 claimed_cnt = False
                 break
         return claimed_cnt
