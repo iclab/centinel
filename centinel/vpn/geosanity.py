@@ -236,7 +236,7 @@ class Checker:
         + processing & queueing delay --> maximum speed: 153,000 km/s (0.5104 c)
         """
         owtt_time = ping/float(2)
-        C = 299792 # km/s
+        C = 299792  # km/s
         speed = np.multiply(0.5104, C)
         second = owtt_time/float(1000)
         dist_km = np.multiply(speed, second)
@@ -300,11 +300,14 @@ class Checker:
             ## min_distance
             azimu_anchor = self._disk(0, 0, 1)  # km ---> m
             min_dist = azimu_anchor.distance(azimu_cnt) / float(1000)  # km
+            if min_dist == 0:
+                min_dist = 0.0001
 
             # check the violation of speed of light
             # speed = dist / min_owtt
             min_owtt = float(min_delay)/float(2)
-            min_speed = min_dist / min_owtt
+            min_owtt_sec = min_owtt/float(1000)  # second
+            min_speed = min_dist/min_owtt_sec  # km/s
             sol = self._get_sol()
 
             logging.info("[%s] min_dist: %s, min_owtt: %s, min_speed: %s, sol: %s"
