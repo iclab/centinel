@@ -48,10 +48,12 @@ def start_sanity_check(sanity_path, vpn_provider, anchors):
         writer = csv.writer(f)
         writer.writerow(('vpn_provider', 'proxy_name', 'proxy_cnt', 'truth', 'proxy_ip'))
         for output in results:
-            provider, proxy_name, iso_cnt, tag, ip  = output
-            if tag == True:
-                new_conf_list.append(proxy_name + '.ovpn')
-            writer.writerow((provider, proxy_name, iso_cnt, tag, ip))
+            if type(output) != list:
+                output = list(output)
+            for provider, proxy_name, iso_cnt, tag, ip in output:
+                if tag == True:
+                    new_conf_list.append(proxy_name + '.ovpn')
+                writer.writerow((provider, proxy_name, iso_cnt, tag, ip))
     return new_conf_list
 
 
@@ -70,40 +72,41 @@ def sanity_check(args):
     provider = vp_info['vpn_provider']
     proxy_ip = vp_info['ip_v4']
     ping_to_vp = vp_info['ping_to_vp']
+    if iso_cnt == '':
+        logging.info("Country code is missed for %s/%s" %(provider, proxy_name))
+        return provider, proxy_name, iso_cnt, -1, proxy_ip
     try:
         start_time = time.time()
         checker = Checker(proxy_name, iso_cnt, sanity_path, provider, proxy_ip)
         points = checker.check_ping_results(pings, anchors, ping_to_vp)
         if len(points) == 0:
             logging.info("No valid ping results for %s" % proxy_name)
-            return proxy_name, iso_cnt, -1
+            return provider, proxy_name, iso_cnt, -2, proxy_ip
         logging.info("[%s] has %s valid pings from %s anchors"
                      % (proxy_name, len(points), len(pings)))
         proxy_region = checker.get_vpn_region(map)
         if (not hasattr(proxy_region, 'empty')) or (proxy_region.empty):
             logging.info("[%s] Failed to get proxy region: %s" % (proxy_name, iso_cnt))
-            return provider, proxy_name, iso_cnt, -2, proxy_ip
+            return provider, proxy_name, iso_cnt, -3, proxy_ip
         # tag = checker._sanity_check_with_distance(points, proxy_region, anchors)
         tag = checker._sanity_check_with_speed(points, proxy_region)
         end_time = time.time() - start_time
         logging.info("[%s] sanity check takes for %.2fms" % (proxy_name, end_time))
     except Exception, e:
         logging.warning("[%s/%s] Failed to sanity check: %s" % (provider, proxy_name, str(e)))
-        return provider, proxy_name, iso_cnt, -3, proxy_ip
+        return provider, proxy_name, iso_cnt, -4, proxy_ip
     return provider, proxy_name, iso_cnt, tag, proxy_ip
-
 
 
 class Checker:
     def __init__(self, proxy_id, iso, path, vpn_provider, ip):
         self.vpn_provider = vpn_provider
         self.proxy_id = proxy_id
-        if iso == 'UK': iso = 'GB'
-        if iso == 'LA': iso = 'US'
         self.iso = iso
         self.gps = self._get_gps_of_proxy()
         self.path = path
         self.ip = ip
+        self.first_trial = True
 
     @staticmethod
     def read_ping_results_from_file(fname, ping_path, anchors):
@@ -191,15 +194,32 @@ class Checker:
         df.crs = {'init': 'epsg:4326'}
         return df
 
+    def _handle_geo_name_error(self):
+        # TODO: ET, UK, LA, IL is not recognized by geolocator.
+        cnt = self.iso
+        if self.iso == 'ET':
+            cnt = 'Ethiopia'
+        if self.iso == 'UK':
+            self.iso = 'GB'
+            cnt = 'GB'
+        if self.iso == 'LA':
+            self.iso = 'US'
+            cnt = 'Los angeles'
+        if self.iso == 'IL':
+            self.iso = 'US'
+            cnt = 'Illinois'
+        return cnt
+
     def _get_gps_of_proxy(self):
         """ Return vp's gps
         """
         vpn_gps = tuple()
+        cnt = self._handle_geo_name_error()
         try:
             geolocator = Nominatim()
-            location = geolocator.geocode(self.iso)
+            location = geolocator.geocode(cnt, timeout=5)
             if location == None:
-                logging.info("Fail to get gps of location %s" %self.iso)
+                logging.info("Fail to get gps of location %s" %cnt)
                 return None
             vpn_gps = (location.latitude, location.longitude)
         except GeocoderTimedOut as e:
