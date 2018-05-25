@@ -373,6 +373,7 @@ class Client:
                                           "%s" % exp)
                 logging.debug("Finished writing external files for %s" % name)
 
+            pcap_file_path = None
             if tcpdump_started:
                 logging.info("Waiting for tcpdump to process packets...")
                 # 5 seconds should be enough. this hasn't been tested on
@@ -465,6 +466,7 @@ class Client:
             logging.info("%s took %s to finish." % (name, time_taken))
 
             logging.debug("Saving %s results to file" % name)
+            result_file_path = None
             try:
                 # pretty printing results will increase file size, but files are
                 # compressed before sending.
@@ -483,6 +485,7 @@ class Client:
                 logging.exception("Error saving results for "
                                   "%s to file: %s" % (name, exception))
             logging.debug("Done saving %s results to file" % name)
+            return (result_file_path, pcap_file_path)
 
     def consolidate_results(self):
         # bundle and compress result files
