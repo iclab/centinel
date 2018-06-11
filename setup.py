@@ -27,7 +27,9 @@ setup(
                       "BeautifulSoup >= 3.2.1",
                       "httplib2 >= 0.9.2",
                       "bs4 >= 0.0.1",
-                      "geopy >= 1.11.0"],
+                      "numpy",
+                      "geopy >= 1.11.0",
+                      "git+https://github.com/jdcc/headless_chrome_pynode#egg=headlesschrome"],
     include_package_data=True,
     entry_points={
         'console_scripts': ['centinel=centinel.cli:run',
