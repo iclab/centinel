@@ -60,7 +60,7 @@ class Configuration:
         self.params['experiments'] = experiments
 
         # server
-        servers = {'server_url': "https://server.iclab.cs.stonybrook.edu:8082",
+        servers = {'server_url': "https://server.iclab.org:8082",
                    'login_file': os.path.join(self.params['user']['centinel_home'], 'login'),
                    # the entire transaction should take less than 30 min
                    'total_timeout': 60*30,
