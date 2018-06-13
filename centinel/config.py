@@ -79,6 +79,8 @@ class Configuration:
             proxy['proxy'] = {proxy['proxy_type']: proxy['proxy_url']}
         self.params['proxy'] = proxy
 
+	self.params['custom_meta'] = {}
+
     def parse_config(self, config_file):
         """
         Given a configuration file, read in and interpret the results

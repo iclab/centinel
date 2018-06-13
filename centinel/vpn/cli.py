@@ -12,6 +12,8 @@ import sys
 import signal
 import dns.resolver
 import json
+import socket
+import shutil
 
 import centinel.backend
 import centinel.client
@@ -22,7 +24,14 @@ import centinel.vpn.ipvanish as ipvanish
 import centinel.vpn.purevpn as purevpn
 import centinel.vpn.vpngate as vpngate
 
+import country_module as convertor
+import probe as probe
+import geosanity as san
+
 PID_FILE = "/tmp/centinel.lock"
+log_file = 'log_vpn.log'
+logging.basicConfig(format="%(asctime)s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
+                    filename=log_file)
 
 
 def parse_args():
@@ -38,6 +47,10 @@ def parse_args():
     parser.add_argument('--key-direction', '-k', dest='key_direction', default=None,
                         help=("Key direction for tls auth, must specify when "
                               "tls-auth is used"))
+    parser.add_argument('--geo-sanity-check', dest='sanity_check',
+                        action="store_true", default=False,
+                        help=("Run sanity check module to remove lying VP servers "
+                              "from our vantage point list"))
     parser.add_argument('--reduce-endpoint', dest='reduce_vp',
                         action="store_true", default=False,
                         help="Reduce the number of vantage points by only connect to "
@@ -46,15 +59,24 @@ def parse_args():
     g1.add_argument('--create-hma-configs', dest='create_HMA',
                     action="store_true",
                     help='Create the openvpn config files for HMA')
+    g1.add_argument('--update-hma-configs', dest='update_HMA',
+                    action="store_true",
+                    help='Update the openvpn config files for HMA')
     g1.add_argument('--create-ipvanish-configs', dest='create_IPVANISH',
                     action='store_true',
                     help='Create the openvpn config files for IPVanish')
+    g1.add_argument('--update-ipvanish-configs', dest='update_IPVANISH',
+                    action="store_true",
+                    help='Update the openvpn config files for IPVANISH')
     g1.add_argument('--create-purevpn-configs', dest='create_PUREVPN',
                     action='store_true',
                     help='Create the openvpn config files for PureVPN')
     g1.add_argument('--create-vpngate-configs', dest='create_VPNGATE',
                     action='store_true',
                     help='Create the openvpn config files for VPN Gate')
+    g1.add_argument('--update-purevpn-configs', dest='update_PUREVPN',
+                    action="store_true",
+                    help='Update the openvpn config files for PUREVPN')
     parser.add_argument('--shuffle', '-s', dest='shuffle_lists',
                         action="store_true", default=False,
                         help='Randomize the order of vantage points')
@@ -66,13 +88,16 @@ def parse_args():
     g2 = parser.add_mutually_exclusive_group(required=True)
     g2.add_argument('--directory', '-d', dest='directory',
                     help='Directory with experiments, config files, etc.')
-    create_conf_help = ('Create configuration files for the given '
+    create_conf_help = ('Create/Update configuration files for the given '
                         'openvpn config files so that we can treat each '
                         'one as a client. The argument should be a '
                         'directory with a subdirectory called openvpn '
                         'that contains the openvpn config files')
     g2.add_argument('--create-config', '-c', help=create_conf_help,
                     dest='create_conf_dir')
+
+    g2.add_argument('--update-config', '-z', help=create_conf_help,
+                    dest='update_conf_dir')
 
     # following args are used to support splitting clients among multiple VMs
     # each running vpn walker will use this to decide which portion of vpn
@@ -86,7 +111,7 @@ def parse_args():
 
 
 def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
-              exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp):
+              exclude_list, shuffle_lists, vm_num, vm_index, reduce_vp, sanity_check):
     """
     For each VPN, check if there are experiments and scan with it if
     necessary
@@ -142,6 +167,24 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
     else:
         logging.warning("Cannot determine VPN provider!")
 
+    # geolocation sanity check
+    if sanity_check:
+        start_time = time.time()
+        sanity_path = os.path.join(directory, '../sanitycheck')
+        if not os.path.exists(sanity_path):
+            os.makedirs(sanity_path)
+        anchors = probe.retrieve_anchor_list(sanity_path)
+        logging.info("Anchors list fetched")
+        # send pings
+        probe.start_probe(conf_list, conf_dir, vpn_dir, auth_file, crt_file, tls_auth,
+                          key_direction, sanity_path, vpn_provider, anchors)
+        # sanity check
+        new_conf_list = san.start_sanity_check(sanity_path, vpn_provider, anchors)
+        logging.info("List size after sanity check. New size: %d" % len(new_conf_list))
+        conf_list = new_conf_list
+        end_time = time.time() - start_time
+        logging.info("Finished sanity check: total elapsed time (%.2f)" %end_time)
+
     # reduce size of list if reduce_vp is true
     if reduce_vp:
         logging.info("Reducing list size. Original size: %d" % len(conf_list))
@@ -151,10 +194,24 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             centinel_config = os.path.join(conf_dir, filename)
             config = centinel.config.Configuration()
             config.parse_config(centinel_config)
-            vp_ip = os.path.splitext(filename)[0]
+            hostname = os.path.splitext(filename)[0]
+            try:
+                vp_ip = socket.gethostbyname(hostname)
+            except Exception as exp:
+                logging.exception("Failed to resolve %s : %s" %(hostname, str(exp)))
+                continue
+            # get country for this vpn
+            with open(centinel_config) as fc:
+                json_data = json.load(fc)
+            country_in_config = ""
+            if 'country' in json_data:
+                country_in_config = json_data['country']
 
             try:
                 meta = centinel.backend.get_meta(config.params, vp_ip)
+                # send country name to be converted to alpha2 code
+                if (len(country_in_config) > 2):
+                    meta['country'] = convertor.country_to_a2(country_in_config)
                 if 'country' in meta and 'as_number' in meta \
                         and meta['country'] and meta['as_number']:
                     country_asn = '_'.join([meta['country'], meta['as_number']])
@@ -240,15 +297,40 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # [ip-address].ovpn, we can extract IP address from filename
         # and use it to geolocate and fetch experiments before connecting
         # to VPN.
-        vpn_address, extension = os.path.splitext(filename)
+        #  filename is [OBhostname].ovpn, we resolved the hostname to ip
+        #  using socket.gethostbyname()
+        hostname = os.path.splitext(filename)[0]
+        vp_ip = "unknown"
+        try:
+            vp_ip = socket.gethostbyname(hostname)
+        except Exception as exp:
+            logging.exception("Failed to resolve %s : %s" %(hostname, str(exp)))
+            continue
+
+        # vpn_address, extension = os.path.splitext(filename)
+        lines = [line.rstrip('\n') for line in open(centinel_config)]
+
+        # get country for this vpn
+        country_in_config = ""
+        # reading the server.txt file in vpns folder
+        for line in lines:
+            if "country" in line:
+                (key, country_in_config) = line.split(': ')
+                country_in_config = country_in_config.replace('\"', '').replace(',', '')
+
         country = None
         try:
-            meta = centinel.backend.get_meta(config.params,
-                                             vpn_address)
+            # we still might need some info from the Maximind query
+            meta = centinel.backend.get_meta(config.params, vp_ip)
+
+            # send country name to be converted to alpha2 code
+            if (len(country_in_config) > 2):
+                meta['country'] = convertor.country_to_a2(country_in_config)
+            # some vpn config files already contain the alpha2 code (length == 2)
             if 'country' in meta:
                 country = meta['country']
         except:
-            logging.exception("%s: Failed to geolocate %s" % (filename, vpn_address))
+            logging.exception("%s: Failed to geolocate %s" % (filename, vp_ip))
 
         if country and exclude_list and country in exclude_list:
             logging.info("%s: Skipping this server (%s)" % (filename, country))
@@ -257,7 +339,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # try setting the VPN info (IP and country) to get appropriate
         # experiemnts and input data.
         try:
-            centinel.backend.set_vpn_info(config.params, vpn_address, country)
+            logging.info("country is %s" % country)
+            centinel.backend.set_vpn_info(config.params, vp_ip, country)
         except Exception as exp:
             logging.exception("%s: Failed to set VPN info: %s" % (filename, exp))
 
@@ -270,7 +353,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         if not experiments_available(config.params):
             logging.info("%s: No experiments available." % filename)
             try:
-                centinel.backend.set_vpn_info(config.params, vpn_address, country)
+                centinel.backend.set_vpn_info(config.params, vp_ip, country)
             except Exception as exp:
                 logging.exception("Failed to set VPN info: %s" % exp)
             continue
@@ -294,6 +377,16 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
                 json.dump(sched_info, f, indent=2)
                 f.truncate()
 
+        # before starting the vpn do the sanity check
+        # create a directory to store the RIPE anchor list and landmarks_list in it so other vpns could use it as well
+        # sanity_path = os.path.join(directory,'../sanitycheck')
+        # if not os.path.exists(sanity_path):
+        #    os.makedirs(sanity_path)
+
+        # fetch the list of RIPE anchors
+        # anchors = probe.get_anchor_list(sanity_path)
+
+        # logging.info("Anchors list fetched")
         logging.info("%s: Starting VPN." % filename)
 
         vpn = openvpn.OpenVPN(timeout=60, auth_file=auth_file, config_file=vpn_config,
@@ -305,6 +398,16 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             vpn.stop()
             time.sleep(5)
             continue
+
+
+            # sending ping to the anchors
+        # ping_result = probe.perform_probe(sanity_path, vpn_provider,vpn_provider,country,anchors)
+
+        # have to do this sanity check if timestamp is a certain value, needs changing
+        # timestamp = time.time()
+        # ping_result['timestamp'] = timestamp
+
+
 
         logging.info("%s: Running Centinel." % filename)
         try:
@@ -329,7 +432,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # try setting the VPN info (IP and country) to the correct address
         # after sync is over.
         try:
-            centinel.backend.set_vpn_info(config.params, vpn_address, country)
+            centinel.backend.set_vpn_info(config.params, vp_ip, country)
         except Exception as exp:
             logging.exception("Failed to set VPN info: %s" % exp)
 
@@ -378,31 +481,49 @@ def signal_handler(signal, frame):
     sys.exit(0)
 
 
-def create_config_files(directory):
+def update_config_files(directory, vp_list):
     """
-    For each VPN file in directory/vpns, create a new configuration
-    file and all the associated directories
-
-    Note: the expected directory structure is
-    args.directory
-    -----vpns (contains the OpenVPN config files
-    -----configs (contains the Centinel config files)
-    -----exps (contains the experiments directories)
-    -----results (contains the results)
-
+    For each VPN file in directory/vpns update its configuration if needed
     :param directory:
+    :param vp_list: the list of vp updates/deletes/additions
+    :return:
     """
-    logging.info("Starting to create config files from openvpn files")
 
+    logging.info("Starting to update config files")
+    server_country = {}
     vpn_dir = return_abs_path(directory, "vpns")
+    print(vpn_dir)
+    new_vpn_dir = return_abs_path(directory, "updated_vpns")
+
+    # read servers.txt to find the country associated with the ip
+    with open(vpn_dir + '/servers.txt') as server_file:
+        servers = server_file.readlines()
+
+    for server_line in servers:
+        server_line = (server_line.split('|'))
+        server_country[server_line[0]] = server_line[1].replace('\n', '')
+
     conf_dir = return_abs_path(directory, "configs")
-    os.mkdir(conf_dir)
     home_dirs = return_abs_path(directory, "home")
-    os.mkdir(home_dirs)
-    for filename in os.listdir(vpn_dir):
+
+    # remove vps
+    for vp in vp_list[0]:
+        os.remove(os.path.join(directory, "vpns/" + vp))
+        shutil.rmtree(os.path.join(directory, "home/" + vp))
+        os.remove(os.path.join(directory, "configs/" + vp))
+
+    # update vps
+    for vp in vp_list[1]:
+        print('in update')
+        os.remove(os.path.join(directory, "vpns/" + vp))
+        shutil.copyfile(os.path.join(directory, "updated_vpns/" + vp), os.path.join(directory, "vpns/" + vp))
+    # add vp
+    for vp in vp_list[2]:
+        print(os.path.join(directory, "vpns/" + vp))
+        shutil.copyfile(os.path.join(directory, "updated_vpns/" + vp), os.path.join(directory, "vpns/" + vp))
         configuration = centinel.config.Configuration()
         # setup the directories
-        home_dir = os.path.join(home_dirs, filename)
+        home_dir = os.path.join(home_dirs, vp)
         os.mkdir(home_dir)
         configuration.params['user']['centinel_home'] = home_dir
         exp_dir = os.path.join(home_dir, "experiments")
@@ -423,9 +544,79 @@ def create_config_files(directory):
 
         configuration.params['server']['verify'] = True
         configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
-
-        conf_file = os.path.join(conf_dir, filename)
+        configuration.params['country'] = server_country[vp.replace('.ovpn', '')]
+        conf_file = os.path.join(conf_dir, vp)
         configuration.write_out_config(conf_file)
+    shutil.rmtree(new_vpn_dir)
+
+
+def create_config_files(directory, provider):
+    """
+    For each VPN file in directory/vpns, create a new configuration
+    file and all the associated directories
+
+    Note: the expected directory structure is
+    args.directory
+    -----vpns (contains the OpenVPN config files
+    -----configs (contains the Centinel config files)
+    -----exps (contains the experiments directories)
+    -----results (contains the results)
+
+    :param directory:
+    """
+    logging.info("Starting to create config files from openvpn files")
+    server_country = {}
+    vpn_dir = return_abs_path(directory, "vpns")
+
+    # read servers.txt to find the country associated with the ip
+    with open(vpn_dir + '/servers.txt') as server_file:
+        servers = server_file.readlines()
+
+    for server_line in servers:
+        server_line = (server_line.split('|'))
+        server_country[server_line[0]] = server_line[1].replace('\n', '')
+
+    conf_dir = return_abs_path(directory, "configs")
+    os.mkdir(conf_dir)
+    home_dirs = return_abs_path(directory, "home")
+    os.mkdir(home_dirs)
+    for filename in os.listdir(vpn_dir):
+        if ('servers' not in filename):
+            configuration = centinel.config.Configuration()
+            # setup the directories
+            home_dir = os.path.join(home_dirs, filename)
+            os.mkdir(home_dir)
+            configuration.params['user']['centinel_home'] = home_dir
+            exp_dir = os.path.join(home_dir, "experiments")
+            os.mkdir(exp_dir)
+            configuration.params['dirs']['experiments_dir'] = exp_dir
+            data_dir = os.path.join(home_dir, "data")
+            os.mkdir(data_dir)
+            configuration.params['dirs']['data_dir'] = data_dir
+            res_dir = os.path.join(home_dir, "results")
+            os.mkdir(res_dir)
+            configuration.params['dirs']['results_dir'] = res_dir
+
+            log_file = os.path.join(home_dir, "centinel.log")
+            configuration.params['log']['log_file'] = log_file
+            login_file = os.path.join(home_dir, "login")
+            configuration.params['server']['login_file'] = login_file
+            configuration.params['user']['is_vpn'] = True
+
+            configuration.params['server']['verify'] = True
+            configuration.params['experiments']['tcpdump_params'] = ["-i", "tun0"]
+            configuration.params['country'] = server_country[filename.replace('.ovpn', '')]
+            hostname = os.path.splitext(filename)[0]
+            vp_ip = "unknown"
+            try:
+                vp_ip = socket.gethostbyname(hostname)
+            except Exception as exp:
+                logging.exception("Failed to resolve %s : %s" % (hostname, str(exp)))
+            configuration.params['custom_meta']['provider'] = provider
+            configuration.params['custom_meta']['hostname'] = hostname
+            configuration.params['custom_meta']['ip_address'] = vp_ip
+            conf_file = os.path.join(conf_dir, filename)
+            configuration.write_out_config(conf_file)
 
 
 def experiments_available(config):
@@ -503,22 +694,44 @@ def _run():
     if args.vm_index < 1 or args.vm_index > args.vm_num:
         print "vm_index value cannot be negative or greater than vm_num!"
         return
-
+    provider = "None"
     if args.create_conf_dir:
         if args.create_HMA:
             hma_dir = return_abs_path(args.create_conf_dir, 'vpns')
+            provider = 'hma'
             hma.create_config_files(hma_dir)
         elif args.create_IPVANISH:
             ipvanish_dir = return_abs_path(args.create_conf_dir, 'vpns')
+            provider = 'ipvanish'
             ipvanish.create_config_files(ipvanish_dir)
         elif args.create_PUREVPN:
             purevpn_dir = return_abs_path(args.create_conf_dir, 'vpns')
+            provider = 'purevpn'
             purevpn.create_config_files(purevpn_dir)
         elif args.create_VPNGATE:
             vpngate_dir = return_abs_path(args.create_conf_dir, 'vpns')
+            provider = 'vpngate'
             vpngate.create_config_files(vpngate_dir)
         # create the config files for the openvpn config files
-        create_config_files(args.create_conf_dir)
+        create_config_files(args.create_conf_dir, provider)
+
+    elif args.update_conf_dir:
+        if args.update_HMA:
+            hma_dir = return_abs_path(args.update_conf_dir, 'vpns')
+            provider = 'hma'
+            vp_list = hma.update_config_files(hma_dir)
+        if args.update_IPVANISH:
+            ipvanish_dir = return_abs_path(args.update_conf_dir, 'vpns')
+            provdier = 'ipvanish'
+            vp_list = ipvanish.update_config_files(ipvanish_dir)
+        if args.update_PUREVPN:
+            purevpn_dir = return_abs_path(args.update_conf_dir, 'vpns')
+            provider = 'purevpn'
+            vp_list = purevpn.update_config_files(purevpn_dir)
+        update_config_files(args.update_conf_dir, vp_list)
+
+        # add new ones
+
     else:
         # sanity check tls_auth and key_direction
         if (args.tls_auth is not None and args.key_direction is None) or \
@@ -531,7 +744,9 @@ def _run():
                   crt_file=args.crt_file, tls_auth=args.tls_auth,
                   key_direction=args.key_direction, exclude_list=args.exclude_list,
                   shuffle_lists=args.shuffle_lists, vm_num=args.vm_num,
-                  vm_index=args.vm_index, reduce_vp=args.reduce_vp)
+                  vm_index=args.vm_index, reduce_vp=args.reduce_vp,
+                  sanity_check=args.sanity_check)
+
 
 if __name__ == "__main__":
     run()
