@@ -251,6 +251,14 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # and use it to geolocate and fetch experiments before connecting
         # to VPN.
         vpn_address, extension = os.path.splitext(filename)
+	
+	hostname = os.path.splitext(filename)[0]
+        vp_ip = "unknown"
+        try:
+ 		vp_ip = socket.gethostbyname(hostname)
+ 	except Exception as exp:
+		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+		
         country = None
         try:
 #            meta = centinel.backend.get_meta(config.params,vpn_address)
@@ -261,7 +269,7 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             if 'country' in meta:
                 country = meta['country']
         except:
-#            logging.exception("%s: Failed to geolocate %s" % (filename, vpn_address))
+#           logging.exception("%s: Failed to geolocate %s" % (filename, vpn_address))
 #	    vpn_address contains the hostname
     	    logging.exception("%s: Failed to geolocate %s" % (filename, vp_ip))
         if country and exclude_list and country in exclude_list:
