@@ -22,6 +22,7 @@ import centinel.vpn.hma as hma
 import centinel.vpn.ipvanish as ipvanish
 import centinel.vpn.purevpn as purevpn
 import centinel.vpn.vpngate as vpngate
+import centinel.vpn.nordvpn as nordvpn
 
 PID_FILE = "/tmp/centinel.lock"
 
@@ -49,6 +50,9 @@ def arg_parser():
     g1.add_argument('--create-ipvanish-configs', dest='create_IPVANISH',
                     action='store_true',
                     help='Create the openvpn config files for IPVanish')
+    g1.add_argument('--create-nordvpn-configs', dest='create_NORDVPN',
+                    action='store_true',
+                    help='Create the openvpn config files for NordVPN')
     g1.add_argument('--create-purevpn-configs', dest='create_PUREVPN',
                     action='store_true',
                     help='Create the openvpn config files for PureVPN')
@@ -157,6 +161,8 @@ def determine_provider(directory):
         vpn_provider = "purevpn"
     elif "vpngate" in directory:
         vpn_provider = "vpngate"
+    elif "nordvpn" in directory:
+        vpn_provider = "nordvpn"
     if vpn_provider:
         logging.info("Detected VPN provider is %s" % vpn_provider)
     else:
@@ -533,6 +539,9 @@ def _run():
         elif args.create_IPVANISH:
             ipvanish_dir = return_abs_path(args.create_conf_dir, 'vpns')
             ipvanish.create_config_files(ipvanish_dir)
+        elif args.create_NORDVPN:
+            nordvpn_dir = return_abs_path(args.create_conf_dir, 'vpns')
+            nordvpn.create_config_files(nordvpn_dir)
         elif args.create_PUREVPN:
             purevpn_dir = return_abs_path(args.create_conf_dir, 'vpns')
             purevpn.create_config_files(purevpn_dir)
