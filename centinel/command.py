@@ -42,6 +42,7 @@ class Command():
         self.exception = None
         self.error = False
         self.notifications = ""
+        self.kill_switch = lambda: None
 
         self.thread = threading.Thread(target=self._invoke_cmd)
         self.thread.setDaemon(1)
