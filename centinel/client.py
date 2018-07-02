@@ -223,7 +223,7 @@ class Client:
         logging.info("Finished running experiments. "
                      "Look in %s for results." % (self.config['dirs']['results_dir']))
 
-    def run_exp(self, name, exp_config=None, schedule_name=None):
+    def run_exp(self, name, exp_config=None, schedule_name=None, throw=False):
         if name[-3:] == ".py":
             name = name[:-3]
         if name not in self.experiments:
@@ -336,14 +336,20 @@ class Client:
             except Exception as exp:
                 logging.exception("Failed to run tcpdump: %s" % (exp,))
 
-            try:
-                # run the experiment
-                exp.run()
-            except Exception as exception:
-                logging.exception("Error running %s: %s" % (name, exception))
-                results["runtime_exception"] = str(exception)
-            except KeyboardInterrupt:
-                logging.warn("Keyboard interrupt received, stopping experiment...")
+            if throw:
+                try:
+                    exp.run()
+                except KeyboardInterrupt:
+                    logging.warn("Keyboard interrupt received, stopping experiment...")
+            else:
+                try:
+                    # run the experiment
+                    exp.run()
+                except Exception as exception:
+                    logging.exception("Error running %s: %s" % (name, exception))
+                    results["runtime_exception"] = str(exception)
+                except KeyboardInterrupt:
+                    logging.warn("Keyboard interrupt received, stopping experiment...")
 
 
             # save any external results that the experiment has generated
