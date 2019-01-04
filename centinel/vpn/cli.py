@@ -144,9 +144,11 @@ def get_vpn_config_files(directory, vm_num, vm_index, shuffle_lists, reduce_vp):
 @contextmanager
 def vpn_connection(timeout=60, **kwargs):
     vpn = openvpn.OpenVPN(timeout=timeout, **kwargs)
-    vpn.start()
-    yield vpn
-    vpn.stop()
+    try:
+        vpn.start()
+        yield vpn
+    finally:
+        vpn.stop()
 
 def vpn_config_file_to_ip(filename):
     return os.path.splitext(filename)[0]

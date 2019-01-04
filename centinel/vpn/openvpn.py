@@ -8,6 +8,13 @@ import subprocess
 import threading
 import time
 
+class VPNConnectionError(Exception):
+    def __init__(self, value, log):
+        self.value = value
+        self.log = log
+
+    def __str__(self):
+        return repr(self.value)
 
 class OpenVPN:
     connected_instances = []
@@ -85,9 +92,11 @@ class OpenVPN:
             # append instance to connected list
             OpenVPN.connected_instances.append(self)
         else:
-            logging.warn("OpenVPN not started")
-            for line in self.notifications.split('\n'):
+            logging.warn('OpenVPN not started')
+            log_lines = self.notifications.split('\n')
+            for line in log_lines:
                 logging.warn("OpenVPN output:\t\t%s" % line)
+            raise VPNConnectionError("OpenVPN not started", log_lines)
 
     def stop(self, timeout=None):
         """

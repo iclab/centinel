@@ -29,7 +29,7 @@ setup(
                       "bs4 >= 0.0.1",
                       "numpy",
                       "geopy >= 1.11.0",
-                      "git+https://github.com/jdcc/headless_chrome_pynode#egg=headlesschrome"],
+                      "headlesschrome >= 0.2.0"],
     include_package_data=True,
     entry_points={
         'console_scripts': ['centinel=centinel.cli:run',
