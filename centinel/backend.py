@@ -314,21 +314,29 @@ def sync(config):
                 result_files.remove(pcap_file)
 
     for path in result_files:
-        try:
-            user.submit_result(path)
-        except Exception, exp:
-            if re.search("418", str(exp)) is not None:
-                logging.error("You have not completed the informed consent "
-                              "and will be unable to submit results or get "
-                              "new experiments until you do.")
-                user.informed_consent()
+        os.rename(path, path.replace('.json.bz2','fin.json.bz2'))
+        os.rename(path, path.replace('.pcap.bz2', 'fin.pcap.bz2'))
+
+        path = path.replace('.json.bz2','fin.json.bz2')
+        path = path.replace('.pcap.bz2','find.pcap.bz2')
+
+        # VPN Users don't need to submit results,
+        if config['user']['is_vpn'] == False:
+            try:
+                user.submit_result(path)
+            except Exception, exp:
+                if re.search("418", str(exp)) is not None:
+                    logging.error("You have not completed the informed consent "
+                                  "and will be unable to submit results or get "
+                                  "new experiments until you do.")
+                    user.informed_consent()
+                    return
+                else:
+                    logging.error("Unable to send result file: %s" % str(exp))
+                raise exp
+            if time.time() - start > config['server']['total_timeout']:
+                logging.error("Interaction with server took too long. Preempting")
                 return
-            else:
-                logging.error("Unable to send result file: %s" % str(exp))
-            raise exp
-        if time.time() - start > config['server']['total_timeout']:
-            logging.error("Interaction with server took too long. Preempting")
-            return
 
     # determine how to sync the experiment files
     # Note: we are not checking anything that starts with _
