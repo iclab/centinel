@@ -314,11 +314,13 @@ def sync(config):
                 result_files.remove(pcap_file)
 
     for path in result_files:
-        os.rename(path, path.replace('.json.bz2','fin.json.bz2'))
-        os.rename(path, path.replace('.pcap.bz2', 'fin.pcap.bz2'))
+        if 'json.bz2' in path:
+            os.rename(path, path.replace('.json.bz2','-fin.json.bz2'))
+        elif 'pcap.bz2' in path:
+            os.rename(path, path.replace('.pcap.bz2', '-fin.pcap.bz2'))
 
-        path = path.replace('.json.bz2','fin.json.bz2')
-        path = path.replace('.pcap.bz2','find.pcap.bz2')
+        path = path.replace('.json.bz2','-fin.json.bz2')
+        path = path.replace('.pcap.bz2','-find.pcap.bz2')
 
         # VPN Users don't need to submit results,
         if config['user']['is_vpn'] == False:
