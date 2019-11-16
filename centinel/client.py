@@ -240,12 +240,14 @@ class Client:
                                   "%s: %s" % (name, exception))
                 results["meta_exception"] = str(exception)
 		
+            if 'country' in results['meta']:
+		results['meta']['maxmind_country'] = results['meta']['country']
 	    if 'hostname' in self.configs['user']:
 		results['meta]['vpn_name'] = self.configs['user']['hostname']
 	    if 'connected_ip' in self.configs['user']:
                 results['meta]['vpn_ip'] = self.configs['user']['connected_ip']
 	    if 'claimed_country' in self.configs['user']:
-		results['meta]['vpn_claimed_country'] = self.configs['user']['claimed_country']
+		results['meta]['country'] = self.configs['user']['claimed_country']
 
             if schedule_name is not None:
                 results["meta"]["schedule_name"] = schedule_name
