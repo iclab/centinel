@@ -153,22 +153,22 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
             config = centinel.config.Configuration()
             config.parse_config(centinel_config)
 	    # filename is the hostname, need to resolve it to get vp_ip
-            hostname = os.path.splitext(filename)[0]
-            vp_ip = "unknown"
-            try:
- 		vp_ip = socket.gethostbyname(hostname)
- 	    except Exception as exp:
- 		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
- 		continue
+            hostname, vp_ip = os.path.splitext(filename)[0].split('_')
+            # vp_ip = "unknown"
+            # try:
+ 	    #	 vp_ip = socket.gethostbyname(hostname)
+ 	    # except Exception as exp:
+ 	    #	 logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+ 	    #	 continue
 	    # before
-#            vp_ip = os.path.splitext(filename)[0]
+            # vp_ip = os.path.splitext(filename)[0]
 
             try:
                 meta = centinel.backend.get_meta(config.params, vp_ip)
                 if 'country' in meta and 'as_number' in meta \
                         and meta['country'] and meta['as_number']:
-		    if 'claimed_country' in self.configs['user']:
-			meta['country'] = self.configs['user']['claimed_country']
+		    if 'claimed_country' in configs['user']:
+			meta['country'] = configs['user']['claimed_country']
                     country_asn = '_'.join([meta['country'], meta['as_number']])
                     if country_asn not in country_asn_set:
                         country_asn_set.add(country_asn)
@@ -254,12 +254,12 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
         # to VPN.
         vpn_address, extension = os.path.splitext(filename)
 	
-	hostname = os.path.splitext(filename)[0]
-        vp_ip = "unknown"
-        try:
- 		vp_ip = socket.gethostbyname(hostname)
- 	except Exception as exp:
-		logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
+	hostname, vp_ip = os.path.splitext(filename)[0].split('_')
+        # vp_ip = "unknown"
+        # try:
+ 	#	vp_ip = socket.gethostbyname(hostname)
+ 	# except Exception as exp:
+	#	logging.exception("Failed to resolve %s : %s" %(hostname,str(exp)))
 		
         country = None
         try:
@@ -270,8 +270,8 @@ def scan_vpns(directory, auth_file, crt_file, tls_auth, key_direction,
 
             if 'country' in meta:
                 country = meta['country']
-	    if 'claimed_country' in self.configs['user']:
-                country = self.configs['user']['claimed_country']
+	    if 'claimed_country' in configs['user']:
+                country = configs['user']['claimed_country']
         except:
 #           logging.exception("%s: Failed to geolocate %s" % (filename, vpn_address))
 #	    vpn_address contains the hostname
