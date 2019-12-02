@@ -302,28 +302,23 @@ def sync(config):
         logging.exception("Unable to create user: %s" % str(exp))
         return
 
-    # send all results (.bz2)
-    result_files = glob.glob(os.path.join(config['dirs']['results_dir'],
-                                          '[!_]*.bz2'))
-
+    # find all result files to upload
+    suffixes = ['.json', '.json.gz', '.json.bz2', '.json.xz']
     # only upload pcaps if it is allowed
-    if config['results']['upload_pcaps'] is False:
-        for pcap_file in glob.glob(os.path.join(config['dirs']['results_dir'],
-                                                '[!_]*.pcap.bz2')):
-            if pcap_file in result_files:
-                result_files.remove(pcap_file)
+    if config['results']['upload_pcaps']:
+        suffixes.extend(['.pcap', '.pcap.gz', '.pcap.bz2', '.pcap.xz'])
 
-    for path in result_files:
-        if 'json.bz2' in path:
-            os.rename(path, path.replace('.json.bz2','-fin.json.bz2'))
-        elif 'pcap.bz2' in path:
-            os.rename(path, path.replace('.pcap.bz2', '-fin.pcap.bz2'))
+    results_dir = config['dirs']['results_dir']
 
-        path = path.replace('.json.bz2','-fin.json.bz2')
-        path = path.replace('.pcap.bz2','-find.pcap.bz2')
+    for suf in suffixes:
+        for path in glob.glob(os.path.join(results_dir, '[!_]*' + suf)):
+            npath = path.replace(suf, '-fin' + suf)
+            os.rename(path, npath)
 
-        # VPN Users don't need to submit results,
-        if config['user']['is_vpn'] == False:
+            # VPN Users don't need to submit results
+            if config['user']['is_vpn']:
+                continue
+
             try:
                 user.submit_result(path)
             except Exception, exp:
@@ -332,10 +327,10 @@ def sync(config):
                                   "and will be unable to submit results or get "
                                   "new experiments until you do.")
                     user.informed_consent()
-                    return
                 else:
                     logging.error("Unable to send result file: %s" % str(exp))
-                raise exp
+                raise
+
             if time.time() - start > config['server']['total_timeout']:
                 logging.error("Interaction with server took too long. Preempting")
                 return

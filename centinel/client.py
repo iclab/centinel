@@ -1,15 +1,17 @@
-import bz2
 import glob
 import imp
 import json
 import logging
 import logging.config
 import os
+import shutil
 import signal
+import subprocess
 import sys
 import tarfile
 import time
 from datetime import datetime
+from select import PIPE_BUF
 
 import centinel
 from centinel.backend import get_meta
@@ -22,16 +24,91 @@ loaded_modules = set()
 tds = []
 
 def signal_handler(signal, frame):
-        logging.warn('Interrupt signal received.')
-        if len(tds) > 0:
-            logging.warn('Stopping TCP dump...')
-            for td in tds:
-                td.stop()
-                td.delete()
-        logging.warn('Exiting...')
-        sys.exit(0)
+    logging.warn('Interrupt signal received.')
+    if len(tds) > 0:
+        logging.warn('Stopping TCP dump...')
+        for td in tds:
+            td.stop()
+            td.delete()
+    logging.warn('Exiting...')
+    sys.exit(0)
 
 signal.signal(signal.SIGTERM, signal_handler)
+
+# this entire class can be replaced with a call to lzma.open() when we
+# drop support for python2.  it only supports "w" and "wb" modes (which
+# are treated the same)
+class LZMAFile:
+    def __init__(self, name, mode):
+        if mode not in ("w", "wb"):
+            raise NotImplementedError
+
+        self.mode = mode
+        self.name = name
+        self.softspace = 0
+        self._cmd = ["xz", "-9"]
+
+        fd = os.open(name, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 438) # 0o666
+        try:
+            self._proc = subprocess.Popen(self._cmd,
+                                          stdin=subprocess.PIPE,
+                                          stdout=fd)
+            self._f = self._proc.stdin
+        finally:
+            # once 'proc' has started, we don't need to hold on to our
+            # handle to the output file anymore
+            os.close(fd)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *dontcare):
+        self.close()
+        return False
+
+    def __iter__(self):
+        return self
+
+    # file API:
+    def close(self):
+        if self._f is not None:
+            try:
+                self._f.close()
+                if self._proc.wait() != 0:
+                    raise subprocess.CalledProcessError(
+                        self._proc.returncode,
+                        self._cmd + [">", self.name]
+                    )
+            finally:
+                self._f = None
+                self._proc = None
+
+    @property
+    def closed(self):
+        return self._f is None
+
+    @property
+    def newlines(self):
+        return None
+
+    # Methods that take arguments forward to _f using the completely
+    # generic '*a, **k' mechanism so that argument processing behavior
+    # will exactly match a real file object.
+    # fileno() not provided
+    def flush(self):               return self._f.flush()
+    # isatty() not provided
+    def next(self):                return self._f.next()
+    def read(self, *a, **k):       return self._f.read(*a, **k)
+    def readline(self, *a, **k):   return self._f.readline(*a, **k)
+    def readlines(self, *a, **k):  return self._f.readlines(*a, **k)
+    def seek(self, *a, **k):       return self._f.seek(*a, **k)
+    def tell(self):                return self._f.tell()
+    def truncate(self, *a, **k):   return self._f.truncate(*a, **k)
+    def write(self, *a, **k):      return self._f.write(*a, **k)
+    def writelines(self, *a, **k): return self._f.writelines(*a, **k)
+    # xreadlines does not forward because that would expose _f
+    def xreadlines(self):          return self.__iter__()
+
 
 class Client:
     def __init__(self, config, vpn_provider=None):
@@ -58,7 +135,7 @@ class Client:
         logging.debug("Finished setting up logging.")
 
     def get_result_file(self, name, start_time):
-        result_file = "%s-%s.json.bz2" % (name, start_time)
+        result_file = "%s-%s.json.xz" % (name, start_time)
         return os.path.join(self.config['dirs']['results_dir'], result_file)
 
     def get_input_file(self, experiment_name):
@@ -358,28 +435,32 @@ class Client:
             # save any external results that the experiment has generated
             # they could be anything that doesn't belong in the json file
             # (e.g. pcap files)
-            # these should all be compressed with bzip2
+            # these should all be compressed
             # the experiment is responsible for giving these a name and
             # keeping a list of files in the json results
             results_dir = self.config['dirs']['results_dir']
             if exp.external_results is not None:
                 logging.debug("Writing external files for %s" % name)
                 for fname, fcontents in exp.external_results.items():
-                    external_file_name = ("external_%s-%s-%s"
-                                          ".bz2" % (name,
-                                                    start_time.strftime("%Y-%m-%dT%H%M%S.%f"),
-                                                    fname))
+                    external_file_name = "external_%s-%s-%s.xz" % (
+                        name,
+                        start_time.strftime("%Y-%m-%dT%H%M%S.%f"),
+                        fname
+                    )
                     external_file_path = os.path.join(results_dir,
                                                       external_file_name)
                     try:
-                        with open(external_file_path, 'w:bz2') as file_p:
-                            data = bz2.compress(fcontents)
-                            file_p.write(data)
-                            logging.debug("External file "
-                                          "%s written successfully" % fname)
+                        with LZMAFile(external_file_path, 'wb') as file_p:
+                            if isinstance(fcontents, unicode):
+                                file_p.write(fcontents.encode("utf-8"))
+                            else:
+                                file_p.write(fcontents)
                     except Exception as exp:
                         logging.exception("Failed to write external file:"
                                           "%s" % exp)
+                    else:
+                        logging.debug("External file %s written successfully"
+                                      % fname)
                 logging.debug("Finished writing external files for %s" % name)
 
             if tcpdump_started:
@@ -389,57 +470,46 @@ class Client:
                 time.sleep(5)
                 td.stop()
                 logging.info("tcpdump stopped.")
-                bz2_successful = False
-                data = None
+
+                pcap_file_name = "pcap_%s-%s.pcap.xz" % (
+                    name, start_time.strftime("%Y-%m-%dT%H%M%S.%f")
+                )
+                pcap_file_path = os.path.join(results_dir,
+                                              pcap_file_name)
                 try:
-                    pcap_file_name = ("pcap_%s-%s.pcap"
-                                      ".bz2" % (name, start_time.strftime("%Y-%m-%dT%H%M%S.%f")))
-                    pcap_file_path = os.path.join(results_dir,
-                                                  pcap_file_name)
+                    with open(td.pcap_filename(), 'rb') as pcap, \
+                         LZMAFile(pcap_file_path, 'wb') as pcap_compress: \
 
-                    with open(pcap_file_path, 'wb') as pcap_bz2, open(td.pcap_filename(), 'rb') as pcap:
-                        compressor = bz2.BZ2Compressor()
-                        compressed_size_so_far = 0
-                        for pcap_data in iter(lambda: pcap.read(10 * 1024), b''):
-                            compressed_chunk  = compressor.compress(pcap_data)
-                            pcap_bz2.write(compressed_chunk)
+                         for chunk in iter(lambda: pcap.read(PIPE_BUF), b''):
+                             pcap_compress.write(chunk)
 
-                            if len(compressed_chunk):
-                                compressed_size_so_far += len(compressed_chunk)
-
-                        compressed_chunk = compressor.flush()
-                        pcap_bz2.write(compressed_chunk)
-
-                        if len(compressed_chunk):
-                            compressed_size_so_far += len(compressed_chunk)
-                        uncompressed_size = os.path.getsize(td.pcap_filename())
-                        compression_ratio = 100 * (float(compressed_size_so_far) / float(uncompressed_size))
-                        logging.debug("pcap BZ2 compression: compressed/uncompressed (ratio):"
-                                      " %d/%d (%.1f%%)" % (compressed_size_so_far, uncompressed_size, compression_ratio))
-
-                    logging.info("Saved pcap to "
-                                 "%s." % pcap_file_path)
-                    bz2_successful = True
                 except Exception as exception:
+                    compression_successful = False
                     logging.exception("Failed to compress and write "
                                       "pcap file: %s" % exception)
-                if not bz2_successful:
+
+                else:
+                    compression_successful = True
+                    uncompressed_size = os.path.getsize(td.pcap_filename())
+                    compressed_size = os.path.getsize(pcap_file_path)
+                    compression_ratio = 100.0 * float(compressed_size) / float(uncompressed_size)
+                    logging.debug("pcap LZMA compression: compressed/uncompressed (ratio):"
+                                  " %d/%d (%.1f%%)" % (compressed_size, uncompressed_size, compression_ratio))
+                    logging.info("Saved pcap to %s." % pcap_file_path)
+
+                if not compression_successful:
                     logging.info("Writing pcap file uncompressed")
+                    # chop off the .xz
+                    pcap_file_path = pcap_file_path[:-3]
                     try:
-                        pcap_file_name = ("pcap_%s-%s"
-                                          ".pcap" % (name, start_time.strftime("%Y-%m-%dT%H%M%S.%f")))
-                        pcap_file_path = os.path.join(results_dir,
-                                                      pcap_file_name)
-
-                        with open(pcap_file_path, 'wb') as pcap_out, open(td.pcap_filename(), 'rb') as pcap:
-                            for pcap_data in iter(lambda: pcap.read(10 * 1024), b''):
-                                pcap_out.write(pcap_data)
-
-                        logging.info("Saved pcap to "
-                                     "%s." % pcap_file_path)
+                        shutil.copyfile(td.pcap_filename(), pcap_file_path)
                     except Exception as exception:
                         logging.exception("Failed to write "
                                           "pcap file: %s" % exception)
+                    else:
+                        logging.info("Saved pcap to "
+                                     "%s." % pcap_file_path)
+
                 # delete pcap data to free up some memory
                 logging.debug("Removing pcap data from memory")
                 td.delete()
@@ -479,24 +549,24 @@ class Client:
                 # compressed before sending.
                 result_file_path = self\
                     .get_result_file(name, start_time.strftime("%Y-%m-%dT%H%M%S.%f"))
-                result_file = bz2.BZ2File(result_file_path, "w")
-                json.dump(results, result_file, indent=2, separators=(',', ': '),
+                with LZMAFile(result_file_path, "w") as result_file:
                     # ignore encoding errors, these will be dealt with on the server
-                    ensure_ascii=False)
-                result_file.close()
-
-                # free up memory by deleting results from memory
-                del results
-                del result_file
+                    json.dump(results, result_file, indent=2, separators=(',', ': '),
+                              ensure_ascii=False)
             except Exception as exception:
                 logging.exception("Error saving results for "
                                   "%s to file: %s" % (name, exception))
-            logging.debug("Done saving %s results to file" % name)
+            else:
+                logging.debug("Done saving %s results to file" % name)
+
+            # free up memory by deleting results from memory
+            del results
+            del result_file
 
     def consolidate_results(self):
         # bundle and compress result files
         result_files = [path for path in glob.glob(
-            os.path.join(self.config['dirs']['results_dir'], '*.json.bz2'))]
+            os.path.join(self.config['dirs']['results_dir'], '*.json.xz'))]
 
         if len(result_files) >= self.config['results']['files_per_archive']:
             logging.info("Compressing and archiving results.")
@@ -508,8 +578,10 @@ class Client:
             results_dir = self.config['dirs']['results_dir']
             for path in result_files:
                 if (files_archived % files_per_archive) == 0:
+                    # results files are already compressed,
+                    # don't bother compressing the tarfile
                     archive_count += 1
-                    archive_filename = "results-%s_%d.tar.bz2" % (
+                    archive_filename = "results-%s_%d.tar" % (
                         datetime.now().strftime("%Y-%m-%dT%H%M%S.%f"), archive_count)
                     archive_file_path = os.path.join(results_dir,
                                                      archive_filename)
@@ -517,7 +589,7 @@ class Client:
                                  " %s" % archive_file_path)
                     if tar_file:
                         tar_file.close()
-                    tar_file = tarfile.open(archive_file_path, "w:bz2")
+                    tar_file = tarfile.open(archive_file_path, "w")
 
                 tar_file.add(path, arcname=os.path.basename(path))
                 os.remove(path)
