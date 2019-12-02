@@ -242,12 +242,12 @@ class Client:
 		
             if 'country' in results['meta']:
 		results['meta']['maxmind_country'] = results['meta']['country']
-	    if 'hostname' in self.configs['user']:
-		results['meta']['vpn_name'] = self.configs['user']['hostname']
-	    if 'connected_ip' in self.configs['user']:
-                results['meta']['vpn_ip'] = self.configs['user']['connected_ip']
-	    if 'claimed_country' in self.configs['user']:
-		results['meta']['country'] = self.configs['user']['claimed_country']
+	    if 'hostname' in self.config['user']:
+		results['meta']['vpn_name'] = self.config['user']['hostname']
+	    if 'connected_ip' in self.config['user']:
+                results['meta']['vpn_ip'] = self.config['user']['connected_ip']
+	    if 'claimed_country' in self.config['user']:
+		results['meta']['country'] = self.config['user']['claimed_country']
 
             if schedule_name is not None:
                 results["meta"]["schedule_name"] = schedule_name
@@ -443,7 +443,7 @@ class Client:
                 # delete pcap data to free up some memory
                 logging.debug("Removing pcap data from memory")
                 td.delete()
-                del data
+                #del data
                 del td
 
             # close input file handle(s)
