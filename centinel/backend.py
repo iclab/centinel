@@ -320,7 +320,7 @@ def sync(config):
                 continue
 
             try:
-                user.submit_result(path)
+                user.submit_result(npath)
             except Exception, exp:
                 if re.search("418", str(exp)) is not None:
                     logging.error("You have not completed the informed consent "
