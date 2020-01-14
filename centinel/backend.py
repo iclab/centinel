@@ -312,8 +312,9 @@ def sync(config):
 
     for suf in suffixes:
         for path in glob.glob(os.path.join(results_dir, '[!_]*' + suf)):
-            npath = path.replace(suf, '-fin' + suf)
-            os.rename(path, npath)
+            if '-fin' not in path:
+                npath = path.replace(suf, '-fin' + suf)
+                os.rename(path, npath)
 
             # VPN Users don't need to submit results
             if config['user']['is_vpn']:
