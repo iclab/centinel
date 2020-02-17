@@ -1,0 +1,36 @@
+{
+  "alexa": {
+    "frequency": 3600,
+    "last_run": 1482570292.891129,
+    "python_exps": {
+      "differentiation.py": {
+        "params": {
+          "sidechannel_port": 55555,
+          "analyzerPort": 56565,
+          "jitter": "True",
+          "replayCodes": {
+            "hangout-video-10secs": "01000",
+            "skype-video-10secs-random": "03001",
+            "skype-video-10secs": "03000",
+            "hangout-video-10secs-random": "01001"
+          },
+          "doNOVPNs": "True",
+          "serialize": "pickle",
+          "doRANDOMs": "True",
+          "endOfTest": "False",
+          "doVPNs": "False",
+          "doTCPDUMP": "False",
+          "maxIdleTime": 30,
+          "tries": 1,
+          "serverInstanceIP": "10.10.10.10",
+          "extraString": "extraString",
+          "timing": "True",
+          "addHeader": "False",
+          "byExternal": "True",
+          "rounds": 1,
+          "sameInstance": "True"
+        }
+      }
+    }
+  }
+}
