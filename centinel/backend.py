@@ -17,7 +17,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 class User:
     def __init__(self, config):
         self.config = config
-        self.verify = self.config['server']['verify']
+        self.verify = False # self.config['server']['verify']
         # check for login file
         if os.path.isfile(config['server']['login_file']):
             with open(config['server']['login_file']) as login_fh:
@@ -435,7 +435,7 @@ def get_meta(config, ip=''):
     try:
         req = requests.get(url,
                            proxies=config['proxy']['proxy'],
-                           verify=config['server']['verify'],
+                           verify=False, #config['server']['verify'],
                            timeout=10)
         req.raise_for_status()
         return req.json()
